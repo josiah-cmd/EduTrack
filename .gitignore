@@ -1,0 +1,10 @@
+# Ignore archives
+*.rar
+*.zip
+*.7z
+*.tar
+*.gz
+
+# Ignore node_modules and vendor if you want
+node_modules/
+vendor/
