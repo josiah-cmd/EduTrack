@@ -45,4 +45,26 @@ class AuthController extends Controller
 
         return response()->json($response);
     }
+
+    public function me(Request $request)
+    {
+        $user = $request->user()->load('teacher.subject');
+
+        $response = [
+            'id'    => $user->id,
+            'name'  => $user->name,
+            'email' => $user->email,
+            'role'  => $user->role,
+        ];
+
+        if ($user->role === 'teacher' && $user->teacher) {
+            $response['teacher'] = [
+                'id'         => $user->teacher->id,
+                'department' => $user->teacher->department,
+                'subject'    => $user->teacher->subject ? $user->teacher->subject->name : null,
+            ];
+        }
+
+        return response()->json($response);
+    }
 }

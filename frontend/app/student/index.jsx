@@ -8,7 +8,7 @@ import { Calendar } from 'react-native-calendars';
 import AnnouncementList from './AnnouncementList';
 import RoomContent from "./RoomContent";
 
-export default function AdminDashboard() {
+export default function StudentDashboard() {
   const router = useRouter();
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -28,6 +28,9 @@ export default function AdminDashboard() {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [joinModalVisible, setJoinModalVisible] = useState(false); // popup for join input
 
+  // ✅ logged-in user
+  const [userName, setUserName] = useState("");
+
   // 🟢 Fetch subjects & student rooms
   useEffect(() => {
     axios
@@ -35,20 +38,29 @@ export default function AdminDashboard() {
       .then((response) => setSubjects(response.data))
       .catch((error) => console.error('Error fetching subjects:', error));
 
-    const fetchRooms = async () => {
+    const fetchRoomsAndUser = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
         if (!token) return;
+
+        // ✅ fetch student rooms
         const res = await axios.get("http://localhost:8000/api/student/rooms", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRooms(res.data || []);
+
+        // ✅ fetch logged-in user
+        const userRes = await axios.get("http://localhost:8000/api/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUserName(userRes.data.name);
+
       } catch (err) {
-        console.error("❌ Error fetching student rooms:", err.response?.data || err.message);
+        console.error("❌ Error fetching student data:", err.response?.data || err.message);
       }
     };
 
-    fetchRooms();
+    fetchRoomsAndUser();
   }, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
@@ -207,6 +219,12 @@ export default function AdminDashboard() {
               <Ionicons name="chatbubble-ellipses-outline" size={20} color={textColor.color} />
               <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
             </TouchableOpacity>
+            <View style={styles.userContainer}>
+              <Text style={styles.userLabel}>👤 Logged in as:</Text>
+              <Text style={styles.userName}>
+                {userName ? userName : "Loading..."}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -500,32 +518,29 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   leftContainer: {
-    width: 280,
+    width: 250,
     alignItems: 'center',
-    padding: 20,
-    borderRightWidth: 1,
-    borderColor: '#333',
+    backgroundColor: '#1f2937',
+    padding: 55,
+    borderRadius: 12,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     marginBottom: 12,
   },
   instructorName: {
-    fontSize: 20,
-    fontWeight: '600',
     color: '#fff',
-    marginBottom: 4,
-  },
-  instructorSection: {
-    fontSize: 16,
-    color: '#bbb',
-    marginBottom: 2,
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   instructorSchedule: {
-    fontSize: 15,
-    color: '#bbb',
+    color: '#ccc',
+    fontSize: 14,
+    marginTop: 4,
+    textAlign: 'center'
   },
   rightContainer: {
     flex: 1,
@@ -570,5 +585,29 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginVertical: 12,
+  },
+  // ✅ new styles for logged-in user
+  userContainer: {
+    marginTop: 340,
+    marginHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  userLabel: {
+    fontSize: 14,
+    color: '#aaa',
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4caf50', // ✅ green highlight for username
+    marginLeft: 6,
   },
 });

@@ -1,9 +1,40 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format } from "date-fns";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { API_URL } from "../lib/axios";
 
 export default function AssignmentDetail({ material, onBack }) {
+  const [submissions, setSubmissions] = useState([]);
+
+  // ✅ Fetch submissions for this assignment
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      try {
+        const role = await AsyncStorage.getItem("role");
+        const token = await AsyncStorage.getItem(`${role}Token`);
+
+        const res = await fetch(`${API_URL}/submissions/${material.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch submissions");
+        const data = await res.json();
+        setSubmissions(data);
+      } catch (err) {
+        console.error("❌ Error fetching submissions:", err.message);
+      }
+    };
+
+    fetchSubmissions();
+  }, [material.id]);
+
   // ✅ Preview file
   const handlePreview = async (id, filename = "file") => {
     try {
@@ -44,7 +75,7 @@ export default function AssignmentDetail({ material, onBack }) {
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename;
+      a.download = filename; // ✅ use original filename
       a.click();
 
       window.URL.revokeObjectURL(url);
@@ -83,6 +114,47 @@ export default function AssignmentDetail({ material, onBack }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ✅ Student submissions list */}
+      <View style={styles.submissionsBox}>
+        <Text style={styles.subHeader}>📑 Student Submissions</Text>
+
+        {submissions.length === 0 ? (
+          <Text style={styles.noSubmissions}>No submissions yet</Text>
+        ) : (
+          <FlatList
+            data={submissions}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.submissionCard}>
+                <Text style={styles.studentName}>
+                  👤 {item.student?.name || "Unknown"}
+                </Text>
+                {/* ✅ Show original filename */}
+                <Text style={styles.fileName}>📄 {item.filename}</Text>
+                <Text style={styles.date}>
+                  🕒 {format(
+                    new Date(item.submitted_at),
+                    "MMM dd, yyyy h:mm a"
+                  )}
+                </Text>
+                <View style={styles.submissionActions}>
+                  <TouchableOpacity
+                    onPress={() => handlePreview(item.id, item.filename)}
+                  >
+                    <Text style={styles.subBtn}>👁 Preview</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDownload(item.id, item.filename)}
+                  >
+                    <Text style={styles.subBtn}>⬇ Download</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -101,9 +173,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 4,
-  },
-  container: {
-    padding: 16,
+    marginBottom: 20,
   },
   backBtn: {
     marginBottom: 12,
@@ -136,5 +206,54 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#007bff",
     marginRight: 20,
+  },
+
+  /* Submissions */
+  submissionsBox: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
+  },
+  subHeader: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  noSubmissions: {
+    color: "#666",
+    fontStyle: "italic",
+  },
+  submissionCard: {
+    backgroundColor: "#f9f9f9",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  studentName: {
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  fileName: {
+    fontSize: 14,
+    color: "#333",
+  },
+  date: {
+    fontSize: 12,
+    color: "#777",
+    marginBottom: 6,
+  },
+  submissionActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  subBtn: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007bff",
+    marginRight: 15,
   },
 });

@@ -11,6 +11,11 @@ import Reports from './Reports';
 import RoomForm from './RoomForm';
 import UserForm from './UserForm';
 
+// ✅ NEW IMPORTS for system settings pages
+import General from './system-settings/General';
+import Maintenance from './system-settings/Maintenance';
+import Security from './system-settings/Security';
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -23,9 +28,15 @@ export default function AdminDashboard() {
   const [totalTeachers, setTotalTeachers] = useState(0);
   const [totalStudents, setTotalStudents] = useState(0);
 
+  // ✅ logged-in user
+  const [userName, setUserName] = useState("");
+
+  // ✅ system settings dropdown toggle
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+
   // ✅ fetch counts
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchStatsAndUser = async () => {
       try {
         const token = await AsyncStorage.getItem("token"); // ✅ get saved token
         if (!token) {
@@ -33,6 +44,7 @@ export default function AdminDashboard() {
           return;
         }
 
+        // fetch stats
         const res = await axios.get("http://localhost:8000/api/stats", {
           headers: { Authorization: `Bearer ${token}` }, // ✅ send token
         });
@@ -40,12 +52,18 @@ export default function AdminDashboard() {
         setTotalUsers(res.data.totalUsers);
         setTotalTeachers(res.data.totalTeachers);
         setTotalStudents(res.data.totalStudents);
+
+        // fetch logged-in user
+        const userRes = await axios.get("http://localhost:8000/api/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUserName(userRes.data.name);
       } catch (err) {
-        console.error("Error fetching stats:", err.response?.data || err.message);
+        console.error("Error fetching stats/user:", err.response?.data || err.message);
       }
     };
 
-    fetchStats();
+    fetchStatsAndUser();
   }, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
@@ -120,15 +138,37 @@ export default function AdminDashboard() {
               <Text style={[styles.sidebarText, textStyles]}>Grades</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('settings')}>
+            {/* ✅ NEW System Settings Dropdown */}
+            <TouchableOpacity style={styles.sidebarItem} onPress={() => setSettingsMenuOpen(!settingsMenuOpen)}>
               <Ionicons name="settings-outline" size={20} color={textColor.color} />
               <Text style={[styles.sidebarText, textStyles]}>System Settings</Text>
+              <Ionicons
+                name={settingsMenuOpen ? "chevron-up-outline" : "chevron-down-outline"}
+                size={16}
+                color={textColor.color}
+              />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('maintenance')}>
-              <Ionicons name="build-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>Maintenance</Text>
-            </TouchableOpacity>
+            {settingsMenuOpen && (
+              <View style={{ marginLeft: 30 }}>
+                <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('general')}>
+                  <Text style={[styles.sidebarText, textStyles]}>General Settings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('maintenance')}>
+                  <Text style={[styles.sidebarText, textStyles]}>System Maintenance</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('security')}>
+                  <Text style={[styles.sidebarText, textStyles]}>Security & Access</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={styles.userContainer}>
+              <Text style={styles.userLabel}>👤 Logged in as:</Text>
+              <Text style={styles.userName}>
+                {userName ? userName : "Loading..."}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -300,20 +340,15 @@ export default function AdminDashboard() {
             </View>
           )}
 
-          {/* System Settings */}
-          {currentView === 'settings' && (
-            <View style={{ padding: 20 }}>
-              <Text style={[styles.mainText, textColor]}>System Settings</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>Adjust system settings here.</Text>
-            </View>
+          {/* ✅ New Settings Pages */}
+          {currentView === 'general' && (
+            <General isDarkMode={isDarkMode} />
           )}
-
-          {/* Maintenance */}
           {currentView === 'maintenance' && (
-            <View style={{ padding: 20 }}>
-              <Text style={[styles.mainText, textColor]}>Maintenance</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>Perform maintenance tasks here.</Text>
-            </View>
+            <Maintenance isDarkMode={isDarkMode} />
+          )}
+          {currentView === 'security' && (
+            <Security isDarkMode={isDarkMode} />
           )}
         </View>
       </View>
@@ -438,5 +473,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'gray',
     marginTop: 6,
+  },
+  // ✅ new styles for logged-in user
+  userContainer: {
+    marginTop: 100,
+    marginHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  userLabel: {
+    fontSize: 14,
+    color: '#aaa',
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4caf50', // ✅ green highlight for username
+    marginLeft: 6,
   },
 });

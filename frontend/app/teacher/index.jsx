@@ -19,32 +19,44 @@ export default function TeacherDashboard() {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [currentView, setCurrentView] = useState('dashboard');
 
+  // ✅ logged-in user
+  const [userName, setUserName] = useState("");
+
   useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token"); // <- must match RoomForm / login
-        console.log("🔑 Token used for fetchRooms:", token);
+  const fetchRoomsAndUser = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      console.log("🔑 Token used for fetchRooms:", token);
 
-        if (!token) {
-          console.warn("⚠️ No auth token found in AsyncStorage");
-          return;
-        }
-
-        // ✅ standardized with api helper
-        const response = await api.get("/teacher/rooms");
-
-        console.log("✅ Teacher rooms fetched:", response.data);
-        setRooms(response.data);
-      } catch (error) {
-        console.error(
-          "Error fetching teacher dashboard rooms:",
-          error.response?.data || error.message
-        );
+      if (!token) {
+        console.warn("⚠️ No auth token found in AsyncStorage");
+        return;
       }
-    };
 
-    fetchRooms();
-  }, []);
+      // ✅ fetch teacher rooms
+      const response = await api.get("/teacher/rooms", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("✅ Teacher rooms fetched:", response.data);
+      setRooms(response.data);
+
+      // ✅ fetch logged-in user (using api helper, not localhost!)
+      const userRes = await api.get("/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("👤 Logged-in user:", userRes.data);
+      setUserName(userRes.data.name);
+
+    } catch (error) {
+      console.error(
+        "Error fetching teacher dashboard:",
+        error.response?.data || error.message
+      );
+    }
+  };
+
+  fetchRoomsAndUser();
+}, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
@@ -113,6 +125,12 @@ export default function TeacherDashboard() {
               <Ionicons name="chatbubbles-outline" size={20} color={textColor.color} />
               <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
             </TouchableOpacity>
+            <View style={styles.userContainer}>
+              <Text style={styles.userLabel}>👤 Logged in as:</Text>
+              <Text style={styles.userName}>
+                {userName ? userName : "Loading..."}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -407,5 +425,29 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16
+  },
+  // ✅ new styles for logged-in user
+  userContainer: {
+    marginTop: 300,
+    marginHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  userLabel: {
+    fontSize: 14,
+    color: '#aaa',
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4caf50', // ✅ green highlight for username
+    marginLeft: 6,
   },
 });
