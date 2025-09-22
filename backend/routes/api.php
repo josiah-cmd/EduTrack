@@ -10,6 +10,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\AssignmentSubmissionController;
+use App\Http\Controllers\MessageController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -56,4 +57,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/submissions/my/{materialId}', [AssignmentSubmissionController::class, 'mySubmissions']); // student view
 
     Route::get('/me', [AuthController::class, 'me']);
+
+    Route::get('/messages/inbox', [MessageController::class, 'inbox']);
+    Route::get('/messages/sent', [MessageController::class, 'sent']);
+    Route::post('/messages', [MessageController::class, 'store']);
+    Route::patch('/messages/{id}/read', [MessageController::class, 'markAsRead']);
+    Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
+    Route::get('/messages', [MessageController::class, 'index']);
 });

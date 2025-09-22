@@ -7,6 +7,7 @@ import { Animated, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInp
 import { Calendar } from 'react-native-calendars';
 import AnnouncementList from './AnnouncementList';
 import RoomContent from "./RoomContent";
+import Messages from "./messages";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -361,6 +362,7 @@ export default function StudentDashboard() {
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Messages</Text>
               <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No messages yet</Text>
+              <Messages isDarkMode={isDarkMode} />
             </View>
           )}
         </View>

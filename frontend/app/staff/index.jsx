@@ -10,6 +10,7 @@ import AnnouncementList from './AnnouncementList'; // ✅ added import
 import Reports from './Reports';
 import RoomForm from './RoomForm';
 import UserForm from './UserForm';
+import Messages from "./messages";
 
 // ✅ NEW IMPORTS for system settings pages
 import General from './system-settings/General';
@@ -103,72 +104,83 @@ export default function AdminDashboard() {
         {/* Sidebar */}
         {sidebarOpen && (
           <View style={[styles.sidebar, isDarkMode ? styles.sidebarDark : styles.sidebarLight]}>
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => { setCurrentView('dashboard'); setSelectedSubject(null); }}>
-              <Ionicons name="home-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>Dashboard</Text>
-            </TouchableOpacity>
+            {/* ✅ Wrap sidebar content in ScrollView */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 30 }}
+            >
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => { setCurrentView('dashboard'); setSelectedSubject(null); }}>
+                <Ionicons name="home-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>Dashboard</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('userManagement')}>
-              <Ionicons name="people-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>User Management</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('userManagement')}>
+                <Ionicons name="people-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>User Management</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('roomManagement')}>
-              <Ionicons name="school-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>Room Management</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('roomManagement')}>
+                <Ionicons name="school-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>Room Management</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('calendar')}>
-              <Ionicons name="calendar-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>Calendar</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('calendar')}>
+                <Ionicons name="calendar-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>Calendar</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('announcements')}>
-              <Ionicons name="megaphone-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>Announcements</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('announcements')}>
+                <Ionicons name="megaphone-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>Announcements</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('reports')}>
-              <Ionicons name="document-text-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>Reports</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('reports')}>
+                <Ionicons name="document-text-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>Reports</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('grades')}>
-              <Ionicons name="bar-chart-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>Grades</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('grades')}>
+                <Ionicons name="bar-chart-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>Grades</Text>
+              </TouchableOpacity>
 
-            {/* ✅ NEW System Settings Dropdown */}
-            <TouchableOpacity style={styles.sidebarItem} onPress={() => setSettingsMenuOpen(!settingsMenuOpen)}>
-              <Ionicons name="settings-outline" size={20} color={textColor.color} />
-              <Text style={[styles.sidebarText, textStyles]}>System Settings</Text>
-              <Ionicons
-                name={settingsMenuOpen ? "chevron-up-outline" : "chevron-down-outline"}
-                size={16}
-                color={textColor.color}
-              />
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('messages')}>
+                <Ionicons name="chatbubbles-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
+              </TouchableOpacity>
 
-            {settingsMenuOpen && (
-              <View style={{ marginLeft: 30 }}>
-                <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('general')}>
-                  <Text style={[styles.sidebarText, textStyles]}>General Settings</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('maintenance')}>
-                  <Text style={[styles.sidebarText, textStyles]}>System Maintenance</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('security')}>
-                  <Text style={[styles.sidebarText, textStyles]}>Security & Access</Text>
-                </TouchableOpacity>
+              {/* ✅ NEW System Settings Dropdown */}
+              <TouchableOpacity style={styles.sidebarItem} onPress={() => setSettingsMenuOpen(!settingsMenuOpen)}>
+                <Ionicons name="settings-outline" size={20} color={textColor.color} />
+                <Text style={[styles.sidebarText, textStyles]}>System Settings</Text>
+                <Ionicons
+                  name={settingsMenuOpen ? "chevron-up-outline" : "chevron-down-outline"}
+                  size={16}
+                  color={textColor.color}
+                />
+              </TouchableOpacity>
+
+              {settingsMenuOpen && (
+                <View style={{ marginLeft: 30 }}>
+                  <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('general')}>
+                    <Text style={[styles.sidebarText, textStyles]}>General Settings</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('maintenance')}>
+                    <Text style={[styles.sidebarText, textStyles]}>System Maintenance</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('security')}>
+                    <Text style={[styles.sidebarText, textStyles]}>Security & Access</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <View style={styles.userContainer}>
+                <Text style={styles.userLabel}>👤 Logged in as:</Text>
+                <Text style={styles.userName}>
+                  {userName ? userName : "Loading..."}
+                </Text>
               </View>
-            )}
-
-            <View style={styles.userContainer}>
-              <Text style={styles.userLabel}>👤 Logged in as:</Text>
-              <Text style={styles.userName}>
-                {userName ? userName : "Loading..."}
-              </Text>
-            </View>
+            </ScrollView>
           </View>
         )}
 
@@ -311,6 +323,14 @@ export default function AdminDashboard() {
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Grades</Text>
               <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No Grades</Text>
+            </View>
+          )}
+
+          {/* Messages */}
+          {currentView === 'messages' && (
+            <View style={{ padding: 20 }}>
+              <Text style={[styles.mainText, textColor]}>Messages</Text>
+              <Messages isDarkMode={isDarkMode} />
             </View>
           )}
 
@@ -476,7 +496,7 @@ const styles = StyleSheet.create({
   },
   // ✅ new styles for logged-in user
   userContainer: {
-    marginTop: 100,
+    marginTop: 70,
     marginHorizontal: 12,
     paddingVertical: 10,
     paddingHorizontal: 14,
