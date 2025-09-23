@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Dimensions, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import RenderHTML from "react-native-render-html";
 import api from "../../lib/axios";
 import MessageDetail from "./MessageDetail";
@@ -13,6 +13,13 @@ export default function Messages({ isDarkMode }) {
   // 🔍 Search & Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [filterUnread, setFilterUnread] = useState(false);
+  const [activeTab, setActiveTab] = useState("inbox"); // ✅ Added active tab
+  const [sortOrder, setSortOrder] = useState("desc"); // ✅ Added sort order (newest/oldest)
+
+  // 🔄 Pagination states
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const textColor = isDarkMode ? "#ffffff" : "#000000";
   const subTextColor = isDarkMode ? "#cccccc" : "#555555";
@@ -22,15 +29,51 @@ export default function Messages({ isDarkMode }) {
   const contentWidth = Dimensions.get("window").width - 60;
 
   useEffect(() => {
-    fetchMessages();
-  }, []);
+    setMessages([]);
+    setPage(1);
+    setHasMore(true);
+    fetchMessages(1, true);
+  }, [activeTab, sortOrder]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (pageNumber = page, reset = false) => {
+    if (loading || (!hasMore && !reset)) return;
+    setLoading(true);
+
     try {
-      const response = await api.get("/messages");
-      setMessages(response.data);
+      const endpoint = activeTab === "sent" ? "/messages/sent" : "/messages";
+      const response = await api.get(endpoint, {
+        params: { page: pageNumber, per_page: 10 }, // ✅ must match backend pagination
+      });
+
+      let data = response.data.data || response.data; // support Laravel resource or plain array
+      const meta = response.data.meta || null;
+
+      // ✅ Apply sort by created_at
+      data = [...data].sort((a, b) => {
+        if (sortOrder === "desc") {
+          return new Date(b.created_at) - new Date(a.created_at);
+        } else {
+          return new Date(a.created_at) - new Date(b.created_at);
+        }
+      });
+
+      if (reset) {
+        setMessages(data);
+      } else {
+        setMessages((prev) => [...prev, ...data]);
+      }
+
+      if (meta) {
+        setHasMore(meta.current_page < meta.last_page);
+        setPage(meta.current_page + 1);
+      } else {
+        setHasMore(data.length > 0);
+        setPage(pageNumber + 1);
+      }
     } catch (error) {
       console.error("Error fetching messages:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,96 +106,138 @@ export default function Messages({ isDarkMode }) {
         Inbox & compose new messages
       </Text>
 
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: buttonBg }]}
-          onPress={() => {
-            setShowForm(false);
-            setSelectedMessage(null);
-          }}
-        >
-          <Text style={styles.buttonText}>Inbox</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: buttonBg }]}
-          onPress={() => {
-            setShowForm(true);
-            setSelectedMessage(null);
-          }}
-        >
-          <Text style={styles.buttonText}>Compose</Text>
-        </TouchableOpacity>
+      {/* ✅ New action rows */}
+      <View style={styles.actionsRow}>
+        {/* LEFT SIDE → Inbox, Sent, Compose */}
+        <View style={styles.leftActions}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              { backgroundColor: activeTab === "inbox" ? "#10b981" : buttonBg },
+            ]}
+            onPress={() => {
+              setActiveTab("inbox");
+              setShowForm(false);
+              setSelectedMessage(null);
+            }}
+          >
+            <Text style={styles.buttonText}>Inbox</Text>
+          </TouchableOpacity>
 
-        {/* 🔍 Search bar */}
-        <TextInput
-          style={[
-            styles.searchInput,
-            {
-              borderColor: subTextColor,
-              color: textColor,
-            },
-          ]}
-          placeholder="Search messages..."
-          placeholderTextColor={subTextColor}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+          <TouchableOpacity
+            style={[
+              styles.button,
+              { backgroundColor: activeTab === "sent" ? "#10b981" : buttonBg },
+            ]}
+            onPress={() => {
+              setActiveTab("sent");
+              setShowForm(false);
+              setSelectedMessage(null);
+            }}
+          >
+            <Text style={styles.buttonText}>Sent</Text>
+          </TouchableOpacity>
 
-        {/* 📌 Filter unread toggle */}
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            { backgroundColor: filterUnread ? "#10b981" : buttonBg },
-          ]}
-          onPress={() => setFilterUnread((prev) => !prev)}
-        >
-          <Text style={styles.buttonText}>Unread</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: buttonBg }]}
+            onPress={() => {
+              setShowForm(true);
+              setSelectedMessage(null);
+            }}
+          >
+            <Text style={styles.buttonText}>Compose</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* RIGHT SIDE → Search, Unread, Sort */}
+        <View style={styles.rightActions}>
+          <TextInput
+            style={[
+              styles.searchInput,
+              {
+                borderColor: subTextColor,
+                color: textColor,
+              },
+            ]}
+            placeholder="Search messages..."
+            placeholderTextColor={subTextColor}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              { backgroundColor: filterUnread ? "#10b981" : buttonBg },
+            ]}
+            onPress={() => setFilterUnread((prev) => !prev)}
+          >
+            <Text style={styles.buttonText}>Unread</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterButton, { backgroundColor: buttonBg }]}
+            onPress={() =>
+              setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))
+            }
+          >
+            <Text style={styles.buttonText}>
+              {sortOrder === "desc" ? "Newest" : "Oldest"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {showForm ? (
         <MessageForm
           onSent={() => {
             setShowForm(false);
-            fetchMessages();
+            fetchMessages(1, true);
           }}
           isDarkMode={isDarkMode}
         />
       ) : (
-        <ScrollView style={styles.inbox}>
-          {filteredMessages.length === 0 ? (
+        <FlatList
+          style={styles.inbox}
+          data={filteredMessages}
+          keyExtractor={(msg) => msg.id.toString()}
+          renderItem={({ item: msg }) => (
+            <TouchableOpacity
+              style={[styles.messageBox, { backgroundColor: cardBg }]}
+              onPress={() => setSelectedMessage(msg)}
+            >
+              <Text style={[styles.subject, { color: textColor }]}>
+                {msg.subject}
+              </Text>
+              <Text style={[styles.sender, { color: subTextColor }]}>
+                From: {msg.sender?.name}
+              </Text>
+
+              <RenderHTML
+                contentWidth={contentWidth}
+                source={{
+                  html:
+                    msg.body && msg.body.length > 80
+                      ? msg.body.substring(0, 80) + "..."
+                      : msg.body,
+                }}
+                baseStyle={{ color: textColor, fontSize: 15, marginTop: 5 }}
+              />
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
             <Text style={[styles.noMsg, { color: subTextColor }]}>
               No Messages
             </Text>
-          ) : (
-            filteredMessages.map((msg) => (
-              <TouchableOpacity
-                key={msg.id}
-                style={[styles.messageBox, { backgroundColor: cardBg }]}
-                onPress={() => setSelectedMessage(msg)}
-              >
-                <Text style={[styles.subject, { color: textColor }]}>
-                  {msg.subject}
-                </Text>
-                <Text style={[styles.sender, { color: subTextColor }]}>
-                  From: {msg.sender?.name}
-                </Text>
-
-                {/* ✅ Render HTML preview (safe) */}
-                <RenderHTML
-                  contentWidth={contentWidth}
-                  source={{
-                    html:
-                      msg.body && msg.body.length > 80
-                        ? msg.body.substring(0, 80) + "..."
-                        : msg.body,
-                  }}
-                  baseStyle={{ color: textColor, fontSize: 15, marginTop: 5 }}
-                />
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
+          }
+          onEndReached={() => fetchMessages(page)}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loading ? (
+              <ActivityIndicator size="small" color={subTextColor} style={{ margin: 10 }} />
+            ) : null
+          }
+        />
       )}
     </View>
   );
@@ -172,11 +257,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 15,
   },
-  actions: {
+  actionsRow: {
     flexDirection: "row",
-    alignItems: "center", // ✅ keep aligned
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 15,
     flexWrap: "wrap",
+  },
+  leftActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  rightActions: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   button: {
     padding: 10,
@@ -192,14 +286,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     height: 40,
-    marginLeft: "auto",
     marginRight: 5,
     minWidth: 100,
-    width: 200, // ✅ ensures it's not too small
+    width: 200,
   },
   filterButton: {
     padding: 10,
     borderRadius: 8,
+    marginLeft: 5,
   },
   inbox: {
     marginTop: 10,

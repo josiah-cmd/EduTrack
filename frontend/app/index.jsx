@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from './lib/axios';
 
@@ -10,10 +10,12 @@ export default function Index() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(""); // ✅ inline error message
   const router = useRouter();
 
   const login = async () => {
     setLoading(true);
+    setErrorMessage(""); // clear old error
     try {
       const res = await api.post("/login", { email, password });
       console.log("Login response:", res.data);
@@ -49,6 +51,16 @@ export default function Index() {
       }
     } catch (e) {
       console.error("Login error:", e.response?.data || e.message);
+
+      // ✅ Show popup alert
+      Alert.alert(
+        "Login Failed",
+        e.response?.data?.message || "Invalid username or password.",
+        [{ text: "OK" }]
+      );
+
+      // ✅ Inline error message
+      setErrorMessage(e.response?.data?.message || "Invalid username or password.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +79,15 @@ export default function Index() {
           <Text style={styles.subtitle}>Learning Management System</Text>
         </View>
 
-        <View style={styles.inputGroup}>
+        {/* ✅ Inline error message */}
+        {errorMessage ? (
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        ) : null}
+
+        <View style={[
+          styles.inputGroup,
+          errorMessage && { borderColor: 'red' } // ✅ turn border red if error
+        ]}>
           <Icon name="mail-outline" size={20} color="#888" style={styles.icon} />
           <TextInput
             style={styles.input}
@@ -80,7 +100,10 @@ export default function Index() {
           />
         </View>
 
-        <View style={styles.inputGroup}>
+        <View style={[
+          styles.inputGroup,
+          errorMessage && { borderColor: 'red' } // ✅ turn border red if error
+        ]}>
           <Icon name="lock-closed-outline" size={20} color="#888" style={styles.icon} />
           <TextInput
             style={styles.input}
@@ -128,10 +151,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 24,
     borderRadius: 16,
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', // ✅ Web shadow
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
     elevation: 6,
-
-    // ✅ Native shadow (for consistency if needed)
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -189,5 +210,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#666',
     fontSize: 13,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 12,
+    textAlign: 'center',
+    fontSize: 14,
   },
 });

@@ -328,7 +328,7 @@ export default function AdminDashboard() {
 
           {/* Messages */}
           {currentView === 'messages' && (
-            <View style={{ padding: 20 }}>
+            <View style={{ flex: 20 }}>
               <Text style={[styles.mainText, textColor]}>Messages</Text>
               <Messages isDarkMode={isDarkMode} />
             </View>

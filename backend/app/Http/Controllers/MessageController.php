@@ -10,31 +10,42 @@ use Illuminate\Support\Facades\Auth;
 class MessageController extends Controller
 {
     /**
-     * Default messages list (Inbox)
+     * Default messages list (Inbox or Sent based on query)
      */
-    public function index()
+    public function index(Request $request)
     {
-        return $this->inbox();
+        $type = $request->query('type', 'inbox'); // default inbox
+        if ($type === 'sent') {
+            return $this->sent($request);
+        }
+        return $this->inbox($request);
     }
 
     /**
      * Get all received messages (Inbox)
      */
-    public function inbox()
+    public function inbox(Request $request = null)
     {
         $user = Auth::user();
+        $sort = $request ? $request->query('sort', 'desc') : 'desc'; // newest first by default
+
+        // ✅ Pagination
+        $page = $request ? (int) $request->query('page', 1) : 1;
+        $limit = $request ? (int) $request->query('limit', 10) : 10;
+
         $messages = Message::where('recipient_email', $user->email)
             ->with('sender')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($msg) {
-                $recipient = User::where('email', $msg->recipient_email)->first();
-                $msg->recipient = $recipient ? [
-                    'name' => $recipient->name,
-                    'email' => $recipient->email,
-                ] : ['name' => null, 'email' => $msg->recipient_email];
-                return $msg;
-            });
+            ->orderBy('created_at', $sort)
+            ->paginate($limit, ['*'], 'page', $page);
+
+        $messages->getCollection()->transform(function ($msg) {
+            $recipient = User::where('email', $msg->recipient_email)->first();
+            $msg->recipient = $recipient ? [
+                'name' => $recipient->name,
+                'email' => $recipient->email,
+            ] : ['name' => null, 'email' => $msg->recipient_email];
+            return $msg;
+        });
 
         return response()->json($messages);
     }
@@ -42,19 +53,26 @@ class MessageController extends Controller
     /**
      * Get all sent messages
      */
-    public function sent()
+    public function sent(Request $request = null)
     {
+        $sort = $request ? $request->query('sort', 'desc') : 'desc'; // newest first by default
+
+        // ✅ Pagination
+        $page = $request ? (int) $request->query('page', 1) : 1;
+        $limit = $request ? (int) $request->query('limit', 10) : 10;
+
         $messages = Message::where('sender_id', Auth::id())
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($msg) {
-                $recipient = User::where('email', $msg->recipient_email)->first();
-                $msg->recipient = $recipient ? [
-                    'name' => $recipient->name,
-                    'email' => $recipient->email,
-                ] : ['name' => null, 'email' => $msg->recipient_email];
-                return $msg;
-            });
+            ->orderBy('created_at', $sort)
+            ->paginate($limit, ['*'], 'page', $page);
+
+        $messages->getCollection()->transform(function ($msg) {
+            $recipient = User::where('email', $msg->recipient_email)->first();
+            $msg->recipient = $recipient ? [
+                'name' => $recipient->name,
+                'email' => $recipient->email,
+            ] : ['name' => null, 'email' => $msg->recipient_email];
+            return $msg;
+        });
 
         return response()->json($messages);
     }
@@ -70,7 +88,7 @@ class MessageController extends Controller
             'body' => 'required|string',
         ]);
 
-        // ✅ EXTRA CHECK: make sure recipient exists in users table
+        // ✅ Make sure recipient exists
         $recipient = User::where('email', $validated['recipient_email'])->first();
         if (!$recipient) {
             return response()->json([
@@ -79,9 +97,10 @@ class MessageController extends Controller
             ], 422);
         }
 
+        // ✅ Allow all roles (admin, staff, teacher, student) to send
         $message = Message::create([
             'sender_id' => auth()->id(),
-            'recipient_email' => $validated['recipient_email'],
+            'recipient_email' => $recipient->email, // ensure valid user
             'subject' => $validated['subject'],
             'body' => $validated['body'],
             'is_read' => false,

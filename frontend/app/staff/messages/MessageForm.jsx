@@ -55,6 +55,14 @@ export default function MessageForm({ onSent, isDarkMode }) {
   };
 
   const handleSend = async () => {
+    // 🔥 force sync latest editor data before sending
+    if (editorRef.current) {
+      const latestData = editorRef.current.getData();
+      if (latestData !== content) {
+        setContent(latestData);
+      }
+    }
+
     if (!selectedRecipient || !subject || !content) {
       alert("All fields are required!");
       return;
@@ -63,8 +71,8 @@ export default function MessageForm({ onSent, isDarkMode }) {
     try {
       await api.post("/messages", {
         recipient_email: selectedRecipient,
-        subject,
-        content,
+        subject: subject,
+        body: content,
       });
       alert("Message sent!");
       setSubject("");
@@ -112,7 +120,9 @@ export default function MessageForm({ onSent, isDarkMode }) {
           <editorModules.CKEditor
             editor={editorModules.ClassicEditor}
             data={content}
-            onReady={(editor) => { editorRef.current = editor; }}
+            onReady={(editor) => {
+              editorRef.current = editor;
+            }}
             onChange={(event, editor) => {
               try {
                 setContent(editor.getData());

@@ -8,6 +8,7 @@ import api from "../lib/axios";
 import AnnouncementForm from './AnnouncementForm';
 import AnnouncementList from './AnnouncementList';
 import RoomContent from "./RoomContent";
+import Messages from "./messages";
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -244,6 +245,7 @@ export default function TeacherDashboard() {
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Messages</Text>
               <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No Messages</Text>
+              <Messages isDarkMode={isDarkMode} />
             </View>
           )}
         </View>
