@@ -11,6 +11,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\AssignmentSubmissionController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\NotificationController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -64,4 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/messages/{id}/read', [MessageController::class, 'markAsRead']);
     Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
     Route::get('/messages', [MessageController::class, 'index']);
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 });

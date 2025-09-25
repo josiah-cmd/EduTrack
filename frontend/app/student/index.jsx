@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // 🟢 Added for token
 import axios from 'axios';
+import { format } from "date-fns";
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Animated, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, FlatList, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import AnnouncementList from './AnnouncementList';
 import RoomContent from "./RoomContent";
@@ -31,6 +32,12 @@ export default function StudentDashboard() {
 
   // ✅ logged-in user
   const [userName, setUserName] = useState("");
+
+  // ✅ notifications
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const bellRef = useRef(null);
 
   // 🟢 Fetch subjects & student rooms
   useEffect(() => {
@@ -62,6 +69,28 @@ export default function StudentDashboard() {
     };
 
     fetchRoomsAndUser();
+  }, []);
+
+  // ✅ fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) return;
+
+        const res = await axios.get("http://localhost:8000/api/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setNotifications(res.data.data);
+        const unread = res.data.data.filter(n => !n.read_at).length;
+        setUnreadCount(unread);
+      } catch (err) {
+        console.error("Error fetching notifications:", err.response?.data || err.message);
+      }
+    };
+
+    fetchNotifications();
   }, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
@@ -124,9 +153,20 @@ export default function StudentDashboard() {
         </View>
 
         <View style={styles.navRight}>
-          <TouchableOpacity>
+          {/* ✅ Notification Bell */}
+          <TouchableOpacity
+            ref={bellRef}
+            onPress={() => setDropdownVisible(!dropdownVisible)}
+            style={{ position: "relative" }}
+          >
             <Ionicons name="notifications-outline" size={30} color={textColor.color} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
+
           <TouchableOpacity onPress={toggleDarkMode}>
             <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={30} color={textColor.color} />
           </TouchableOpacity>
@@ -138,6 +178,29 @@ export default function StudentDashboard() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ✅ Notifications Dropdown */}
+      {dropdownVisible && (
+        <View style={[styles.dropdown, isDarkMode ? styles.dropdownDark : styles.dropdownLight]}>
+          <Text style={[styles.dropdownHeader, textColor]}>Notifications</Text>
+          <FlatList
+            data={notifications}
+            keyExtractor={(item, index) => index.toString()}
+            style={{ maxHeight: 300 }}
+            renderItem={({ item }) => (
+              <View style={styles.notificationItem}>
+                <Text style={[styles.notificationText, textColor]}>{item.title}</Text>
+                <Text style={{ fontSize: 12, color: "gray" }}>
+                  {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
+                </Text>
+              </View>
+            )}
+          />
+          <TouchableOpacity style={styles.dropdownFooter}>
+            <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Profile Modal */}
       <Modal transparent visible={profileModalVisible} animationType="fade" onRequestClose={toggleProfileModal}>
@@ -611,5 +674,70 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#4caf50', // ✅ green highlight for username
     marginLeft: 6,
+  },
+  // ✅ badge
+  badge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "red",
+    borderRadius: 12,
+    paddingHorizontal: 5,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+
+  // ✅ dropdown
+  dropdown: {
+    position: "absolute",
+    top: 50,         // a bit closer to the bell
+    right: 0,        // align with bell instead of floating far
+    width: 300,      // tighter width (was 300)
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 6,
+    zIndex: 100,
+  },
+  dropdownDark: {
+    backgroundColor: "#1e1e1e",
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  dropdownLight: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  dropdownHeader: {
+    fontSize: 16,
+    fontWeight: "bold",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderColor: "#333",
+  },
+  dropdownFooter: {
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  notificationItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#444",
+  },
+  notificationText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

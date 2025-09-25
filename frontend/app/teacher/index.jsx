@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { format } from "date-fns";
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Animated, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, FlatList, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import api from "../lib/axios";
 import AnnouncementForm from './AnnouncementForm';
@@ -23,41 +24,71 @@ export default function TeacherDashboard() {
   // ✅ logged-in user
   const [userName, setUserName] = useState("");
 
+  // ✅ notifications
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+
+  // ✅ refs for positioning
+  const bellRef = useRef(null);
+
   useEffect(() => {
-  const fetchRoomsAndUser = async () => {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      console.log("🔑 Token used for fetchRooms:", token);
+    const fetchRoomsAndUser = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        console.log("🔑 Token used for fetchRooms:", token);
 
-      if (!token) {
-        console.warn("⚠️ No auth token found in AsyncStorage");
-        return;
+        if (!token) {
+          console.warn("⚠️ No auth token found in AsyncStorage");
+          return;
+        }
+
+        // ✅ fetch teacher rooms
+        const response = await api.get("/teacher/rooms", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log("✅ Teacher rooms fetched:", response.data);
+        setRooms(response.data);
+
+        // ✅ fetch logged-in user (using api helper, not localhost!)
+        const userRes = await api.get("/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log("👤 Logged-in user:", userRes.data);
+        setUserName(userRes.data.name);
+
+      } catch (error) {
+        console.error(
+          "Error fetching teacher dashboard:",
+          error.response?.data || error.message
+        );
       }
+    };
 
-      // ✅ fetch teacher rooms
-      const response = await api.get("/teacher/rooms", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log("✅ Teacher rooms fetched:", response.data);
-      setRooms(response.data);
+    fetchRoomsAndUser();
+  }, []);
 
-      // ✅ fetch logged-in user (using api helper, not localhost!)
-      const userRes = await api.get("/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log("👤 Logged-in user:", userRes.data);
-      setUserName(userRes.data.name);
+  // ✅ fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) return;
 
-    } catch (error) {
-      console.error(
-        "Error fetching teacher dashboard:",
-        error.response?.data || error.message
-      );
-    }
-  };
+        const res = await api.get("/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-  fetchRoomsAndUser();
-}, []);
+        setNotifications(res.data.data); // ✅ corrected
+        const unread = res.data.data.filter(n => !n.read_at).length; // ✅ use read_at
+        setUnreadCount(unread);
+      } catch (err) {
+        console.error("Error fetching notifications:", err.response?.data || err.message);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
@@ -85,9 +116,20 @@ export default function TeacherDashboard() {
         </View>
 
         <View style={styles.navRight}>
-          <TouchableOpacity>
+          {/* ✅ Notification Bell with Dropdown */}
+          <TouchableOpacity
+            ref={bellRef}
+            onPress={() => setDropdownVisible(!dropdownVisible)}
+            style={{ position: "relative" }}
+          >
             <Ionicons name="notifications-outline" size={30} color={textColor.color} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
+
           <TouchableOpacity onPress={toggleDarkMode}>
             <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={30} color={textColor.color} />
           </TouchableOpacity>
@@ -96,6 +138,31 @@ export default function TeacherDashboard() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ✅ Notifications Dropdown */}
+      {dropdownVisible && (
+        <View style={[styles.dropdown, isDarkMode ? styles.dropdownDark : styles.dropdownLight]}>
+          <Text style={[styles.dropdownHeader, textColor]}>Notifications</Text>
+          <FlatList
+            data={notifications}
+            keyExtractor={(item, index) => index.toString()}
+            style={{ maxHeight: 300 }}
+            renderItem={({ item }) => (
+              <View style={styles.notificationItem}>
+                {/* ✅ show only notification title */}
+                <Text style={[styles.notificationText, textColor]}>{item.title}</Text>
+                {/* ✅ show formatted created_at */}
+                <Text style={{ fontSize: 12, color: "gray" }}>
+                  {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
+                </Text>
+              </View>
+            )}
+          />
+          <TouchableOpacity style={styles.dropdownFooter}>
+            <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Body */}
       <View style={[styles.body, themeStyles]}>
@@ -451,5 +518,70 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#4caf50', // ✅ green highlight for username
     marginLeft: 6,
+  },
+  // ✅ badge
+  badge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "red",
+    borderRadius: 12,
+    paddingHorizontal: 5,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+
+  // ✅ dropdown
+  dropdown: {
+    position: "absolute",
+    top: 50,         // a bit closer to the bell
+    right: 0,        // align with bell instead of floating far
+    width: 300,      // tighter width (was 300)
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 6,
+    zIndex: 100,
+  },
+  dropdownDark: {
+    backgroundColor: "#1e1e1e",
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  dropdownLight: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  dropdownHeader: {
+    fontSize: 16,
+    fontWeight: "bold",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderColor: "#333",
+  },
+  dropdownFooter: {
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  notificationItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#444",
+  },
+  notificationText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

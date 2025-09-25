@@ -2,20 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from 'axios';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Calendar } from 'react-native-calendars';
+import { useEffect, useRef, useState } from 'react';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AnnouncementForm from './AnnouncementForm';
-import AnnouncementList from './AnnouncementList'; // ✅ added import
+import AnnouncementList from './AnnouncementList';
 import Reports from './Reports';
 import RoomForm from './RoomForm';
 import UserForm from './UserForm';
 import Messages from "./messages";
 
-// ✅ NEW IMPORTS for system settings pages
+// ✅ system settings pages
 import General from './system-settings/General';
 import Maintenance from './system-settings/Maintenance';
 import Security from './system-settings/Security';
+
+// ✅ date-fns import
+import { addDays, endOfMonth, endOfWeek, format, isSameMonth, isToday, startOfMonth, startOfWeek } from "date-fns";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -35,26 +37,33 @@ export default function AdminDashboard() {
   // ✅ system settings dropdown toggle
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
 
+  // ✅ notifications
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+
+  // ✅ refs for positioning
+  const bellRef = useRef(null);
+
+  // ✅ calendar state
+  const [materials, setMaterials] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
   // ✅ fetch counts
   useEffect(() => {
     const fetchStatsAndUser = async () => {
       try {
-        const token = await AsyncStorage.getItem("token"); // ✅ get saved token
-        if (!token) {
-          console.warn("No token found");
-          return;
-        }
+        const token = await AsyncStorage.getItem("token");
+        if (!token) return;
 
-        // fetch stats
         const res = await axios.get("http://localhost:8000/api/stats", {
-          headers: { Authorization: `Bearer ${token}` }, // ✅ send token
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         setTotalUsers(res.data.totalUsers);
         setTotalTeachers(res.data.totalTeachers);
         setTotalStudents(res.data.totalStudents);
 
-        // fetch logged-in user
         const userRes = await axios.get("http://localhost:8000/api/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -67,6 +76,48 @@ export default function AdminDashboard() {
     fetchStatsAndUser();
   }, []);
 
+  // ✅ fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) return;
+
+        const res = await axios.get("http://localhost:8000/api/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setNotifications(res.data.data); // ✅ corrected
+        const unread = res.data.data.filter(n => !n.read_at).length; // ✅ use read_at
+        setUnreadCount(unread);
+      } catch (err) {
+        console.error("Error fetching notifications:", err.response?.data || err.message);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+
+  // ✅ fetch deadlines for calendar
+  useEffect(() => {
+    const fetchDeadlines = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) return;
+
+        const res = await axios.get("http://localhost:8000/api/materials", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setMaterials(res.data);
+      } catch (err) {
+        console.error("Error fetching deadlines:", err.response?.data || err.message);
+      }
+    };
+
+    fetchDeadlines();
+  }, []);
+
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const logout = () => router.replace('/');
@@ -74,6 +125,26 @@ export default function AdminDashboard() {
   const themeStyles = isDarkMode ? styles.dark : styles.light;
   const textColor = { color: isDarkMode ? '#fff' : '#000' };
   const textStyles = isDarkMode ? styles.textLight : styles.textDark;
+
+  // ✅ build weeks for table layout
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(monthStart);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
+
+  const weeks = [];
+  let day = startDate;
+  while (day <= endDate) {
+    weeks.push(
+      Array(7)
+        .fill(0)
+        .map((_, i) => {
+          const newDay = addDays(day, i);
+          return newDay;
+        })
+    );
+    day = addDays(day, 7);
+  }
 
   return (
     <View style={[styles.container, themeStyles]}>
@@ -87,9 +158,20 @@ export default function AdminDashboard() {
         </View>
 
         <View style={styles.navRight}>
-          <TouchableOpacity>
+          {/* ✅ Notification Bell with Dropdown */}
+          <TouchableOpacity
+            ref={bellRef}
+            onPress={() => setDropdownVisible(!dropdownVisible)}
+            style={{ position: "relative" }}
+          >
             <Ionicons name="notifications-outline" size={30} color={textColor.color} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
+
           <TouchableOpacity onPress={toggleDarkMode}>
             <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={30} color={textColor.color} />
           </TouchableOpacity>
@@ -98,6 +180,31 @@ export default function AdminDashboard() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ✅ Notifications Dropdown */}
+      {dropdownVisible && (
+        <View style={[styles.dropdown, isDarkMode ? styles.dropdownDark : styles.dropdownLight]}>
+          <Text style={[styles.dropdownHeader, textColor]}>Notifications</Text>
+          <FlatList
+            data={notifications}
+            keyExtractor={(item, index) => index.toString()}
+            style={{ maxHeight: 300 }}
+            renderItem={({ item }) => (
+              <View style={styles.notificationItem}>
+                {/* ✅ show only notification title */}
+                <Text style={[styles.notificationText, textColor]}>{item.title}</Text>
+                {/* ✅ show formatted created_at */}
+                <Text style={{ fontSize: 12, color: "gray" }}>
+                  {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
+                </Text>
+              </View>
+            )}
+          />
+          <TouchableOpacity style={styles.dropdownFooter}>
+            <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Body */}
       <View style={[styles.body, themeStyles]}>
@@ -233,78 +340,93 @@ export default function AdminDashboard() {
                   borderColor: isDarkMode ? '#333' : '#ccc',
                 }}
               >
-                <Calendar
-                  firstDay={0}
-                  theme={{
-                    backgroundColor: 'transparent',
-                    calendarBackground: 'transparent',
-                    textSectionTitleColor: isDarkMode ? '#bbb' : '#2563eb',
-                    textSectionTitleDisabledColor: isDarkMode ? '#555' : '#999',
-                    dayTextColor: isDarkMode ? '#fff' : '#000',
-                    todayTextColor: isDarkMode ? '#000' : '#000',
-                    todayBackgroundColor: isDarkMode ? '#fdf5d4' : '#fffbe6',
-                    arrowColor: '#2563eb',
-                    monthTextColor: isDarkMode ? '#fff' : '#000',
-                    textDayFontSize: 14,
-                    textMonthFontSize: 20,
-                    textDayHeaderFontSize: 14,
-                    'stylesheet.calendar.header': {
-                      header: {
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 10,
-                        paddingHorizontal: 10,
-                      },
-                      monthText: {
-                        fontSize: 20,
-                        fontWeight: 'bold',
-                        color: isDarkMode ? '#fff' : '#000',
-                      },
-                    },
-                  }}
-                  disableAllTouchEventsForDisabledDays={true}
-                  dayComponent={({ date, state }) => {
-                    const isToday =
-                      date.dateString === new Date().toISOString().split('T')[0];
-                    return (
-                      <View
-                        style={{
-                          width: 46,
-                          height: 46,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderWidth: 1,
-                          borderColor: isDarkMode ? '#333' : '#ddd',
-                          backgroundColor: isToday
-                            ? isDarkMode
-                              ? '#fdf5d4'
-                              : '#fffbe6'
-                            : isDarkMode
-                              ? '#1a1a1a'
-                              : '#fff',
-                        }}
-                      >
-                        <Text
+                {/* ✅ Calendar Header */}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <TouchableOpacity onPress={() => setCurrentMonth(addDays(currentMonth, -30))}>
+                    <Ionicons name="chevron-back" size={24} color={textColor.color} />
+                  </TouchableOpacity>
+                  <Text style={[{ fontSize: 20, fontWeight: "bold" }, textColor]}>
+                    {format(currentMonth, "MMMM yyyy")}
+                  </Text>
+                  <TouchableOpacity onPress={() => setCurrentMonth(addDays(currentMonth, 30))}>
+                    <Ionicons name="chevron-forward" size={24} color={textColor.color} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* ✅ Weekdays Header */}
+                <View style={{ flexDirection: "row" }}>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                    <Text
+                      key={d}
+                      style={{
+                        flex: 1,
+                        textAlign: "center",
+                        fontWeight: "bold",
+                        color: isDarkMode ? "#bbb" : "#2563eb",
+                        paddingVertical: 5,
+                      }}
+                    >
+                      {d}
+                    </Text>
+                  ))}
+                </View>
+
+                {/* ✅ Calendar Grid */}
+                {weeks.map((week, wi) => (
+                  <View key={wi} style={{ flexDirection: "row" }}>
+                    {week.map((day, di) => {
+                      const dayStr = format(day, "yyyy-MM-dd");
+                      const dayMaterials = materials.filter(m => m.deadline && format(new Date(m.deadline), "yyyy-MM-dd") === dayStr);
+
+                      return (
+                        <View
+                          key={di}
                           style={{
-                            fontSize: 14,
-                            fontWeight: isToday ? 'bold' : 'normal',
-                            color:
-                              state === 'disabled'
-                                ? isDarkMode
-                                  ? '#555'
-                                  : '#ccc'
-                                : isDarkMode
-                                  ? '#fff'
-                                  : '#000',
+                            flex: 1,
+                            minHeight: 80,
+                            borderWidth: 1,
+                            borderColor: isDarkMode ? "#333" : "#ddd",
+                            padding: 4,
+                            backgroundColor: isToday(day)
+                              ? isDarkMode ? "#fdf5d4" : "#fffbe6"
+                              : isSameMonth(day, currentMonth)
+                                ? (isDarkMode ? "#1a1a1a" : "#fff")
+                                : (isDarkMode ? "#111" : "#f9f9f9"),
                           }}
                         >
-                          {date.day}
-                        </Text>
-                      </View>
-                    );
-                  }}
-                />
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: isToday(day) ? "bold" : "normal",
+                              color: isSameMonth(day, currentMonth)
+                                ? (isDarkMode ? "#fff" : "#000")
+                                : "#999",
+                              marginBottom: 2,
+                            }}
+                          >
+                            {format(day, "d")}
+                          </Text>
+                          {dayMaterials.map((m, i) => (
+                            <Text
+                              key={i}
+                              numberOfLines={1}
+                              style={{
+                                fontSize: 10,
+                                backgroundColor: m.type === "assignment" ? "#e11d48" : "#2563eb",
+                                color: "#fff",
+                                borderRadius: 4,
+                                paddingHorizontal: 2,
+                                marginTop: 2,
+                              }}
+                            >
+                              {m.title}
+                            </Text>
+                          ))}
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
               </View>
             </View>
           )}
@@ -468,7 +590,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
 
-  // ✅ new styles for stats
+  // ✅ stats
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -494,7 +616,8 @@ const styles = StyleSheet.create({
     color: 'gray',
     marginTop: 6,
   },
-  // ✅ new styles for logged-in user
+
+  // ✅ user info
   userContainer: {
     marginTop: 70,
     marginHorizontal: 12,
@@ -517,5 +640,71 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#4caf50', // ✅ green highlight for username
     marginLeft: 6,
+  },
+
+  // ✅ badge
+  badge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "red",
+    borderRadius: 12,
+    paddingHorizontal: 5,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+
+  // ✅ dropdown
+  dropdown: {
+    position: "absolute",
+    top: 50,         // a bit closer to the bell
+    right: 0,        // align with bell instead of floating far
+    width: 300,      // tighter width (was 300)
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 6,
+    zIndex: 100,
+  },
+  dropdownDark: {
+    backgroundColor: "#1e1e1e",
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  dropdownLight: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  dropdownHeader: {
+    fontSize: 16,
+    fontWeight: "bold",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderColor: "#333",
+  },
+  dropdownFooter: {
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  notificationItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#444",
+  },
+  notificationText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

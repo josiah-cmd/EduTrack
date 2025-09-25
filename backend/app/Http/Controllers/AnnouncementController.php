@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Announcement;
 use Illuminate\Http\Request;
+use App\Services\NotificationService; // ✅ added
+use App\Models\User;
 
 class AnnouncementController extends Controller
 {
@@ -47,6 +49,23 @@ class AnnouncementController extends Controller
             'content' => $validated['content'],
             'target_role' => $targetRole,
         ]);
+
+        // ✅ Send notification
+        $recipients = User::where(function ($q) use ($targetRole) {
+            if ($targetRole === 'all') {
+                $q->whereIn('role', ['admin','staff','teacher','student']);
+            } elseif ($targetRole === 'student') {
+                $q->where('role', 'student');
+            }
+        })->pluck('id');
+
+        NotificationService::notify(
+            'announcement',
+            'New Announcement',
+            $validated['content'],
+            $user->id,
+            $recipients
+        );
 
         return response()->json([
             'message' => 'Announcement created successfully',

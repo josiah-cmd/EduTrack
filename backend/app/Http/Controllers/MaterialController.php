@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Material;
+use App\Models\Notification; // ✅ for notifications
+use App\Models\User; // ✅ to target recipients
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -30,6 +32,26 @@ class MaterialController extends Controller
             'file_path' => $path,
             'deadline' => $request->deadline
         ]);
+
+        // ✅ Create notifications for students in the same section
+        $teacher = Auth::user();
+        $recipients = User::where('role', 'student')
+            ->where('section_id', $teacher->section_id) // adjust if section relation is different
+            ->get();
+
+        foreach ($recipients as $recipient) {
+            Notification::create([
+                'user_id' => $recipient->id,
+                'type' => 'material',
+                'title' => $material->title,
+                'message' => "A new {$material->type} has been uploaded by {$teacher->name}.",
+                'data' => json_encode([
+                    'material_id' => $material->id,
+                    'deadline' => $material->deadline,
+                ]),
+                'is_read' => false,
+            ]);
+        }
 
         return response()->json(['message' => 'Material uploaded successfully!', 'material' => $material]);
     }

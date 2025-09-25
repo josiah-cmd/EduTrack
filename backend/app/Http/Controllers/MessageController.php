@@ -6,6 +6,7 @@ use App\Models\Message;
 use App\Models\User; // ✅ needed for recipient lookup
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\NotificationService; // ✅ added
 
 class MessageController extends Controller
 {
@@ -105,6 +106,15 @@ class MessageController extends Controller
             'body' => $validated['body'],
             'is_read' => false,
         ]);
+
+        // ✅ Send notification to recipient
+        NotificationService::notify(
+            'message',
+            $validated['subject'],
+            $validated['body'],
+            auth()->id(),
+            [$recipient->id]
+        );
 
         return response()->json([
             'success' => true,
