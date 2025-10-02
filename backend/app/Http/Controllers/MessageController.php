@@ -108,11 +108,14 @@ class MessageController extends Controller
         ]);
 
         // ✅ Send notification to recipient
+        $sender = auth()->user();
+        $role = $sender->role ?? 'User';
+
         NotificationService::notify(
             'message',
-            $validated['subject'],
-            $validated['body'],
-            auth()->id(),
+            '[MESSAGE] ' . $validated['subject'],   // ✅ clean title
+            "A new message from {$role} ({$sender->name})", // ✅ clean body (NO HTML)
+            $sender->id,
             [$recipient->id]
         );
 

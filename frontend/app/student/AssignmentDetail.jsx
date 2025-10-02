@@ -33,7 +33,7 @@ export default function AssignmentDetail({ material, onBack, room }) {
         if (!file) return alert("Pick a file first");
 
         const formData = new FormData();
-        formData.append("material_id", material.id); // ✅ changed from assignment_id
+        formData.append("material_id", material?.id || ""); // ✅ safe check
 
         let fileData;
         try {
@@ -130,6 +130,8 @@ export default function AssignmentDetail({ material, onBack, room }) {
             const role = await AsyncStorage.getItem("role");
             const token = await AsyncStorage.getItem(`${role}Token`);
 
+            if (!material?.id) return; // ✅ prevent crash
+
             const res = await api.get(`/submissions/my/${material.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -146,6 +148,18 @@ export default function AssignmentDetail({ material, onBack, room }) {
         }
     }, [material]);
 
+    // ✅ Guard clause: stop rendering if no material yet
+    if (!material) {
+        return (
+            <View style={styles.wrapper}>
+                <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+                    <Text style={styles.backText}>⬅ Back</Text>
+                </TouchableOpacity>
+                <Text>Loading assignment...</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.wrapper}>
             <TouchableOpacity onPress={onBack} style={styles.backBtn}>
@@ -153,24 +167,26 @@ export default function AssignmentDetail({ material, onBack, room }) {
             </TouchableOpacity>
 
             <View style={styles.containerBox}>
-                <Text style={styles.title}>{material.title}</Text>
-                <Text style={styles.desc}>{material.description}</Text>
-                {material.deadline && (
-                    <Text style={styles.deadline}>⏳ Deadline: {format(new Date(material.deadline), "MMM dd, yyyy h:mm a")}</Text>
+                <Text style={styles.title}>{material?.title || "No Title"}</Text>
+                <Text style={styles.desc}>{material?.description || "No Description"}</Text>
+                {material?.deadline && (
+                    <Text style={styles.deadline}>
+                        ⏳ Deadline: {format(new Date(material.deadline), "MMM dd, yyyy h:mm a")}
+                    </Text>
                 )}
 
                 <View style={styles.actions}>
-                    <TouchableOpacity onPress={() => handlePreview(material.id, material.title)}>
+                    <TouchableOpacity onPress={() => material && handlePreview(material.id, material?.title || "file")}>
                         <Text style={styles.actionBtn}>👁 Preview</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDownload(material.id, material.title)}>
+                    <TouchableOpacity onPress={() => material && handleDownload(material.id, material?.title || "download")}>
                         <Text style={styles.actionBtn}>⬇ Download</Text>
                     </TouchableOpacity>
                 </View>
             </View>
 
             {/* Student Submission Upload */}
-            {material.type === "assignment" && (
+            {material?.type === "assignment" && (
                 <View style={styles.formCard}>
                     <Text style={styles.formHeader}>📤 Submit Your Work</Text>
 
@@ -209,7 +225,9 @@ export default function AssignmentDetail({ material, onBack, room }) {
                         renderItem={({ item }) => (
                             <View style={styles.submissionItem}>
                                 <Text style={styles.subFile}>📄 {item.filename}</Text>
-                                <Text style={styles.subDate}>🕒 {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}</Text>
+                                <Text style={styles.subDate}>
+                                    🕒 {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
+                                </Text>
                             </View>
                         )}
                     />

@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Material;
-use App\Models\Notification; // ✅ for notifications
 use App\Models\User; // ✅ to target recipients
+use App\Models\Room; // ✅ to fetch room info
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Services\NotificationService; // ✅ use the same service
 
 class MaterialController extends Controller
 {
@@ -19,7 +20,8 @@ class MaterialController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'file' => 'required|mimes:pdf,doc,docx,txt,ppt,pptx,xls,xlsx|max:20480',
-            'deadline' => 'nullable|date'
+            'deadline' => 'nullable|date',
+            'room_id' => 'required|exists:rooms,id' // ✅ ensure material belongs to a room
         ]);
 
         $path = $request->file('file')->store('uploads', 'public');
@@ -30,28 +32,24 @@ class MaterialController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'file_path' => $path,
-            'deadline' => $request->deadline
+            'deadline' => $request->deadline,
+            'room_id' => $request->room_id // ✅ link material to specific room
         ]);
 
-        // ✅ Create notifications for students in the same section
+        // ✅ Create notifications for students in the same room
         $teacher = Auth::user();
-        $recipients = User::where('role', 'student')
-            ->where('section_id', $teacher->section_id) // adjust if section relation is different
-            ->get();
+        $room = Room::with('students')->findOrFail($request->room_id); // assumes Room has students() relation
 
-        foreach ($recipients as $recipient) {
-            Notification::create([
-                'user_id' => $recipient->id,
-                'type' => 'material',
-                'title' => $material->title,
-                'message' => "A new {$material->type} has been uploaded by {$teacher->name}.",
-                'data' => json_encode([
-                    'material_id' => $material->id,
-                    'deadline' => $material->deadline,
-                ]),
-                'is_read' => false,
-            ]);
-        }
+        $recipients = $room->students->pluck('id')->toArray(); // ✅ all students in this room only
+
+        NotificationService::notify(
+            'material',
+            $material->title,
+            "A new {$material->type} has been uploaded by {$teacher->name}.",
+            $teacher->id,
+            $recipients,
+            $room->section_id // ✅ use room's section
+        );
 
         return response()->json(['message' => 'Material uploaded successfully!', 'material' => $material]);
     }

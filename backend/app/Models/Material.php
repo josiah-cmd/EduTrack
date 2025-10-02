@@ -15,10 +15,16 @@ class Material extends Model
         'title',
         'description',
         'file_path',
-        'deadline'
+        'deadline',
+        'room_id' // ✅ added so it links to a specific room
     ];
 
     public function teacher() {
         return $this->belongsTo(User::class, 'teacher_id');
+    }
+
+    // 🔹 Room that this material belongs to
+    public function room() {
+        return $this->belongsTo(Room::class);
     }
 }

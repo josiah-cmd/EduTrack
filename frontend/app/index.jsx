@@ -68,6 +68,17 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
+      {/* ===== background image ===== */}
+      <Image
+        source={require('../assets/dwad-image.png')}
+        style={styles.bgImage}
+        resizeMode="cover"
+        accessibilityLabel="background-image"
+      />
+      {/* ===== dark overlay ===== */}
+      <View style={styles.overlay} />
+      {/* ============================================================== */}
+
       <View style={styles.card}>
         <View style={styles.logoContainer}>
           <Image
@@ -139,12 +150,33 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    /* ===== CHANGED: make container transparent so bg image shows through ===== */
+    backgroundColor: 'transparent', // <-- was '#f9fafb' before (changed)
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
     minHeight: '100vh',
   },
+  /* ===== ADDED: style for the bg image ===== */
+  bgImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    zIndex: -2,
+  },
+  /* ===== ADDED: dark overlay ===== */
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.4)', // semi-transparent black
+    zIndex: -1,
+  },
+  /* ====================================================================== */
   card: {
     width: '100%',
     maxWidth: 400,
@@ -157,6 +189,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
+    /* ✅ DWAD theme border */
+    borderWidth: 2,
+    borderColor: '#006400',
   },
   logoContainer: {
     alignItems: 'center',
@@ -170,11 +205,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#2563eb',
+    color: '#006400', // ✅ DWAD green
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   subtitle: {
     fontSize: 12,
     color: '#666',
+    fontStyle: 'italic',
   },
   inputGroup: {
     flexDirection: 'row',
@@ -185,9 +223,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 16,
+    backgroundColor: '#fff', // ✅ keep white for clarity
   },
   icon: {
     marginRight: 8,
+    color: '#006400', // ✅ green icons
   },
   input: {
     flex: 1,
@@ -195,26 +235,30 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   button: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#006400', // ✅ DWAD green
     paddingVertical: 14,
     borderRadius: 8,
     marginBottom: 12,
+    borderWidth: 1,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFD700', // ✅ gold text
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 16,
+    textTransform: 'uppercase',
   },
   footer: {
     textAlign: 'center',
-    color: '#666',
+    color: '#006400', // ✅ green footer
     fontSize: 13,
+    marginTop: 8,
   },
   errorText: {
     color: 'red',
     marginBottom: 12,
     textAlign: 'center',
     fontSize: 14,
+    fontWeight: '600',
   },
 });

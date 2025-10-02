@@ -12,6 +12,7 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\AssignmentSubmissionController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProfileController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -68,4 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+
+    Route::get('/profile', [ProfileController::class, 'me']);
+    Route::post('/profile/update', [ProfileController::class, 'update']);
 });

@@ -28,6 +28,11 @@ class Room extends Model {
 
     // 🔹 Students that joined this room
     public function students() {
-        return $this->belongsToMany(User::class, 'room_user');
+        return $this->belongsToMany(User::class, 'room_user')->where('role', 'student');
+    }
+
+    // 🔹 Materials uploaded for this room
+    public function materials() {
+        return $this->hasMany(Material::class);
     }
 }

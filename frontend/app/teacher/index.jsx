@@ -8,8 +8,9 @@ import { Calendar } from 'react-native-calendars';
 import api from "../lib/axios";
 import AnnouncementForm from './AnnouncementForm';
 import AnnouncementList from './AnnouncementList';
-import RoomContent from "./RoomContent";
 import Messages from "./messages";
+import NotificationList from "./NotificationList";
+import RoomContent from "./RoomContent";
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -149,16 +150,30 @@ export default function TeacherDashboard() {
             style={{ maxHeight: 300 }}
             renderItem={({ item }) => (
               <View style={styles.notificationItem}>
-                {/* ✅ show only notification title */}
-                <Text style={[styles.notificationText, textColor]}>{item.title}</Text>
-                {/* ✅ show formatted created_at */}
+                <Text style={[styles.notificationText, textColor]}>
+                  [{item.type?.toUpperCase()}] {item.title}
+                </Text>
+                {/* 🟢 Show sender for messages/announcements */}
+                <Text style={[{ fontSize: 12 }, textColor]}>
+                  {item.type === "message"
+                    ? `A new message from ${item.sender_name || "Unknown"}`
+                    : item.type === "announcement"
+                      ? `A new announcement from ${item.sender_role || "Unknown"}`
+                      : item.message}
+                </Text>
                 <Text style={{ fontSize: 12, color: "gray" }}>
                   {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
                 </Text>
               </View>
             )}
           />
-          <TouchableOpacity style={styles.dropdownFooter}>
+          <TouchableOpacity
+            style={styles.dropdownFooter}
+            onPress={() => {
+              setCurrentView('notifications');  // 🟢 Switch to full NotificationList
+              setDropdownVisible(false);
+            }}
+          >
             <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
           </TouchableOpacity>
         </View>
@@ -313,6 +328,25 @@ export default function TeacherDashboard() {
               <Text style={[styles.mainText, textColor]}>Messages</Text>
               <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No Messages</Text>
               <Messages isDarkMode={isDarkMode} />
+            </View>
+          )}
+
+          {/* 🟢 Notifications Full Page */}
+          {currentView === 'notifications' && (
+            <View style={{ padding: 20, flex: 1 }}>
+              <NotificationList
+                onOpenMaterial={(data) => {
+                  if (data.section_id) {
+                    const room = rooms.find(r => r.section?.id === data.section_id);
+                    if (room) {
+                      setSelectedRoom(room);
+                      setCurrentView("detail");
+                    }
+                  }
+                }}
+                onOpenMessages={() => setCurrentView("messages")}
+                onOpenAnnouncements={() => setCurrentView("announcements")}
+              />
             </View>
           )}
         </View>

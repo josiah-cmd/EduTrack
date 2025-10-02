@@ -3,13 +3,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from 'axios';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AnnouncementForm from './AnnouncementForm';
 import AnnouncementList from './AnnouncementList';
+import Messages from "./messages";
+import NotificationList from './NotificationList';
+import ProfileForm from "./profile/ProfileForm";
+import ProfileHeader from "./profile/ProfileHeader";
 import Reports from './Reports';
 import RoomForm from './RoomForm';
 import UserForm from './UserForm';
-import Messages from "./messages";
 
 // ✅ system settings pages
 import General from './system-settings/General';
@@ -146,6 +149,21 @@ export default function AdminDashboard() {
     day = addDays(day, 7);
   }
 
+  // ✅ handle notification click
+  const handleNotificationClick = (item) => {
+    if (item.type === "message") {
+      setCurrentView("messages");
+    } else if (item.type === "material") {
+      if (item.section_id) {
+        setSelectedSubject(item.section_id);
+        setCurrentView("dashboard"); // or "detail" if you want a detail view
+      }
+    } else if (item.type === "announcement") {
+      setCurrentView("announcements");
+    }
+    setDropdownVisible(false); // close dropdown after click
+  };
+
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
@@ -154,6 +172,14 @@ export default function AdminDashboard() {
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
             <Ionicons name="menu" size={28} color={textColor.color} />
           </TouchableOpacity>
+
+          {/* ✅ Added Logo here (same as login dashboard style) */}
+          <Image
+            source={require('../../assets/edutrack-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
           <Text style={[styles.brandText, textColor]}>EduTrack</Text>
         </View>
 
@@ -190,17 +216,29 @@ export default function AdminDashboard() {
             keyExtractor={(item, index) => index.toString()}
             style={{ maxHeight: 300 }}
             renderItem={({ item }) => (
-              <View style={styles.notificationItem}>
-                {/* ✅ show only notification title */}
-                <Text style={[styles.notificationText, textColor]}>{item.title}</Text>
-                {/* ✅ show formatted created_at */}
-                <Text style={{ fontSize: 12, color: "gray" }}>
-                  {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
-                </Text>
-              </View>
+              <TouchableOpacity onPress={() => handleNotificationClick(item)}>
+                <View style={styles.notificationItem}>
+                  {/* ✅ show type + title */}
+                  <Text style={[styles.notificationText, textColor]}>
+                    [{item.type?.toUpperCase()}] {item.title}
+                  </Text>
+                  {/* ✅ show message body */}
+                  <Text style={[{ fontSize: 12 }, textColor]}>{item.message}</Text>
+                  {/* ✅ show formatted created_at */}
+                  <Text style={{ fontSize: 12, color: "gray" }}>
+                    {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             )}
           />
-          <TouchableOpacity style={styles.dropdownFooter}>
+          <TouchableOpacity
+            style={styles.dropdownFooter}
+            onPress={() => {
+              setCurrentView('notifications');  // switch main content
+              setDropdownVisible(false);
+            }}      // close dropdown
+          >
             <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
           </TouchableOpacity>
         </View>
@@ -281,12 +319,16 @@ export default function AdminDashboard() {
                 </View>
               )}
 
-              <View style={styles.userContainer}>
-                <Text style={styles.userLabel}>👤 Logged in as:</Text>
-                <Text style={styles.userName}>
+              <TouchableOpacity
+                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#1e1e1e" : "#f9f9f9" }]}
+                onPress={() => setCurrentView("profileHeader")}>
+                <Text style={[styles.userLabel, { color: isDarkMode ? "#ccc" : "#333" }]}>
+                  👤 Logged in as:
+                </Text>
+                <Text style={[styles.userName, { color: isDarkMode ? "#fff" : "#000" }]}>
                   {userName ? userName : "Loading..."}
                 </Text>
-              </View>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         )}
@@ -492,6 +534,37 @@ export default function AdminDashboard() {
           {currentView === 'security' && (
             <Security isDarkMode={isDarkMode} />
           )}
+
+          {/* Notifications (full list) */}
+          {currentView === 'notifications' && (
+            <View style={{ padding: 20, flex: 1 }}>
+              <NotificationList
+                onOpenMaterial={(data) => {
+                  setNotificationTarget(data);
+                  if (data.section_id) {
+                    const room = rooms.find(r => r.section?.id === data.section_id);
+                    if (room) {
+                      setSelectedRoom(room);
+                      setCurrentView("detail");
+                    }
+                  }
+                }}
+                onOpenMessages={() => setCurrentView("messages")}
+                onOpenAnnouncements={() => setCurrentView("announcements")}
+              />
+            </View>
+          )}
+          {currentView === "profileHeader" && (
+            <ProfileHeader isDarkMode={isDarkMode}
+              onEdit={() => setCurrentView("profileForm")}
+            />
+          )}
+
+          {currentView === "profileForm" && (
+            <ProfileForm isDarkMode={isDarkMode}
+              onBack={() => setCurrentView("profileHeader")}
+            />
+          )}
         </View>
       </View>
     </View>
@@ -512,15 +585,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+    backgroundColor: '#0b0b0b', // ✅ darker navbar for contrast
+    borderColor: '#1DB954', // ✅ green accent bottom border
   },
   navLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
+  logo: {
+    width: 36,
+    height: 36,
+    marginHorizontal: 4,
+  },
   brandText: {
     fontSize: 25,
     fontWeight: '700',
+    color: '#FFD700', // ✅ Gold brand name
   },
   sidebarToggle: {
     paddingRight: 4,
@@ -541,7 +622,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
   },
   sidebarDark: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#111111',
     borderColor: '#333333',
   },
   sidebarLight: {
@@ -553,9 +634,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     gap: 10,
+    borderRadius: 10,
+    paddingHorizontal: 8,
   },
   sidebarText: {
     fontSize: 20,
+    color: '#ffffff', // ✅ readable white text
   },
   mainContent: {
     flex: 1,
@@ -563,7 +647,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   mainContentDark: {
-    backgroundColor: '#000000',
+    backgroundColor: '#0d0d0d',
   },
   mainContentLight: {
     backgroundColor: '#ffffff',
@@ -574,6 +658,8 @@ const styles = StyleSheet.create({
   mainText: {
     fontSize: 25,
     marginBottom: 12,
+    color: '#FFD700', // ✅ gold for section headers
+    fontWeight: '700',
   },
   light: {
     backgroundColor: '#ffffff',
@@ -601,20 +687,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     padding: 20,
     marginHorizontal: 6,
-    borderRadius: 12,
+    borderRadius: 16, // ✅ softer modern corners
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#FFD700', // ✅ gold border highlight
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
   },
   statNumber: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 'bold',
-    color: '#4caf50',
+    color: '#1DB954', // ✅ DWAD green
   },
   statLabel: {
     fontSize: 16,
-    color: 'gray',
+    color: '#ffffff', // ✅ clear readable text
     marginTop: 6,
+    fontWeight: '500',
   },
 
   // ✅ user info
@@ -624,21 +715,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     backgroundColor: '#1a1a1a',
-    borderRadius: 10,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#FFD700', // ✅ gold outline
   },
   userLabel: {
     fontSize: 14,
-    color: '#aaa',
+    color: '#cccccc',
     fontWeight: '500',
   },
   userName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#4caf50', // ✅ green highlight for username
+    color: '#1DB954', // ✅ green highlight for username
     marginLeft: 6,
   },
 
@@ -647,7 +738,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -6,
     right: -6,
-    backgroundColor: "red",
+    backgroundColor: "#FFD700", // ✅ gold notification badge
     borderRadius: 12,
     paddingHorizontal: 5,
     minWidth: 18,
@@ -656,7 +747,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   badgeText: {
-    color: "#fff",
+    color: "#000", // ✅ black text for contrast
     fontSize: 11,
     fontWeight: "bold",
   },
@@ -664,9 +755,9 @@ const styles = StyleSheet.create({
   // ✅ dropdown
   dropdown: {
     position: "absolute",
-    top: 50,         // a bit closer to the bell
-    right: 0,        // align with bell instead of floating far
-    width: 300,      // tighter width (was 300)
+    top: 50,
+    right: 0,
+    width: 300,
     borderRadius: 10,
     shadowColor: "#000",
     shadowOpacity: 0.25,
@@ -678,7 +769,7 @@ const styles = StyleSheet.create({
   dropdownDark: {
     backgroundColor: "#1e1e1e",
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#FFD700", // ✅ gold accent border
   },
   dropdownLight: {
     backgroundColor: "#fff",
@@ -692,6 +783,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderColor: "#333",
+    color: "#1DB954", // ✅ green section title
   },
   dropdownFooter: {
     paddingVertical: 10,
@@ -706,5 +798,6 @@ const styles = StyleSheet.create({
   notificationText: {
     fontSize: 14,
     fontWeight: "600",
+    color: "#fff", // ✅ clear white
   },
 });

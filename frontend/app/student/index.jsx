@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // 🟢 Added for token
-import axios from 'axios';
 import { format } from "date-fns";
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import api from "../lib/axios";
 import AnnouncementList from './AnnouncementList';
-import RoomContent from "./RoomContent";
 import Messages from "./messages";
+import NotificationList from './NotificationList';
+import RoomContent from "./RoomContent";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -39,28 +40,35 @@ export default function StudentDashboard() {
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const bellRef = useRef(null);
 
+  // 🟢 NEW: store notification target (normalized { id, type })
+  const [notificationTarget, setNotificationTarget] = useState(null);
+
+  // ✅ helper to remove <p>, <br>, <b>, etc.
+  const stripHtml = (html) => {
+    if (!html) return "No content";
+    const text = html.replace(/<\/?[^>]+(>|$)/g, "").trim();
+    return text.length > 0 ? text : "No content";
+  };
+
   // 🟢 Fetch subjects & student rooms
   useEffect(() => {
-    axios
-      .get('http://localhost:8000/api/subjects')
+    api
+      .get('/subjects') // ✅ use api wrapper
       .then((response) => setSubjects(response.data))
       .catch((error) => console.error('Error fetching subjects:', error));
 
     const fetchRoomsAndUser = async () => {
       try {
-        const token = await AsyncStorage.getItem('token');
+        const role = await AsyncStorage.getItem("role"); // ✅ match axios.js
+        const token = await AsyncStorage.getItem(`${role}Token`);
         if (!token) return;
 
         // ✅ fetch student rooms
-        const res = await axios.get("http://localhost:8000/api/student/rooms", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await api.get("/student/rooms");
         setRooms(res.data || []);
 
         // ✅ fetch logged-in user
-        const userRes = await axios.get("http://localhost:8000/api/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const userRes = await api.get("/me");
         setUserName(userRes.data.name);
 
       } catch (err) {
@@ -75,13 +83,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
-        if (!token) return;
-
-        const res = await axios.get("http://localhost:8000/api/notifications", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
+        const res = await api.get("/notifications");
         setNotifications(res.data.data);
         const unread = res.data.data.filter(n => !n.read_at).length;
         setUnreadCount(unread);
@@ -110,6 +112,27 @@ export default function StudentDashboard() {
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
     setCurrentView('detail');
+    // clear any stale notification target when user manually opens a room
+    setNotificationTarget(null);
+  };
+
+  // 🟢 Handle notification click → updated logic
+  const handleNotificationClick = (item) => {
+    if (item.type === "message") {
+      setCurrentView("messages");
+    } else if (item.type === "material") {
+      setNotificationTarget(item);
+      if (item.section_id) {
+        const room = rooms.find(r => r.section?.id === item.section_id);
+        if (room) {
+          setSelectedRoom(room);
+          setCurrentView("detail");
+        }
+      }
+    } else if (item.type === "announcement") {
+      setCurrentView("announcements");   // ✅ now works
+    }
+    setDropdownVisible(false); // always close after click
   };
 
   // 🟢 Join Room logic
@@ -119,15 +142,15 @@ export default function StudentDashboard() {
       return;
     }
     try {
-      const token = await AsyncStorage.getItem('token');
+      const role = await AsyncStorage.getItem("role"); // ✅ match axios.js
+      const token = await AsyncStorage.getItem(`${role}Token`);
       if (!token) {
         setJoinMessage('⚠️ No auth token found. Please login again.');
         return;
       }
-      const res = await axios.post(
-        'http://localhost:8000/api/rooms/join',
-        { token: joinToken.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.post(
+        '/rooms/join',
+        { token: joinToken.trim() }
       );
       setJoinMessage('✅ Joined room successfully!');
       setRooms((prev) => [...prev, res.data.room]); // add new room to list
@@ -170,9 +193,6 @@ export default function StudentDashboard() {
           <TouchableOpacity onPress={toggleDarkMode}>
             <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={30} color={textColor.color} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={toggleProfileModal}>
-            <Ionicons name="person-circle-outline" size={30} color={textColor.color} />
-          </TouchableOpacity>
           <TouchableOpacity onPress={logout}>
             <Ionicons name="log-out-outline" size={30} color={textColor.color} />
           </TouchableOpacity>
@@ -188,31 +208,37 @@ export default function StudentDashboard() {
             keyExtractor={(item, index) => index.toString()}
             style={{ maxHeight: 300 }}
             renderItem={({ item }) => (
-              <View style={styles.notificationItem}>
-                <Text style={[styles.notificationText, textColor]}>{item.title}</Text>
-                <Text style={{ fontSize: 12, color: "gray" }}>
-                  {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
-                </Text>
-              </View>
+              <TouchableOpacity onPress={() => handleNotificationClick(item)}> {/* 🟢 CLICK HANDLER */}
+                <View style={styles.notificationItem}>
+                  <Text style={[styles.notificationText, textColor]}>
+                    [{item.type?.toUpperCase()}] {item.title}
+                  </Text>
+                  {/* ✅ FIX: Show sender for messages + announcements */}
+                  <Text style={[{ fontSize: 12 }, textColor]}>
+                    {item.type === "message"
+                      ? `A new message from ${item.sender_name || "Unknown"}`
+                      : item.type === "announcement"
+                        ? `A new announcement from ${item.sender_name || "Unknown"}`
+                        : stripHtml(item.content) || "No content"}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: "gray" }}>
+                    {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             )}
           />
-          <TouchableOpacity style={styles.dropdownFooter}>
+          <TouchableOpacity
+            style={styles.dropdownFooter}
+            onPress={() => {
+              setCurrentView('notifications');  // switch main content
+              setDropdownVisible(false);
+            }}      // close dropdown
+          >
             <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
           </TouchableOpacity>
         </View>
       )}
-
-      {/* Profile Modal */}
-      <Modal transparent visible={profileModalVisible} animationType="fade" onRequestClose={toggleProfileModal}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#111' : '#fff' }]}>
-            <Text style={[styles.modalText, textColor]}>Profile Management</Text>
-            <TouchableOpacity style={styles.modalButton} onPress={toggleProfileModal}>
-              <Text style={{ color: '#fff' }}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* Success Modal */}
       <Modal transparent visible={successModalVisible} animationType="fade" onRequestClose={() => setSuccessModalVisible(false)}>
@@ -343,7 +369,12 @@ export default function StudentDashboard() {
                 </Text>
               </View>
               <View style={styles.rightContainer}>
-                <RoomContent room={selectedRoom} /> {/* ✅ inserted here */}
+                {/* 🟢 Pass openMaterial directly and a callback to clear it once consumed */}
+                <RoomContent
+                  room={selectedRoom}
+                  openMaterial={notificationTarget}
+                  onOpenConsumed={() => setNotificationTarget(null)}
+                />
               </View>
             </ScrollView>
           )}
@@ -360,44 +391,9 @@ export default function StudentDashboard() {
                     calendarBackground: 'transparent',
                     textSectionTitleColor: isDarkMode ? '#bbb' : '#2563eb',
                     dayTextColor: isDarkMode ? '#fff' : '#000',
-                    todayBackgroundColor: isDarkMode ? '#fdf5d4' : '#fffbe6',
-                    arrowColor: '#2563eb',
                     monthTextColor: isDarkMode ? '#fff' : '#000',
-                    textDayFontSize: 14,
-                    textMonthFontSize: 20,
-                  }}
-                  disableAllTouchEventsForDisabledDays={true}
-                  dayComponent={({ date, state }) => {
-                    const isToday = date.dateString === new Date().toISOString().split('T')[0];
-                    return (
-                      <View
-                        style={{
-                          width: 46,
-                          height: 46,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderWidth: 1,
-                          borderColor: isDarkMode ? '#333' : '#ddd',
-                          backgroundColor: isToday
-                            ? isDarkMode
-                              ? '#fdf5d4'
-                              : '#fffbe6'
-                            : isDarkMode
-                              ? '#1a1a1a'
-                              : '#fff',
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontWeight: isToday ? 'bold' : 'normal',
-                            color: state === 'disabled' ? (isDarkMode ? '#555' : '#ccc') : (isDarkMode ? '#fff' : '#000'),
-                          }}
-                        >
-                          {date.day}
-                        </Text>
-                      </View>
-                    );
+                    todayTextColor: '#2563eb',
+                    arrowColor: '#2563eb',
                   }}
                 />
               </View>
@@ -416,16 +412,36 @@ export default function StudentDashboard() {
           {currentView === 'grades' && (
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Grades</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No Grades</Text>
+              <Text style={{ color: textColor.color }}>Your grades will appear here.</Text>
             </View>
           )}
 
           {/* Messages */}
           {currentView === 'messages' && (
-            <View style={{ padding: 20 }}>
+            <View style={{ padding: 20, flex: 1 }}>
               <Text style={[styles.mainText, textColor]}>Messages</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No messages yet</Text>
-              <Messages isDarkMode={isDarkMode} />
+              <Messages isDarkMode={isDarkMode}/>
+            </View>
+          )}
+
+          {/* Notifications (full list) */}
+          {currentView === 'notifications' && (
+            <View style={{ padding: 20, flex: 1 }}>
+              <NotificationList
+                onOpenMaterial={(data) => {
+                  setNotificationTarget(data);
+                  // find room by section_id if available
+                  if (data.section_id) {
+                    const room = rooms.find(r => r.section?.id === data.section_id);
+                    if (room) {
+                      setSelectedRoom(room);
+                      setCurrentView("detail");
+                    }
+                  }
+                }}
+                onOpenMessages={() => setCurrentView("messages")}
+                onOpenAnnouncements={() => setCurrentView("announcements")}
+              />
             </View>
           )}
         </View>

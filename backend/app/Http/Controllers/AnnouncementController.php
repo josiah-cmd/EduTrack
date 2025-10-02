@@ -57,7 +57,7 @@ class AnnouncementController extends Controller
             } elseif ($targetRole === 'student') {
                 $q->where('role', 'student');
             }
-        })->pluck('id');
+        })->pluck('id')->toArray(); // ✅ ensure array
 
         NotificationService::notify(
             'announcement',
