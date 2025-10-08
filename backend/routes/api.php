@@ -13,6 +13,8 @@ use App\Http\Controllers\AssignmentSubmissionController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\QuizController;
+
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -46,20 +48,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
 
     /* ------------------- MATERIALS ------------------- */
-    // Teacher uploads assignments, notes, etc.
     Route::post('/materials', [MaterialController::class, 'store']); 
     Route::get('/materials', [MaterialController::class, 'index']); 
     Route::get('/materials/{id}/download', [MaterialController::class, 'download']); 
     Route::get('/materials/{id}/preview', [MaterialController::class, 'preview']); 
 
     /* ------------------- SUBMISSIONS ------------------- */
-    // Students submit their work, linked to material_id
     Route::get('/submissions/{materialId}', [AssignmentSubmissionController::class, 'index']); // teacher view
     Route::post('/submissions', [AssignmentSubmissionController::class, 'store']); // upload
     Route::get('/submissions/my/{materialId}', [AssignmentSubmissionController::class, 'mySubmissions']); // student view
 
-    Route::get('/me', [AuthController::class, 'me']);
-
+    /* ------------------- MESSAGES ------------------- */
     Route::get('/messages/inbox', [MessageController::class, 'inbox']);
     Route::get('/messages/sent', [MessageController::class, 'sent']);
     Route::post('/messages', [MessageController::class, 'store']);
@@ -67,9 +66,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
     Route::get('/messages', [MessageController::class, 'index']);
 
+    /* ------------------- NOTIFICATIONS ------------------- */
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 
+    /* ------------------- PROFILE MANAGEMENT ------------------- */
+    Route::get('/me', [AuthController::class, 'me']);
     Route::get('/profile', [ProfileController::class, 'me']);
     Route::post('/profile/update', [ProfileController::class, 'update']);
+
+    /* ------------------- QUIZZES ------------------- */
+    Route::get('/quizzes', [QuizController::class, 'index']);
+    Route::post('/quizzes', [QuizController::class, 'store']); // Step 1
+    Route::post('/quizzes/{id}/questions', [QuizController::class, 'addQuestions']); // Step 2
+    Route::get('/quizzes/{id}', [QuizController::class, 'show']);
+    Route::put('/quizzes/{id}', [QuizController::class, 'update']);
+    Route::delete('/quizzes/{id}', [QuizController::class, 'destroy']);
+    Route::patch('/quizzes/{id}/toggle', [QuizController::class, 'toggleStatus']);
+    Route::get('/quizzes/{id}/questions', [QuizController::class, 'getQuestions']);
 });

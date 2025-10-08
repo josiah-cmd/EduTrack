@@ -1,15 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // 🟢 Added for token
+import axios from 'axios';
 import { format } from "date-fns";
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Calendar } from 'react-native-calendars';
 import api from "../lib/axios";
 import AnnouncementList from './AnnouncementList';
 import Messages from "./messages";
 import NotificationList from './NotificationList';
+import ProfileForm from "./profile/ProfileForm";
+import ProfileHeader from "./profile/ProfileHeader";
 import RoomContent from "./RoomContent";
+// ✅ date-fns import
+import { addDays, endOfMonth, endOfWeek, isSameMonth, isToday, startOfMonth, startOfWeek } from "date-fns";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -49,6 +53,30 @@ export default function StudentDashboard() {
     const text = html.replace(/<\/?[^>]+(>|$)/g, "").trim();
     return text.length > 0 ? text : "No content";
   };
+
+  // ✅ calendar state
+  const [materials, setMaterials] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // ✅ build weeks for table layout
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(monthStart);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
+
+  const weeks = [];
+  let day = startDate;
+  while (day <= endDate) {
+    weeks.push(
+      Array(7)
+        .fill(0)
+        .map((_, i) => {
+          const newDay = addDays(day, i);
+          return newDay;
+        })
+    );
+    day = addDays(day, 7);
+  }
 
   // 🟢 Fetch subjects & student rooms
   useEffect(() => {
@@ -164,6 +192,26 @@ export default function StudentDashboard() {
     }
   };
 
+  // ✅ fetch deadlines for calendar
+  useEffect(() => {
+    const fetchDeadlines = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) return;
+
+        const res = await axios.get("http://localhost:8000/api/materials", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setMaterials(res.data);
+      } catch (err) {
+        console.error("Error fetching deadlines:", err.response?.data || err.message);
+      }
+    };
+
+    fetchDeadlines();
+  }, []);
+
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
@@ -172,6 +220,14 @@ export default function StudentDashboard() {
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
             <Ionicons name="menu" size={28} color={textColor.color} />
           </TouchableOpacity>
+
+          {/* ✅ Added Logo here (same as login dashboard style) */}
+          <Image
+            source={require('../../assets/edutrack-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
           <Text style={[styles.brandText, textColor]}>EduTrack</Text>
         </View>
 
@@ -272,8 +328,9 @@ export default function StudentDashboard() {
                 },
               ]}
             />
-            <TouchableOpacity onPress={handleJoinRoom} style={styles.joinButton}>
-              <Text style={styles.joinButtonText}>Join Room</Text>
+            <TouchableOpacity onPress={handleJoinRoom} style={[styles.joinButton, isDarkMode ? styles.joinButtonDark : styles.joinButtonLight]}>
+              <Text style={[styles.joinButtonText, isDarkMode ? styles.joinButtonTextDark : styles.joinButtonTextLight]}> Join Room
+              </Text>
             </TouchableOpacity>
             {joinMessage ? (
               <Text style={{ marginTop: 6, color: joinMessage.startsWith('✅') ? 'green' : 'red' }}>
@@ -309,12 +366,16 @@ export default function StudentDashboard() {
               <Ionicons name="chatbubble-ellipses-outline" size={20} color={textColor.color} />
               <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
             </TouchableOpacity>
-            <View style={styles.userContainer}>
-              <Text style={styles.userLabel}>👤 Logged in as:</Text>
-              <Text style={styles.userName}>
-                {userName ? userName : "Loading..."}
-              </Text>
-            </View>
+            <TouchableOpacity
+                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#1e1e1e" : "#f9f9f9" }]}
+                onPress={() => setCurrentView("profileHeader")}>
+                <Text style={[styles.userLabel, { color: isDarkMode ? "#ccc" : "#333" }]}>
+                  👤 Logged in as:
+                </Text>
+                <Text style={[styles.userName, { color: isDarkMode ? "#fff" : "#000" }]}>
+                  {userName ? userName : "Loading..."}
+                </Text>
+              </TouchableOpacity>
           </View>
         )}
 
@@ -324,9 +385,9 @@ export default function StudentDashboard() {
           {currentView === 'dashboard' && !selectedSubject && (
             <>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={[styles.mainText, textColor]}>Student Dashboard</Text>
-                <TouchableOpacity onPress={() => setJoinModalVisible(true)} style={styles.joinButton}>
-                  <Text style={styles.joinButtonText}>Join Room</Text>
+                <Text style={[styles.mainText, { color: isDarkMode ? "#FFD700" : "#000" }]}>Student Dashboard</Text>
+                <TouchableOpacity onPress={() => setJoinModalVisible(true)} style={[styles.joinButton, isDarkMode ? styles.joinButtonDark : styles.joinButtonLight]}>
+                  <Text style={[styles.joinButtonText, isDarkMode ? styles.joinButtonTextDark : styles.joinButtonTextLight]}> Join Room </Text>
                 </TouchableOpacity>
               </View>
 
@@ -334,19 +395,21 @@ export default function StudentDashboard() {
                 {rooms.map((room, index) => (
                   <Animated.View
                     key={index}
-                    style={[
-                      styles.subjectCard,
-                      { backgroundColor: isDarkMode ? '#1f2937' : '#f3f4f6' }, // 🟢 adaptive color
-                      hoveredIndex === index && Platform.OS === 'web' ? styles.subjectCardHover : {},
-                    ]}
+                    style={[styles.subjectCard, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff", borderColor: isDarkMode ? "#006400" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#333", },
+                    hoveredIndex === index && Platform.OS === "web" ? [styles.subjectCardHover, { shadowColor: isDarkMode ? "#FFD700" : "#007b55", transform: [{ scale: 1.05 }], },] : {},]}
                     onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                  >
+                    onMouseLeave={() => setHoveredIndex(null)}>
                     <TouchableOpacity onPress={() => handleRoomSelect(room)}>
-                      <Text style={[styles.subjectTitle, { color: isDarkMode ? '#fff' : '#111' }]}>{room.subject?.name}</Text>
-                      <Text style={[styles.subjectDetails, { color: isDarkMode ? '#ccc' : '#333' }]}>Section: {room.section?.name}</Text>
-                      <Text style={[styles.subjectDetails, { color: isDarkMode ? '#ccc' : '#333' }]}>Schedule: {room.day} {room.time}</Text>
-                      <Text style={{ fontStyle: "italic", color: "#4ade80" }}>
+                      <Text style={[styles.subjectTitle, { color: isDarkMode ? "#FFD700" : "#006400" },]}>
+                        {room.subject?.name}
+                      </Text>
+                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#333" },]}>
+                        Section: {room.section?.name}
+                      </Text>
+                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#ddd" : "#444" },]}>
+                        Schedule: {room.day} {room.time}
+                      </Text>
+                      <Text style={[styles.subjectDetails, { fontStyle: "italic", color: isDarkMode ? "#32CD32" : "#006400", },]}>
                         Code: {room.token || "No Token"}
                       </Text>
                     </TouchableOpacity>
@@ -357,14 +420,22 @@ export default function StudentDashboard() {
           )}
 
           {/* Subject Detail */}
-          {currentView === 'detail' && selectedRoom && (
+          {currentView === "detail" && selectedRoom && (
             <ScrollView contentContainerStyle={styles.detailContainer}>
-              <View style={styles.leftContainer}>
-                <Image source={{ uri: selectedRoom.teacher?.user?.avatar || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }} style={styles.profileImage} />
-                <Text style={styles.instructorName}>{selectedRoom.teacher?.user?.name || selectedRoom.teacher?.name || 'No Name'}</Text>
-                <Text style={styles.instructorSection}>Section: {selectedRoom.section?.name || 'No Section'}</Text>
-                <Text style={styles.instructorSchedule}>Schedule: {selectedRoom.day} {selectedRoom.time}</Text>
-                <Text style={{ color: "#4ade80", fontStyle: "italic", marginTop: 4 }}>
+              {/* Left side - Instructor */}
+              <View
+                style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff", borderColor: isDarkMode ? "#006400" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#333", },]}>
+                <Image source={{ uri: selectedRoom.teacher?.user?.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", }} style={styles.profileImage} />
+                <Text style={[styles.instructorName, { color: isDarkMode ? "#FFD700" : "#006400" },]}>
+                  {selectedRoom.teacher?.user?.name || selectedRoom.teacher?.name || "No Name"}
+                </Text>
+                <Text style={[styles.instructorSection, { color: isDarkMode ? "#fff" : "#333" },]}>
+                  Section: {selectedRoom.section?.name || "No Section"}
+                </Text>
+                <Text style={[styles.instructorSchedule, { color: isDarkMode ? "#ddd" : "#444" },]}>
+                  Schedule: {selectedRoom.day} {selectedRoom.time}
+                </Text>
+                <Text style={{ color: isDarkMode ? "#32CD32" : "#006400", fontStyle: "italic", marginTop: 4, }}>
                   Code: {selectedRoom.token || "No Token"}
                 </Text>
               </View>
@@ -383,19 +454,107 @@ export default function StudentDashboard() {
           {currentView === 'calendar' && (
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Calendar</Text>
-              <View style={styles.calendarBox}>
-                <Calendar
-                  firstDay={0}
-                  theme={{
-                    backgroundColor: 'transparent',
-                    calendarBackground: 'transparent',
-                    textSectionTitleColor: isDarkMode ? '#bbb' : '#2563eb',
-                    dayTextColor: isDarkMode ? '#fff' : '#000',
-                    monthTextColor: isDarkMode ? '#fff' : '#000',
-                    todayTextColor: '#2563eb',
-                    arrowColor: '#2563eb',
-                  }}
-                />
+              <View
+                style={{
+                  backgroundColor: isDarkMode ? '#1a1a1a' : '#fff',
+                  borderRadius: 8,
+                  padding: 15,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.1,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowRadius: 4,
+                  elevation: 3,
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? '#333' : '#ccc',
+                }}
+              >
+                {/* ✅ Calendar Header */}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <TouchableOpacity onPress={() => setCurrentMonth(addDays(currentMonth, -30))}>
+                    <Ionicons name="chevron-back" size={24} color={textColor.color} />
+                  </TouchableOpacity>
+                  <Text style={[{ fontSize: 20, fontWeight: "bold" }, textColor]}>
+                    {format(currentMonth, "MMMM yyyy")}
+                  </Text>
+                  <TouchableOpacity onPress={() => setCurrentMonth(addDays(currentMonth, 30))}>
+                    <Ionicons name="chevron-forward" size={24} color={textColor.color} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* ✅ Weekdays Header */}
+                <View style={{ flexDirection: "row" }}>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                    <Text
+                      key={d}
+                      style={{
+                        flex: 1,
+                        textAlign: "center",
+                        fontWeight: "bold",
+                        color: isDarkMode ? "#bbb" : "#2563eb",
+                        paddingVertical: 5,
+                      }}
+                    >
+                      {d}
+                    </Text>
+                  ))}
+                </View>
+
+                {/* ✅ Calendar Grid */}
+                {weeks.map((week, wi) => (
+                  <View key={wi} style={{ flexDirection: "row" }}>
+                    {week.map((day, di) => {
+                      const dayStr = format(day, "yyyy-MM-dd");
+                      const dayMaterials = materials.filter(m => m.deadline && format(new Date(m.deadline), "yyyy-MM-dd") === dayStr);
+
+                      return (
+                        <View
+                          key={di}
+                          style={{
+                            flex: 1,
+                            minHeight: 80,
+                            borderWidth: 1,
+                            borderColor: isDarkMode ? "#333" : "#ddd",
+                            padding: 4,
+                            backgroundColor: isToday(day)
+                              ? isDarkMode ? "#fdf5d4" : "#fffbe6"
+                              : isSameMonth(day, currentMonth)
+                                ? (isDarkMode ? "#1a1a1a" : "#fff")
+                                : (isDarkMode ? "#111" : "#f9f9f9"),
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: isToday(day) ? "bold" : "normal",
+                              color: isSameMonth(day, currentMonth)
+                                ? (isDarkMode ? "#fff" : "#000")
+                                : "#999",
+                              marginBottom: 2,
+                            }}
+                          >
+                            {format(day, "d")}
+                          </Text>
+                          {dayMaterials.map((m, i) => (
+                            <Text
+                              key={i}
+                              numberOfLines={1}
+                              style={{
+                                fontSize: 10,
+                                backgroundColor: m.type === "assignment" ? "#e11d48" : "#2563eb",
+                                color: "#fff",
+                                borderRadius: 4,
+                                paddingHorizontal: 2,
+                                marginTop: 2,
+                              }}
+                            >
+                              {m.title}
+                            </Text>
+                          ))}
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
               </View>
             </View>
           )}
@@ -444,6 +603,17 @@ export default function StudentDashboard() {
               />
             </View>
           )}
+          {currentView === "profileHeader" && (
+            <ProfileHeader isDarkMode={isDarkMode}
+              onEdit={() => setCurrentView("profileForm")}
+            />
+          )}
+
+          {currentView === "profileForm" && (
+            <ProfileForm isDarkMode={isDarkMode}
+              onBack={() => setCurrentView("profileHeader")}
+            />
+          )}
         </View>
       </View>
     </View>
@@ -468,6 +638,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10
+  },
+  logo: {
+    width: 36,
+    height: 36,
+    marginHorizontal: 4,
   },
   brandText: {
     fontSize: 25,
@@ -567,16 +742,22 @@ const styles = StyleSheet.create({
     gap: 16, 
     marginTop: 12 
   },
+  subjectsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
   subjectCard: {
-  width: 250,
-  padding: 16,
-  borderRadius: 12,
-  shadowColor: '#000',
-  shadowOpacity: 0.2,
-  shadowOffset: { width: 0, height: 4 },
-  shadowRadius: 6,
-  transform: [{ scale: 1 }],
-  transitionDuration: '200ms',
+    width: 250,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#1f2937',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    transform: [{ scale: 1 }],
+    transitionDuration: '200ms',
   },
   subjectCardHover: {
     transform: [{ scale: 1.05 }],
@@ -584,11 +765,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
   },
   subjectTitle: {
+    color: '#fff',
     fontWeight: '700',
     fontSize: 20,
     marginBottom: 6,
   },
   subjectDetails: {
+    color: '#ccc',
     fontSize: 15,
     marginBottom: 2,
   },
@@ -635,17 +818,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 10,
   },
-  joinButton: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  joinButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  joinButton: { 
+    backgroundColor: '#2563eb', 
+    paddingVertical: 12, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+  }, 
+  joinButtonText: { 
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '600', // ✅ DWAD THEME COLORS (no layout/design changes) 
+  }, 
+  joinButtonLight: { 
+    backgroundColor: '#006400', 
+    borderWidth: 2, 
+  }, 
+  joinButtonDark: { 
+    backgroundColor: '#FFD700', 
+    borderWidth: 2, 
+  },  
+  joinButtonTextLight: { 
+    color: '#FFFFFF', // white text on green  
+  }, 
+  joinButtonTextDark: { 
+    color: '#006400', // green text on gold
+  }, 
   calendarBox: {
     marginTop: 20,
     borderWidth: 1,
@@ -678,7 +875,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#FFD700',
   },
   userLabel: {
     fontSize: 14,
@@ -696,7 +893,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -6,
     right: -6,
-    backgroundColor: "red",
+    backgroundColor: "#FFD700", // ✅ gold notification badge
     borderRadius: 12,
     paddingHorizontal: 5,
     minWidth: 18,
@@ -705,7 +902,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   badgeText: {
-    color: "#fff",
+    color: "#000", // ✅ black text for contrast
     fontSize: 11,
     fontWeight: "bold",
   },

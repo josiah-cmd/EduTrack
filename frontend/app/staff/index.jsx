@@ -8,6 +8,8 @@ import AnnouncementForm from './AnnouncementForm';
 import AnnouncementList from './AnnouncementList';
 import Messages from "./messages";
 import NotificationList from './NotificationList';
+import ProfileForm from "./profile/ProfileForm";
+import ProfileHeader from "./profile/ProfileHeader";
 import Reports from './Reports';
 import RoomForm from './RoomForm';
 import UserForm from './UserForm';
@@ -317,12 +319,16 @@ export default function AdminDashboard() {
                 </View>
               )}
 
-              <View style={styles.userContainer}>
-                <Text style={styles.userLabel}>👤 Logged in as:</Text>
-                <Text style={styles.userName}>
+              <TouchableOpacity
+                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#1e1e1e" : "#f9f9f9" }]}
+                onPress={() => setCurrentView("profileHeader")}>
+                <Text style={[styles.userLabel, { color: isDarkMode ? "#ccc" : "#333" }]}>
+                  👤 Logged in as:
+                </Text>
+                <Text style={[styles.userName, { color: isDarkMode ? "#fff" : "#000" }]}>
                   {userName ? userName : "Loading..."}
                 </Text>
-              </View>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         )}
@@ -547,6 +553,17 @@ export default function AdminDashboard() {
                 onOpenAnnouncements={() => setCurrentView("announcements")}
               />
             </View>
+          )}
+          {currentView === "profileHeader" && (
+            <ProfileHeader isDarkMode={isDarkMode}
+              onEdit={() => setCurrentView("profileForm")}
+            />
+          )}
+
+          {currentView === "profileForm" && (
+            <ProfileForm isDarkMode={isDarkMode}
+              onBack={() => setCurrentView("profileHeader")}
+            />
           )}
         </View>
       </View>

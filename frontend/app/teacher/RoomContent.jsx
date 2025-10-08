@@ -11,6 +11,9 @@ import "react-datepicker/dist/react-datepicker.css";
 // ✅ Import new detail component
 import AssignmentDetail from "./AssignmentDetail";
 
+// ✅ Import Quizzes tab
+import QuizList from "./quizzes/QuizList";
+
 export default function RoomContent({ room }) {
   const [activeTab, setActiveTab] = useState("modules");
   const [materials, setMaterials] = useState([]);
@@ -31,6 +34,9 @@ export default function RoomContent({ room }) {
 
   // ✅ NEW: track selected material
   const [selectedMaterial, setSelectedMaterial] = useState(null);
+
+  // ✅ Dark Mode (toggle or system based)
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   // ✅ Fetch materials
   const fetchMaterials = async () => {
@@ -81,7 +87,7 @@ export default function RoomContent({ room }) {
   useEffect(() => {
     if (activeTab === "people") {
       fetchPeople();
-    } else {
+    } else if (activeTab !== "quizzes") {
       fetchMaterials();
     }
   }, [activeTab, room]);
@@ -188,37 +194,57 @@ export default function RoomContent({ room }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDarkMode]}>
       {/* Tabs */}
       <View style={styles.tabContainer}>
         {["modules", "assignments", "quizzes", "people"].map((tab) => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
+            style={[
+              styles.tab,
+              activeTab === tab && styles.activeTab,
+              activeTab === tab && { backgroundColor: "#006400" }, // ✅ green for active tab
+            ]}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === tab && styles.activeTabText,
+                activeTab === tab && { color: "#FFD700" }, // ✅ gold text for active tab
+                isDarkMode && { color: "#fff" },
+              ]}
+            >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
+      {/* ✅ Quizzes Tab */}
+      {activeTab === "quizzes" && room && (
+        <QuizList room={room} isDarkMode={isDarkMode} />
+      )}
+
       {/* Upload form */}
       {activeTab !== "quizzes" && activeTab !== "people" && (
-        <View style={styles.formCard}>
-          <Text style={styles.formTitle}>📤 Upload {activeTab.slice(0, -1)}</Text>
+        <View style={[styles.formCard, isDarkMode && { backgroundColor: "#1e1e1e" }]}>
+          <Text style={[styles.formTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
+            📤 Upload {activeTab.slice(0, -1)}
+          </Text>
           <TextInput
             placeholder="Title"
             value={title}
             onChangeText={setTitle}
-            style={styles.input}
+            style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
+            placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
           />
           <TextInput
             placeholder="Description"
             value={desc}
             onChangeText={setDesc}
-            style={styles.input}
+            style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
+            placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
           />
 
           {/* ✅ Deadline pickers */}
@@ -242,20 +268,22 @@ export default function RoomContent({ room }) {
           )}
 
           <View style={styles.fileRow}>
-            <TouchableOpacity style={styles.pickFileBtn} onPress={pickFile}>
-              <Text style={styles.pickFileText}>📂 Pick File</Text>
+            <TouchableOpacity style={[styles.pickFileBtn, { backgroundColor: "#006400" }]} onPress={pickFile}>
+              <Text style={[styles.pickFileText, { color: "#fff" }]}>📂 Pick File</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.uploadBtn} onPress={uploadFile}>
-              <Text style={styles.uploadText}>⬆ Upload</Text>
+            <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: "#FFD700" }]} onPress={uploadFile}>
+              <Text style={[styles.uploadText, { color: "#000", fontWeight: "bold" }]}>⬆ Upload</Text>
             </TouchableOpacity>
           </View>
 
           {file && (
             <View style={styles.filePreview}>
-              <Text style={styles.filePreviewText}>📄 {file.name}</Text>
+              <Text style={[styles.filePreviewText, { color: isDarkMode ? "#fff" : "#333" }]}>
+                📄 {file.name}
+              </Text>
               {file.size && (
-                <Text style={styles.filePreviewSize}>
+                <Text style={[styles.filePreviewSize, { color: isDarkMode ? "#bbb" : "#666" }]}>
                   Size: {Math.round(file.size / 1024)} KB
                 </Text>
               )}
@@ -268,20 +296,22 @@ export default function RoomContent({ room }) {
       )}
 
       {/* → Uploaded Files header & list */}
-      {activeTab !== "people" && (
+      {activeTab !== "people" && activeTab !== "quizzes" && (
         <View style={styles.uploadedSection}>
-          <Text style={styles.uploadedHeader}>Uploaded Files</Text>
+          <Text style={[styles.uploadedHeader, { color: isDarkMode ? "#FFD700" : "#222" }]}>
+            Uploaded Files
+          </Text>
 
           <FlatList
             data={materials}
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => (
               <TouchableOpacity onPress={() => setSelectedMaterial(item)}>
-                <View style={styles.fileCard}>
-                  <Text style={styles.fileTitle}>{item.title}</Text>
-                  <Text style={styles.fileDesc}>{item.description}</Text>
+                <View style={[styles.fileCard, isDarkMode && { backgroundColor: "#222", borderColor: "#444" }]}>
+                  <Text style={[styles.fileTitle, { color: isDarkMode ? "#fff" : "#000" }]}>{item.title}</Text>
+                  <Text style={[styles.fileDesc, { color: isDarkMode ? "#bbb" : "#555" }]}>{item.description}</Text>
                   {item.deadline && (
-                    <Text style={styles.deadline}>
+                    <Text style={[styles.deadline, { color: "#FF6347" }]}>
                       Deadline: {format(new Date(item.deadline), "yyyy-MM-dd h:mm a")}
                     </Text>
                   )}
@@ -299,11 +329,11 @@ export default function RoomContent({ room }) {
           data={people}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
-            <View style={styles.personCard}>
-              <Text style={styles.personName}>
+            <View style={[styles.personCard, isDarkMode && { backgroundColor: "#222", borderColor: "#444" }]}>
+              <Text style={[styles.personName, { color: isDarkMode ? "#fff" : "#333" }]}>
                 {item.name} {item.role === "teacher" ? "(Instructor)" : ""}
               </Text>
-              <Text style={styles.personEmail}>{item.email}</Text>
+              <Text style={[styles.personEmail, { color: isDarkMode ? "#bbb" : "#555" }]}>{item.email}</Text>
             </View>
           )}
         />
@@ -317,18 +347,16 @@ export default function RoomContent({ room }) {
         onRequestClose={() => setShowSuccessModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>✅ Uploaded</Text>
-            <Text style={styles.modalText}>
-              Your {activeTab.slice(0, -1)} has been uploaded successfully!
-            </Text>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setShowSuccessModal(false)}
-            >
-              <Text style={styles.modalButtonText}>OK</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.modalTitle, { color: isDarkMode ? "#FFD700" : "#007bff" }]}>✅ Uploaded</Text>
+          <Text style={[styles.modalText, { color: isDarkMode ? "#fff" : "#444" }]}>
+            Your {activeTab.slice(0, -1)} has been uploaded successfully!
+          </Text>
+          <TouchableOpacity
+            style={[styles.modalButton, { backgroundColor: "#006400" }]}
+            onPress={() => setShowSuccessModal(false)}
+          >
+            <Text style={[styles.modalButtonText, { color: "#FFD700" }]}>OK</Text>
+          </TouchableOpacity>
         </View>
       </Modal>
 
@@ -355,7 +383,7 @@ export default function RoomContent({ room }) {
           overflow: hidden;
         }
         .react-datepicker__header {
-          background-color: #007bff;
+          background-color: #006400;
           color: #fff;
           border-bottom: none;
         }
@@ -365,8 +393,8 @@ export default function RoomContent({ room }) {
         }
         .react-datepicker__day--selected,
         .react-datepicker__day--keyboard-selected {
-          background-color: #007bff;
-          color: #fff;
+          background-color: #FFD700;
+          color: #000;
         }
       `}</style>
     </View>
@@ -518,71 +546,54 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  modalBox: {
-    width: "100%",
-    maxWidth: 400,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
-    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.85)", // ✅ dimmed background only
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
     marginBottom: 10,
-    color: "#007bff",
   },
   modalText: {
     fontSize: 15,
-    color: "#444",
-    marginBottom: 20,
     textAlign: "center",
+    marginBottom: 15,
   },
   modalButton: {
-    backgroundColor: "#007bff",
+    marginTop: 10,
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 25,
     borderRadius: 8,
   },
   modalButtonText: {
-    color: "#fff",
-    fontWeight: "600",
     fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
   },
-  /* File Row */
+
+  /* Buttons */
   fileRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 10,
   },
-
-  /* Pick File Button */
   pickFileBtn: {
     flex: 1,
-    marginRight: 8,
-    backgroundColor: "#6c757d", // gray
-    paddingVertical: 10,
-    borderRadius: 6,
+    padding: 10,
+    borderRadius: 8,
+    marginRight: 5,
     alignItems: "center",
   },
   pickFileText: {
-    color: "#fff",
     fontWeight: "600",
   },
-
-  /* Upload Button */
   uploadBtn: {
     flex: 1,
-    marginLeft: 8,
-    backgroundColor: "#007bff", // blue
-    paddingVertical: 10,
-    borderRadius: 6,
+    padding: 10,
+    borderRadius: 8,
+    marginLeft: 5,
     alignItems: "center",
   },
   uploadText: {
-    color: "#fff",
     fontWeight: "600",
   },
 });
