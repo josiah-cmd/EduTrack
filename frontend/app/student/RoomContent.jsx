@@ -3,112 +3,235 @@ import { useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import api from "../lib/axios";
 import AssignmentDetail from "./AssignmentDetail";
+import QuizList from "./quizzes/QuizList"; // ✅ ADDED this import (kept your structure)
+import QuizResult from "./quizzes/QuizResult"; // ✅ ADDED import for result display
+import QuizTake from "./quizzes/QuizTake"; // ✅ make sure this import exists in your project
 
-export default function RoomContent({ room, openMaterial, onOpenConsumed, isDarkMode }) { // ✅ added isDarkMode prop
-const [activeTab, setActiveTab] = useState("modules");
-const [materials, setMaterials] = useState([]);
-const [selectedMaterial, setSelectedMaterial] = useState(null);
-const consumedRef = useRef(false);
-
-const fetchMaterials = async () => {
-    if (!room) return;
-    try {
-        const typeParam =
-            activeTab === "modules"
-                ? "module"
-                : activeTab === "assignments"
-                    ? "assignment"
-                    : "quiz";
-
-        const res = await api.get("/materials", {
-            params: { type: typeParam, room_id: room.id },
-        });
-
-        console.log("Fetched materials:", res.data);
-        setMaterials(res.data);
-    } catch (err) {
-        console.error("❌ Error fetching materials:", err.response?.data || err.message);
+if (typeof window !== "undefined") {
+  window.onQuizSubmitSuccess = (data) => {
+    if (window._roomContentSetView && window._roomContentSetResult) {
+      window._roomContentSetResult(data);
+      window._roomContentSetView("result");
     }
-};
+  };
+}
 
-useEffect(() => {
-    fetchMaterials();
-}, [activeTab, room]);
+export default function RoomContent({ room, openMaterial, onOpenConsumed, isDarkMode }) {
+  const [activeTab, setActiveTab] = useState("modules");
+  const [materials, setMaterials] = useState([]);
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
+  const consumedRef = useRef(false);
 
-useEffect(() => {
-    if (openMaterial && room) {
-        if (openMaterial.type === "assignment") setActiveTab("assignments");
-        else if (openMaterial.type === "quiz") setActiveTab("quizzes");
-        else setActiveTab("modules");
-        consumedRef.current = false;
+  // ✅ NEW STATES for showing quiz result directly inside RoomContent
+  const [view, setView] = useState("default"); // "default" | "result"
+  const [quizResultProps, setQuizResultProps] = useState(null);
+
+  // ✅ make functions globally accessible to QuizTake.jsx
+    useEffect(() => {
+    if (typeof window !== "undefined") {
+        window._roomContentSetView = setView;
+        window._roomContentSetResult = setQuizResultProps;
     }
-}, [openMaterial, room]);
-
-useEffect(() => {
-    if (openMaterial && materials.length > 0 && !consumedRef.current) {
-        const found = materials.find((m) => String(m.id) === String(openMaterial.id));
-        if (found) {
-            setSelectedMaterial(found);
-            consumedRef.current = true;
-            if (typeof onOpenConsumed === "function") {
-                onOpenConsumed();
-            }
+    return () => {
+        if (typeof window !== "undefined") {
+        window._roomContentSetView = null;
+        window._roomContentSetResult = null;
         }
+    };
+    }, []);
+
+  const fetchMaterials = async () => {
+    if (!room) return;
+
+    try {
+      let res;
+
+      if (activeTab === "quizzes") {
+        // ✅ Fetch quizzes separately (from StudentQuizController)
+        res = await api.get("/student/quizzes", {
+          params: { room_id: room.id },
+        });
+      } else {
+        // ✅ Keep fetching materials for modules and assignments
+        const typeParam =
+          activeTab === "modules"
+            ? "module"
+            : activeTab === "assignments"
+            ? "assignment"
+            : "quiz";
+
+        res = await api.get("/materials", {
+          params: { type: typeParam, room_id: room.id },
+        });
+      }
+
+      console.log(`Fetched ${activeTab}:`, res.data);
+      setMaterials(res.data);
+    } catch (err) {
+      console.error(
+        `❌ Error fetching ${activeTab}:`,
+        err.response?.data || err.message
+      );
     }
-}, [openMaterial, materials]);
+  };
 
+  useEffect(() => {
+    fetchMaterials();
+  }, [activeTab, room]);
+
+  useEffect(() => {
+    if (openMaterial && room) {
+      if (openMaterial.type === "assignment") setActiveTab("assignments");
+      else if (openMaterial.type === "quiz") setActiveTab("quizzes");
+      else setActiveTab("modules");
+      consumedRef.current = false;
+    }
+  }, [openMaterial, room]);
+
+  useEffect(() => {
+    if (openMaterial && materials.length > 0 && !consumedRef.current) {
+      const found = materials.find((m) => String(m.id) === String(openMaterial.id));
+      if (found) {
+        setSelectedMaterial(found);
+        consumedRef.current = true;
+        if (typeof onOpenConsumed === "function") {
+          onOpenConsumed();
+        }
+      }
+    }
+  }, [openMaterial, materials]);
+
+  // ✅ NEW FUNCTION - when quiz submits successfully
+  const handleQuizSubmit = (attemptId, quizId, score, total, percentage) => {
+    setQuizResultProps({ attemptId, quizId, score, total, percentage });
+    setView("result");
+  };
+
+  // ✅ LISTEN to global event from QuizTake (since QuizTake cannot directly access RoomContent props)
+  useEffect(() => {
+    window.onQuizSubmitSuccess = (data) => {
+      setQuizResultProps(data);
+      setView("result");
+    };
+    return () => {
+      delete window.onQuizSubmitSuccess;
+    };
+  }, []);
+
+  // ✅ CONDITIONAL RENDER
+    if (view === "result" && quizResultProps) {
     return (
-        <View style={[styles.container]}>
-            {/* Tabs */}
-            <View style={styles.tabContainer}>
-                {["modules", "assignments", "quizzes"].map((tab) => (
-                    <TouchableOpacity
-                        key={tab}
-                        onPress={() => {
-                            setActiveTab(tab);
-                            setSelectedMaterial(null);
-                        }}
-                        style={[styles.tab,{ backgroundColor: isDarkMode ? "#333333" : "#ccc" }, activeTab === tab && { backgroundColor: isDarkMode ? "#228B22" : "#006400" }, ]}> 
-                        <Text style={[ styles.tabText,{ color: isDarkMode ? "#f0f0f0" : "#333" },activeTab === tab && { color: "#FFD700" },]} >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            {/* Main content: list OR detail */}
-            {selectedMaterial ? (
-                <AssignmentDetail
-                    material={selectedMaterial}
-                    onBack={() => setSelectedMaterial(null)}
-                    room={room}
-                    isDarkMode={isDarkMode}
-                />
-            ) : (
-                <FlatList
-                    data={materials}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity
-                            onPress={() => setSelectedMaterial(item)}
-                            style={[styles.fileCard,{backgroundColor: isDarkMode ? "#1e1e1e" : "#fff",borderColor: isDarkMode ? "#444" : "#ddd",},]}>
-                            <Text style={[styles.fileTitle,{ color: isDarkMode ? "#fff" : "#000" },]}>
-                                {item.title}
-                            </Text>
-                            <Text style={[styles.fileDesc,{ color: isDarkMode ? "#ccc" : "#555" },]}>
-                                {item.description}
-                            </Text>
-                            {item.deadline && (
-                                <Text style={[styles.deadline, { color: "#B22222" }]}>
-                                    ⏳ Deadline: {format(new Date(item.deadline), "MMM dd, yyyy h:mm a")}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-                    )}
-                />
-            )}
-        </View>
+        <QuizResult
+        {...quizResultProps}
+        onBack={() => {
+            setView("default");
+            setQuizResultProps(null);
+        }}
+        />
     );
+    }
+
+  return (
+    <View style={[styles.container]}>
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        {["modules", "assignments", "quizzes"].map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => {
+              setActiveTab(tab);
+              setSelectedMaterial(null);
+            }}
+            style={[
+              styles.tab,
+              { backgroundColor: isDarkMode ? "#333333" : "#ccc" },
+              activeTab === tab && {
+                backgroundColor: isDarkMode ? "#228B22" : "#006400",
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                { color: isDarkMode ? "#f0f0f0" : "#333" },
+                activeTab === tab && { color: "#FFD700" },
+              ]}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Main content */}
+      {selectedMaterial ? (
+        selectedMaterial.type === "quiz" ? (
+          <QuizTake
+            quiz={selectedMaterial}
+            onBack={() => setSelectedMaterial(null)}
+            room={room}
+            isDarkMode={isDarkMode}
+
+            // ✅ ADD THIS CALLBACK
+            onSubmitSuccess={(data) => {
+              setQuizResultProps(data);
+              setView("result");
+            }}
+          />
+        ) : (
+          <AssignmentDetail
+            material={selectedMaterial}
+            onBack={() => setSelectedMaterial(null)}
+            room={room}
+            isDarkMode={isDarkMode}
+          />
+        )
+      ) : activeTab === "quizzes" ? (
+        // ✅ When quizzes tab is active, show your QuizList design
+        <QuizList />
+      ) : (
+        <FlatList
+          data={materials}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              onPress={() => setSelectedMaterial(item)}
+              style={[
+                styles.fileCard,
+                {
+                  backgroundColor: isDarkMode ? "#1e1e1e" : "#fff",
+                  borderColor: isDarkMode ? "#444" : "#ddd",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.fileTitle,
+                  { color: isDarkMode ? "#fff" : "#000" },
+                ]}
+              >
+                {item.title}
+              </Text>
+              <Text
+                style={[
+                  styles.fileDesc,
+                  { color: isDarkMode ? "#ccc" : "#555" },
+                ]}
+              >
+                {item.description}
+              </Text>
+              {item.deadline && (
+                <Text style={[styles.deadline, { color: "#B22222" }]}>
+                  ⏳ Deadline:{" "}
+                  {format(new Date(item.deadline), "MMM dd, yyyy h:mm a")}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+        />
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

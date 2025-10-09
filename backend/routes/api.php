@@ -14,6 +14,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuizController;
+use App\Http\Controllers\StudentQuizController;
 
 
 // Public routes
@@ -84,4 +85,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/quizzes/{id}', [QuizController::class, 'destroy']);
     Route::patch('/quizzes/{id}/toggle', [QuizController::class, 'toggleStatus']);
     Route::get('/quizzes/{id}/questions', [QuizController::class, 'getQuestions']);
+    Route::patch('/quizzes/{id}/publish', [QuizController::class, 'publish']);
+
+    Route::get('/student/quizzes', [StudentQuizController::class, 'index']);
+    Route::get('/student/quizzes/{id}', [StudentQuizController::class, 'show']);
+    Route::post('/student/quizzes/{quiz_id}/start', [StudentQuizController::class, 'start']);
+    Route::post('/student/quiz-attempts/{attempt_id}/submit', [StudentQuizController::class, 'submit']);
+    Route::get('/student/quiz-attempts/{attempt_id}/result', [StudentQuizController::class, 'result']);
+    Route::get('/student/quizzes/attempts', [StudentQuizController::class, 'attempts']);
 });

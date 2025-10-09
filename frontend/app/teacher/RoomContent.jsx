@@ -38,6 +38,9 @@ export default function RoomContent({ room }) {
   // ✅ Dark Mode (toggle or system based)
   const [isDarkMode, setIsDarkMode] = useState(true);
 
+  // ✅ Add a new state
+  const [showQuizCreate, setShowQuizCreate] = useState(false);
+
   // ✅ Fetch materials
   const fetchMaterials = async () => {
     if (!room) return;
@@ -223,7 +226,19 @@ export default function RoomContent({ room }) {
 
       {/* ✅ Quizzes Tab */}
       {activeTab === "quizzes" && room && (
-        <QuizList room={room} isDarkMode={isDarkMode} />
+        showQuizCreate ? (
+          <QuizCreate
+            room={room}
+            isDarkMode={isDarkMode}
+            onBackToQuizzes={() => setShowQuizCreate(false)} // callback
+          />
+        ) : (
+          <QuizList
+            room={room}
+            isDarkMode={isDarkMode}
+            onCreateQuiz={() => setShowQuizCreate(true)} // open create form
+          />
+        )
       )}
 
       {/* Upload form */}

@@ -1,22 +1,22 @@
-<?php
+    <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+    use Illuminate\Database\Migrations\Migration;
+    use Illuminate\Database\Schema\Blueprint;
+    use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function up(): void {
-        Schema::create('room_user', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('room_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->timestamps();
+    return new class extends Migration {
+        public function up(): void {
+            Schema::create('room_user', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('room_id')->constrained()->onDelete('cascade');
+                $table->foreignId('user_id')->constrained()->onDelete('cascade');
+                $table->timestamps();
 
-            $table->unique(['room_id', 'user_id']); // prevent duplicates
-        });
-    }
+                $table->unique(['room_id', 'user_id']); // prevent duplicates
+            });
+        }
 
-    public function down(): void {
-        Schema::dropIfExists('room_user');
-    }
-};
+        public function down(): void {
+            Schema::dropIfExists('room_user');
+        }
+    };

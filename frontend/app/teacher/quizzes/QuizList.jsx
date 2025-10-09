@@ -4,6 +4,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import api from "../../lib/axios";
 import QuizCreate from "./QuizCreate"; // ✅ Added import (NO removals)
+import QuizDetail from "./QuizDetail";
 import QuizForm from "./QuizForm";
 import QuizReview from "./QuizReview";
 
@@ -31,6 +32,8 @@ export default function QuizList({ room, isDarkMode }) {
 
   // ✅ NEW: Pass saved quiz data directly to QuizCreate for continuation
   const [savedQuizData, setSavedQuizData] = useState(null);
+
+  const [viewingQuiz, setViewingQuiz] = useState(null);
 
   const fetchQuizzes = async () => {
     try {
@@ -137,9 +140,23 @@ export default function QuizList({ room, isDarkMode }) {
     }
   };
 
-  // ✅ NEW: integrate QuizCreate after quiz is saved (without deleting original flow)
+  // ✅ FIX ADDED: Full return handler for after Save & Publish → OK
+  const handleBackToQuizzes = () => {
+    setIsUsingQuizCreate(false);
+    setStep(1);
+    setActiveQuizId(null);
+    setSavedQuizData(null);
+    fetchQuizzes(); // ✅ Refresh list on return
+  };
+
+  // ✅ NEW: integrate QuizCreate after quiz is saved
   if (isUsingQuizCreate && activeQuizId && savedQuizData) {
-    return <QuizCreate quizData={savedQuizData} />; // ✅ Pass quizData prop (fixed)
+    return (
+      <QuizCreate
+        quizData={savedQuizData}
+        onBackToQuizzes={handleBackToQuizzes} // ✅ FIX ADDED
+      />
+    );
   }
 
   // ✅ Step flow rendering (unchanged)
@@ -162,14 +179,22 @@ export default function QuizList({ room, isDarkMode }) {
         room={room}
         isDarkMode={isDarkMode}
         onBack={() => setStep(2)}
-        onFinish={() => {
-          setStep(1);
-          fetchQuizzes();
-        }}
+        onFinish={handleBackToQuizzes} // ✅ FIX ADDED
       />
     );
   }
 
+  if (viewingQuiz) {
+    return (
+      <QuizDetail
+        quiz={viewingQuiz}
+        isDarkMode={isDarkMode}
+        onBack={() => setViewingQuiz(null)}
+      />
+    );
+  }
+
+  // ✅ Your full existing JSX code (UNCHANGED except one new button)
   return (
     <View style={{ flex: 1 }}>
       <style>{`
@@ -257,6 +282,14 @@ export default function QuizList({ room, isDarkMode }) {
                 <Text style={{ color: "#fff" }}>
                   {item.status === "published" ? "Published" : item.status === "closed" ? "Closed" : "Draft"}
                 </Text>
+              </TouchableOpacity>
+
+              {/* ✅ NEW BUTTON: View Results */}
+              <TouchableOpacity
+                onPress={() => setViewingQuiz(item)}
+                style={[styles.smallBtn, { backgroundColor: "#006400" }]}
+              >
+                <Text style={{ color: "#FFD700" }}>📊 View Results</Text>
               </TouchableOpacity>
             </View>
           </View>

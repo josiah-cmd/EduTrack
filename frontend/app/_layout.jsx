@@ -10,6 +10,8 @@ export default function Layout() {
         <Stack.Screen name="teacher/index" options={{ headerShown: false }} />
         <Stack.Screen name="staff/index" options={{ headerShown: false }} />
         <Stack.Screen name="student/index" options={{ headerShown: false }} />
+        <Stack.Screen name="student/quizzes/QuizTake" options={{ headerShown: false }} />
+        <Stack.Screen name="student/quizzes/QuizResult" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaView>
   );

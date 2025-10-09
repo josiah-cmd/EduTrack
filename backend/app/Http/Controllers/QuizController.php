@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Quiz;
 use App\Models\Question;
+use App\Models\Option;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -21,23 +22,23 @@ class QuizController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'instructions' => 'nullable|string', // ✅ was description
+            'instructions' => 'nullable|string',
             'start_time' => 'required|date',
             'end_time' => 'required|date|after:start_time',
-            'duration' => 'required|integer|min:1', // ✅ was time_limit
+            'duration' => 'required|integer|min:1',
             'passing_score' => 'nullable|numeric|min:0',
             'total_points' => 'nullable|numeric|min:0',
             'room_id' => 'required|exists:rooms,id',
         ]);
 
         $quiz = Quiz::create([
-            'teacher_id' => auth()->user()->teacher->id, // ✅ include teacher
+            'teacher_id' => auth()->user()->teacher->id,
             'room_id' => $validated['room_id'],
             'title' => $validated['title'],
-            'instructions' => $validated['instructions'] ?? null, // ✅ fixed
+            'instructions' => $validated['instructions'] ?? null,
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'],
-            'duration' => $validated['duration'], // ✅ fixed
+            'duration' => $validated['duration'],
             'passing_score' => $validated['passing_score'] ?? 0,
             'total_points' => $validated['total_points'] ?? 0,
             'status' => 'draft',
@@ -46,7 +47,7 @@ class QuizController extends Controller
         return response()->json($quiz, 201);
     }
 
-    // Step 2 — add questions to quiz
+    // Step 2 — add questions + options properly (CREATES Option rows)
     public function addQuestions(Request $request, $id)
     {
         $quiz = Quiz::findOrFail($id);
@@ -58,20 +59,32 @@ class QuizController extends Controller
             'questions.*.points' => 'required|numeric|min:1',
             'questions.*.correct_answer' => 'required|string',
             'questions.*.options' => 'nullable|array',
+            'questions.*.options.*.label' => 'required_with:questions.*.options|string|max:1',
+            'questions.*.options.*.text' => 'required_with:questions.*.options|string',
         ]);
 
         DB::beginTransaction();
         try {
             foreach ($validated['questions'] as $q) {
-                $question = new Question([
+                // Create the question
+                $question = Question::create([
                     'quiz_id' => $quiz->id,
                     'question_text' => $q['question_text'],
                     'type' => $q['type'],
                     'points' => $q['points'],
                     'correct_answer' => $q['correct_answer'],
-                    'options' => isset($q['options']) ? json_encode($q['options']) : null,
                 ]);
-                $question->save();
+
+                // ✅ Ensure options save to DB
+                if (isset($q['options']) && is_array($q['options']) && count($q['options']) > 0) {
+                    foreach ($q['options'] as $opt) {
+                        Option::create([
+                            'question_id' => $question->id,
+                            'label' => $opt['label'],
+                            'text' => $opt['text'],
+                        ]);
+                    }
+                }
             }
 
             DB::commit();
@@ -82,15 +95,10 @@ class QuizController extends Controller
         }
     }
 
-    // Step 3 — show quiz + questions
+    // Step 3 — show quiz + questions (EAGER LOAD options)
     public function show($id)
     {
-        $quiz = Quiz::with('questions')->findOrFail($id);
-        foreach ($quiz->questions as $q) {
-            if ($q->options) {
-                $q->options = json_decode($q->options, true);
-            }
-        }
+        $quiz = Quiz::with('questions.options')->findOrFail($id);
         return response()->json($quiz);
     }
 
@@ -134,6 +142,7 @@ class QuizController extends Controller
         return response()->json(['message' => 'Quiz status toggled', 'status' => $quiz->status]);
     }
 
+    // Get all questions for a quiz (returns options as label/text)
     public function getQuestions($id)
     {
         $quiz = Quiz::with(['questions.options'])->find($id);
@@ -142,7 +151,6 @@ class QuizController extends Controller
             return response()->json(['message' => 'Quiz not found'], 404);
         }
 
-        // Optional: format response for easier frontend handling
         $questions = $quiz->questions->map(function ($q) {
             return [
                 'id' => $q->id,
@@ -150,7 +158,13 @@ class QuizController extends Controller
                 'type' => $q->type,
                 'points' => $q->points,
                 'correct_answer' => $q->correct_answer,
-                'options' => $q->options->pluck('option_text'), // return just text of options
+                'options' => $q->options->map(function ($o) {
+                    return [
+                        'label' => $o->label,
+                        'text' => $o->text,
+                        'id' => $o->id,
+                    ];
+                }),
             ];
         });
 
@@ -158,9 +172,22 @@ class QuizController extends Controller
             'quiz' => [
                 'id' => $quiz->id,
                 'title' => $quiz->title,
-                'description' => $quiz->description,
+                'instructions' => $quiz->instructions,
             ],
             'questions' => $questions,
+        ]);
+    }
+
+    // ✅ FIX ADDED — publish route logic
+    public function publish($id)
+    {
+        $quiz = Quiz::findOrFail($id);
+        $quiz->status = 'published';
+        $quiz->save();
+
+        return response()->json([
+            'message' => 'Quiz published successfully!',
+            'quiz' => $quiz
         ]);
     }
 }

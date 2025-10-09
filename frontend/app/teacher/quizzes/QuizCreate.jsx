@@ -1,11 +1,11 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import QuizForm from "./QuizForm";
 import QuizList from "./QuizList";
 import QuizReview from "./QuizReview";
 
-export default function QuizCreate({ quizData }) { // ✅ added prop for when QuizList passes quizData
+export default function QuizCreate({ quizData, onBackToQuizzes }) { // ✅ added optional prop
   const [step, setStep] = useState(quizData ? 2 : 1); // ✅ if quizData exists, start at step 2
   const [quizId, setQuizId] = useState(quizData?.id || null); // ✅ auto use existing quizId if passed
   const router = useRouter();
@@ -21,18 +21,23 @@ export default function QuizCreate({ quizData }) { // ✅ added prop for when Qu
     setStep(3);
   };
 
-  // ✅ Step 5: After publishing or saving draft → success + back to list
+  // ✅ FIX ADDED: Final publish → back to QuizList cleanly
   const handleFinish = () => {
-    Alert.alert("✅ Success", "Quiz has been published successfully!", [
-      {
-        text: "OK",
-        onPress: () => {
-          setQuizId(null);
-          setStep(1);
-          router.push("/teacher/quizzes"); // ✅ adjusted route path to match folder (was /quizzes)
-        },
-      },
-    ]);
+    setQuizId(null);
+    setStep(1);
+
+    // ✅ Attempt direct parent callback first (no router)
+    if (onBackToQuizzes) {
+      onBackToQuizzes();
+      return; // ✅ Stop here if handled
+    }
+
+    try {
+      router.back(); // ✅ fallback (in case direct parent not used)
+    } catch (error) {
+      console.warn("Router not active, showing QuizList directly");
+      setStep(1); // ✅ fallback to show QuizList locally
+    }
   };
 
   // ✅ Step 4: Back button in QuizReview → return to QuizForm
@@ -44,22 +49,22 @@ export default function QuizCreate({ quizData }) { // ✅ added prop for when Qu
     <View style={styles.container}>
       {step === 1 && (
         <QuizList
-          onQuizCreated={handleQuizCreated} // called after saving quiz info
+          onQuizCreated={handleQuizCreated}
         />
       )}
 
       {step === 2 && quizId && (
         <QuizForm
           quizId={quizId}
-          onNextStep={handleQuestionsSaved} // called after saving questions
+          onNextStep={handleQuestionsSaved}
         />
       )}
 
       {step === 3 && quizId && (
         <QuizReview
           quizId={quizId}
-          onBack={handleBackToEdit} // back to edit
-          onFinish={handleFinish} // publish → success → back to list
+          onBack={handleBackToEdit}
+          onFinish={handleFinish} // ✅ FIX ADDED: publish → go back to QuizList
         />
       )}
     </View>
@@ -69,6 +74,5 @@ export default function QuizCreate({ quizData }) { // ✅ added prop for when Qu
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
 });

@@ -1,6 +1,15 @@
 import { Picker } from "@react-native-picker/picker";
 import { useEffect, useState } from "react";
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useColorScheme, } from "react-native";
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from "react-native";
 import api from "../lib/axios";
 
 export default function UserForm({ isDarkMode }) {
@@ -12,6 +21,11 @@ export default function UserForm({ isDarkMode }) {
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("");
+
+  // 🆕 new states for teacher details
+  const [department, setDepartment] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [subjects, setSubjects] = useState([]); // ✅ all subjects list
 
   // modals
   const [showWarning, setShowWarning] = useState(false);
@@ -38,15 +52,24 @@ export default function UserForm({ isDarkMode }) {
       console.log("✅ Users fetched:", res.data);
       setUsers(res.data);
     } catch (error) {
-      console.error(
-        "❌ Error fetching users:",
-        error.response?.data || error.message
-      );
+      console.error("❌ Error fetching users:", error.response?.data || error.message);
+    }
+  };
+
+  // 🆕 fetch subjects for dropdown
+  const fetchSubjects = async () => {
+    try {
+      const res = await api.get("/subjects");
+      console.log("✅ Subjects fetched:", res.data);
+      setSubjects(res.data);
+    } catch (error) {
+      console.error("❌ Error fetching subjects:", error.response?.data || error.message);
     }
   };
 
   useEffect(() => {
     fetchUsers();
+    fetchSubjects(); // 🆕 fetch subjects on mount
   }, []);
 
   const handleSubmit = async () => {
@@ -60,9 +83,25 @@ export default function UserForm({ isDarkMode }) {
         ? `${firstName} ${middleInitial}. ${lastName}`
         : `${firstName} ${lastName}`;
 
-      console.log("📤 Payload:", { name: fullName, role, email });
+      // 🆕 include department and subject_id if teacher
+      const payload =
+        role === "teacher"
+          ? {
+              name: fullName,
+              role,
+              email,
+              department: department || null,
+              subject_id: subjectId || null,
+            }
+          : {
+              name: fullName,
+              role,
+              email,
+            };
 
-      const res = await api.post("/users", { name: fullName, role, email });
+      console.log("📤 Payload:", payload);
+
+      const res = await api.post("/users", payload);
 
       console.log("✅ User created:", res.data);
 
@@ -71,14 +110,13 @@ export default function UserForm({ isDarkMode }) {
       setLastName("");
       setRole("");
       setEmail("");
+      setDepartment(""); // 🆕 reset
+      setSubjectId(""); // 🆕 reset
 
       fetchUsers();
       setShowSuccess(true); // ✅ show confirmation modal
     } catch (error) {
-      console.error(
-        "❌ Error creating user:",
-        error.response?.data || error.message
-      );
+      console.error("❌ Error creating user:", error.response?.data || error.message);
     }
   };
 
@@ -91,66 +129,46 @@ export default function UserForm({ isDarkMode }) {
     return matchesSearch && matchesRole;
   });
 
+  // 🆕 sample department options (you can add more)
+  const departmentOptions = [
+    "Mathematics",
+    "Science",
+    "English",
+    "Computer Studies",
+    "Social Studies",
+    "Filipino",
+    "Physical Education",
+  ];
+
   return (
-    <ScrollView
-      contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
       <View style={[styles.card, { backgroundColor: cardBg }]}>
         <Text style={[styles.title, { color: textColor }]}>Create User</Text>
 
         {/* --- FORM --- */}
         <TextInput
-          style={[
-            styles.input,
-            {
-              color: textColor,
-              backgroundColor: inputBg,
-              borderColor,
-            },
-          ]}
+          style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
           placeholder="First Name"
           placeholderTextColor={subTextColor}
           value={firstName}
           onChangeText={setFirstName}
         />
         <TextInput
-          style={[
-            styles.input,
-            {
-              color: textColor,
-              backgroundColor: inputBg,
-              borderColor,
-            },
-          ]}
+          style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
           placeholder="Middle Initial (Optional)"
           placeholderTextColor={subTextColor}
           value={middleInitial}
           onChangeText={setMiddleInitial}
         />
         <TextInput
-          style={[
-            styles.input,
-            {
-              color: textColor,
-              backgroundColor: inputBg,
-              borderColor,
-            },
-          ]}
+          style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
           placeholder="Last Name"
           placeholderTextColor={subTextColor}
           value={lastName}
           onChangeText={setLastName}
         />
         <TextInput
-          style={[
-            styles.input,
-            {
-              color: textColor,
-              backgroundColor: inputBg,
-              borderColor,
-            },
-          ]}
+          style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
           placeholder="Email"
           placeholderTextColor={subTextColor}
           keyboardType="email-address"
@@ -159,22 +177,11 @@ export default function UserForm({ isDarkMode }) {
         />
 
         <Text style={[styles.label, { color: textColor }]}>Select Role</Text>
-        <View
-          style={[
-            styles.pickerWrapper,
-            {
-              backgroundColor: inputBg,
-              borderColor,
-            },
-          ]}
-        >
+        <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
           <Picker
             selectedValue={role}
             onValueChange={(value) => setRole(value)}
-            style={{
-              color: textColor,
-              backgroundColor: inputBg,
-            }}
+            style={{ color: textColor, backgroundColor: inputBg }}
             dropdownIconColor={textColor}
           >
             <Picker.Item label="Select Role" value="" />
@@ -185,32 +192,55 @@ export default function UserForm({ isDarkMode }) {
           </Picker>
         </View>
 
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: buttonBg }]}
-          onPress={handleSubmit}
-        >
-          <Text style={[styles.buttonText, { color: buttonText }]}>
-            Create User
-          </Text>
+        {/* 🆕 Show only when Teacher is selected */}
+        {role === "teacher" && (
+          <>
+            <Text style={[styles.label, { color: textColor }]}>Select Department</Text>
+            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
+              <Picker
+                selectedValue={department}
+                onValueChange={(value) => setDepartment(value)}
+                style={{ color: textColor, backgroundColor: inputBg }}
+                dropdownIconColor={textColor}
+              >
+                <Picker.Item label="Select Department" value="" />
+                {departmentOptions.map((dept, index) => (
+                  <Picker.Item key={index} label={dept} value={dept} />
+                ))}
+              </Picker>
+            </View>
+
+            <Text style={[styles.label, { color: textColor }]}>Select Subject</Text>
+            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
+              <Picker
+                selectedValue={subjectId}
+                onValueChange={(value) => setSubjectId(value)}
+                style={{ color: textColor, backgroundColor: inputBg }}
+                dropdownIconColor={textColor}
+              >
+                <Picker.Item label="Select Subject" value="" />
+                {subjects.map((subj) => (
+                  <Picker.Item key={subj.id} label={subj.name} value={subj.id} />
+                ))}
+              </Picker>
+            </View>
+          </>
+        )}
+
+        <TouchableOpacity style={[styles.button, { backgroundColor: buttonBg }]} onPress={handleSubmit}>
+          <Text style={[styles.buttonText, { color: buttonText }]}>Create User</Text>
         </TouchableOpacity>
       </View>
 
       {/* --- USER LIST --- */}
       <View style={[styles.card, { backgroundColor: cardBg, marginTop: 25 }]}>
-        <Text style={[styles.title, { marginBottom: 15, color: textColor }]}>
-          User List
-        </Text>
+        <Text style={[styles.title, { marginBottom: 15, color: textColor }]}>User List</Text>
 
         {/* --- SEARCH --- */}
         <TextInput
           style={[
             styles.input,
-            {
-              color: textColor,
-              backgroundColor: inputBg,
-              borderColor,
-              marginBottom: 10,
-            },
+            { color: textColor, backgroundColor: inputBg, borderColor, marginBottom: 10 },
           ]}
           placeholder="Search by name or email"
           placeholderTextColor={subTextColor}
@@ -220,22 +250,12 @@ export default function UserForm({ isDarkMode }) {
 
         {/* --- FILTER BY ROLE --- */}
         <View
-          style={[
-            styles.pickerWrapper,
-            {
-              backgroundColor: inputBg,
-              borderColor,
-              marginBottom: 15,
-            },
-          ]}
+          style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor, marginBottom: 15 }]}
         >
           <Picker
             selectedValue={filterRole}
             onValueChange={(value) => setFilterRole(value)}
-            style={{
-              color: textColor,
-              backgroundColor: inputBg,
-            }}
+            style={{ color: textColor, backgroundColor: inputBg }}
             dropdownIconColor={textColor}
           >
             <Picker.Item label="Filter by Role" value="" />
@@ -247,22 +267,13 @@ export default function UserForm({ isDarkMode }) {
         </View>
 
         <View style={[styles.tableHeader, { borderBottomColor: headerBorder }]}>
-          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>
-            Name
-          </Text>
-          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>
-            Email
-          </Text>
-          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>
-            Role
-          </Text>
+          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>Name</Text>
+          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>Email</Text>
+          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>Role</Text>
         </View>
 
         {filteredUsers.map((item) => (
-          <View
-            key={item.id}
-            style={[styles.tableRow, { borderBottomColor: rowBorder }]}
-          >
+          <View key={item.id} style={[styles.tableRow, { borderBottomColor: rowBorder }]}>
             <Text style={[styles.cell, { color: textColor }]}>{item.name}</Text>
             <Text style={[styles.cell, { color: textColor }]}>{item.email}</Text>
             <Text style={[styles.cell, { color: textColor }]}>{item.role}</Text>
@@ -271,24 +282,10 @@ export default function UserForm({ isDarkMode }) {
       </View>
 
       {/* --- WARNING MODAL --- */}
-      <Modal
-        transparent
-        visible={showWarning}
-        animationType="fade"
-        onRequestClose={() => setShowWarning(false)}
-      >
+      <Modal transparent visible={showWarning} animationType="fade" onRequestClose={() => setShowWarning(false)}>
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalBox,
-              { backgroundColor: isDark ? "#1f2937" : "#fff" },
-            ]}
-          >
-            <Text
-              style={[styles.modalTitle, { color: isDark ? "#fff" : "#111" }]}
-            >
-              Missing Fields
-            </Text>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#1f2937" : "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? "#fff" : "#111" }]}>Missing Fields</Text>
             <Text style={[styles.modalText, { color: isDark ? "#ccc" : "#444" }]}>
               Please fill in all required fields before creating a user.
             </Text>
@@ -304,24 +301,10 @@ export default function UserForm({ isDarkMode }) {
       </Modal>
 
       {/* --- SUCCESS MODAL --- */}
-      <Modal
-        transparent
-        visible={showSuccess}
-        animationType="fade"
-        onRequestClose={() => setShowSuccess(false)}
-      >
+      <Modal transparent visible={showSuccess} animationType="fade" onRequestClose={() => setShowSuccess(false)}>
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalBox,
-              { backgroundColor: isDark ? "#1f2937" : "#fff" },
-            ]}
-          >
-            <Text
-              style={[styles.modalTitle, { color: isDark ? "#fff" : "#111" }]}
-            >
-              ✅ User Created
-            </Text>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#1f2937" : "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? "#fff" : "#111" }]}>✅ User Created</Text>
             <Text style={[styles.modalText, { color: isDark ? "#ccc" : "#444" }]}>
               The new user has been successfully created.
             </Text>

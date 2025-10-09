@@ -1,15 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import api from "../../lib/axios";
 
 export default function QuizReview({ quizId, onBack, onFinish }) {
-  const [quiz, setQuiz] = useState(null); // ✅ fixed "auseState" → "useState"
-  const [questions, setQuestions] = useState([]); // ✅ fixed
-  const [isFinishing, setIsFinishing] = useState(false); // ✅ fixed typo
+  const [quiz, setQuiz] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false); // ✅ added modal
+  const navigation = useNavigation();
 
   useEffect(() => {
-    const fetchData = async () => { // ✅ fixed invalid arrow syntax (async ?=>)
+    const fetchData = async () => {
       try {
         const [quizRes, questionRes] = await Promise.all([
           api.get(`/quizzes/${quizId}`),
@@ -30,7 +33,7 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
       } catch (error) {
         console.error("❌ Error loading quiz/questions:", error.response?.data || error.message);
       }
-    }; // ✅ fixed colon (:) to semicolon
+    };
     fetchData();
   }, [quizId]);
 
@@ -38,23 +41,22 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
     try {
       setIsFinishing(true);
       await api.put(`/quizzes/${quizId}`, { status });
-      Alert.alert(
-        "Success",
-        `Quiz ${status === "published" ? "published" : "saved as draft"} successfully!`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              if (onFinish) onFinish();
-            },
-          },
-        ]
-      );
+      // ✅ Show modal instead of Alert
+      setShowPublishModal(true);
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Failed to update quiz status.");
     } finally {
       setIsFinishing(false);
+    }
+  };
+
+  const handleModalOK = () => {
+    setShowPublishModal(false);
+    if (onFinish) {
+      onFinish(); // ✅ Let parent (QuizCreate) handle switching back to list
+    } else {
+      navigation.goBack?.(); // fallback
     }
   };
 
@@ -78,31 +80,19 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
       <Text style={styles.subTitle}>Questions:</Text>
       {questions.map((q, i) => (
         <View key={i} style={styles.questionCard}>
-          <Text style={styles.questionText}>
-            {i + 1}. {q.question_text}
-          </Text>
-          <Text style={styles.meta}>
-            Type: {q.type} | Points: {q.points}
-          </Text>
+          <Text style={styles.questionText}>{i + 1}. {q.question_text}</Text>
+          <Text style={styles.meta}>Type: {q.type} | Points: {q.points}</Text>
 
-          {Array.isArray(q.options) &&
-            q.options.length > 0 &&
-            q.options.map((opt, idx) => (
-              <Text key={idx} style={styles.option}>
-                •{" "}
-                {typeof opt === "string"
-                  ? opt
-                  : `${opt.label ?? String.fromCharCode(65 + idx)}. ${
-                      opt.option_text ?? opt.text
-                    }`}
-              </Text>
-            ))}
+          {Array.isArray(q.options) && q.options.length > 0 && q.options.map((opt, idx) => (
+            <Text key={idx} style={styles.option}>
+              • {typeof opt === "string" ? opt : `${opt.label ?? String.fromCharCode(65 + idx)}. ${opt.option_text ?? opt.text}`}
+            </Text>
+          ))}
 
           <Text style={styles.correct}>✅ Correct Answer: {q.correct_answer}</Text>
         </View>
       ))}
 
-      {/* ✅ fixed from "TouchableOction" → "TouchableOpacity" */}
       <TouchableOpacity
         style={[styles.publishBtn, isFinishing && { opacity: 0.6 }]}
         onPress={() => handleSaveAndPublish("published")}
@@ -125,6 +115,27 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
         <Ionicons name="arrow-back-circle-outline" size={20} color="white" />
         <Text style={styles.btnText}>Back to Edit</Text>
       </TouchableOpacity>
+
+      {/* ✅ Modal */}
+      <Modal
+        visible={showPublishModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPublishModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>✅ Quiz Published</Text>
+            <Text style={styles.modalText}>Your quiz has been published successfully!</Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={handleModalOK}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -198,15 +209,43 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginLeft: 6,
   },
-
-  // ✅ Added minimal missing styles
   backBtn: {
-    backgroundColor: "#444", // darker gray for back button
+    backgroundColor: "#444",
     padding: 10,
     borderRadius: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 10,
+  },
+
+  // ✅ Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBox: {
+    backgroundColor: "white",
+    padding: 20,
+    borderRadius: 12,
+    width: "80%",
+    alignItems: "center",
+  },
+  modalText: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 15,
+  },
+  modalButton: {
+    backgroundColor: "green",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    color: "white",
+    fontWeight: "600",
   },
 });
