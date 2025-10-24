@@ -1,15 +1,6 @@
 import { Picker } from "@react-native-picker/picker";
 import { useEffect, useState } from "react";
-import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useColorScheme,
-} from "react-native";
+import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useColorScheme, } from "react-native";
 import api from "../lib/axios";
 
 export default function UserForm({ isDarkMode }) {
@@ -27,6 +18,11 @@ export default function UserForm({ isDarkMode }) {
   const [subjectId, setSubjectId] = useState("");
   const [subjects, setSubjects] = useState([]); // ✅ all subjects list
 
+  // 🆕 new states for student details
+  const [gradeLevel, setGradeLevel] = useState("");
+  const [section, setSection] = useState("");
+  const [sections, setSections] = useState([]); // will hold section list from backend
+
   // modals
   const [showWarning, setShowWarning] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -35,16 +31,16 @@ export default function UserForm({ isDarkMode }) {
   const isDark =
     typeof isDarkMode === "boolean" ? isDarkMode : scheme === "dark";
 
-  // dynamic colors
-  const textColor = isDark ? "#ffffff" : "#333333";
-  const subTextColor = isDark ? "#cccccc" : "#555555";
-  const inputBg = isDark ? "#1e1e1e" : "#f9f9f9";
-  const borderColor = isDark ? "#555555" : "#ccc";
-  const buttonBg = isDark ? "#6366f1" : "#4f46e5";
-  const buttonText = "#ffffff";
-  const headerBorder = isDark ? "#666" : "#ddd";
-  const rowBorder = isDark ? "#444" : "#eee";
-  const cardBg = isDark ? "#111827" : "#ffffff";
+  // professional green-white-gold theme
+  const textColor = isDark ? "#ffd700" : "#10b981"; 
+  const subTextColor = isDark ? "#d1fae5" : "#4b5563";
+  const inputBg = isDark ? "#065f46" : "#f9fafb"; 
+  const borderColor = isDark ? "#ffd700" : "#10b981"; 
+  const buttonBg = isDark ? "#10b981" : "#047857"; 
+  const buttonText = "#fef3c7"; 
+  const headerBorder = isDark ? "#064e3b" : "#fde68a"; 
+  const rowBorder = isDark ? "#065f46" : "#fef3c7"; 
+  const cardBg = isDark ? "#1a1a1a" : "#ffffff"; 
 
   const fetchUsers = async () => {
     try {
@@ -67,9 +63,21 @@ export default function UserForm({ isDarkMode }) {
     }
   };
 
+  // 🆕 fetch sections (for student)
+  const fetchSections = async () => {
+    try {
+      const res = await api.get("/sections");
+      console.log("✅ Sections fetched:", res.data);
+      setSections(res.data);
+    } catch (error) {
+      console.error("❌ Error fetching sections:", error.response?.data || error.message);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchSubjects(); // 🆕 fetch subjects on mount
+    fetchSections(); // 🆕 fetch sections for students
   }, []);
 
   const handleSubmit = async () => {
@@ -84,6 +92,7 @@ export default function UserForm({ isDarkMode }) {
         : `${firstName} ${lastName}`;
 
       // 🆕 include department and subject_id if teacher
+      // 🆕 include grade_level and section_id if student
       const payload =
         role === "teacher"
           ? {
@@ -92,6 +101,14 @@ export default function UserForm({ isDarkMode }) {
               email,
               department: department || null,
               subject_id: subjectId || null,
+            }
+          : role === "student"
+          ? {
+              name: fullName,
+              role,
+              email,
+              grade_level: gradeLevel || null,
+              section_id: section || null,
             }
           : {
               name: fullName,
@@ -112,6 +129,8 @@ export default function UserForm({ isDarkMode }) {
       setEmail("");
       setDepartment(""); // 🆕 reset
       setSubjectId(""); // 🆕 reset
+      setGradeLevel(""); // 🆕 reset
+      setSection(""); // 🆕 reset
 
       fetchUsers();
       setShowSuccess(true); // ✅ show confirmation modal
@@ -129,7 +148,7 @@ export default function UserForm({ isDarkMode }) {
     return matchesSearch && matchesRole;
   });
 
-  // 🆕 sample department options (you can add more)
+  // 🆕 sample department options
   const departmentOptions = [
     "Mathematics",
     "Science",
@@ -138,6 +157,16 @@ export default function UserForm({ isDarkMode }) {
     "Social Studies",
     "Filipino",
     "Physical Education",
+  ];
+
+  // 🆕 sample grade levels
+  const gradeLevels = [
+    "Grade 7",
+    "Grade 8",
+    "Grade 9",
+    "Grade 10",
+    "Grade 11",
+    "Grade 12",
   ];
 
   return (
@@ -227,6 +256,41 @@ export default function UserForm({ isDarkMode }) {
           </>
         )}
 
+        {/* 🆕 Show only when Student is selected */}
+        {role === "student" && (
+          <>
+            <Text style={[styles.label, { color: textColor }]}>Select Grade</Text>
+            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
+              <Picker
+                selectedValue={gradeLevel}
+                onValueChange={(value) => setGradeLevel(value)}
+                style={{ color: textColor, backgroundColor: inputBg }}
+                dropdownIconColor={textColor}
+              >
+                <Picker.Item label="Select Grade" value="" />
+                {gradeLevels.map((grade, index) => (
+                  <Picker.Item key={index} label={grade} value={grade} />
+                ))}
+              </Picker>
+            </View>
+
+            <Text style={[styles.label, { color: textColor }]}>Select Section</Text>
+            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
+              <Picker
+                selectedValue={section}
+                onValueChange={(value) => setSection(value)}
+                style={{ color: textColor, backgroundColor: inputBg }}
+                dropdownIconColor={textColor}
+              >
+                <Picker.Item label="Select Section" value="" />
+                {sections.map((sec) => (
+                  <Picker.Item key={sec.id} label={sec.name} value={sec.id} />
+                ))}
+              </Picker>
+            </View>
+          </>
+        )}
+
         <TouchableOpacity style={[styles.button, { backgroundColor: buttonBg }]} onPress={handleSubmit}>
           <Text style={[styles.buttonText, { color: buttonText }]}>Create User</Text>
         </TouchableOpacity>
@@ -284,17 +348,17 @@ export default function UserForm({ isDarkMode }) {
       {/* --- WARNING MODAL --- */}
       <Modal transparent visible={showWarning} animationType="fade" onRequestClose={() => setShowWarning(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: isDark ? "#1f2937" : "#fff" }]}>
-            <Text style={[styles.modalTitle, { color: isDark ? "#fff" : "#111" }]}>Missing Fields</Text>
-            <Text style={[styles.modalText, { color: isDark ? "#ccc" : "#444" }]}>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#065f46" : "#ffffff" }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? "#fef3c7" : "#047857" }]}>Missing Fields</Text>
+            <Text style={[styles.modalText, { color: isDark ? "#d1fae5" : "#4b5563" }]}>
               Please fill in all required fields before creating a user.
             </Text>
 
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: "#6366f1" }]}
+              style={[styles.modalButton, { backgroundColor: "#10b981" }]}
               onPress={() => setShowWarning(false)}
             >
-              <Text style={{ color: "#fff", fontWeight: "600" }}>OK</Text>
+              <Text style={{ color: "#fef3c7", fontWeight: "600" }}>OK</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -303,17 +367,17 @@ export default function UserForm({ isDarkMode }) {
       {/* --- SUCCESS MODAL --- */}
       <Modal transparent visible={showSuccess} animationType="fade" onRequestClose={() => setShowSuccess(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: isDark ? "#1f2937" : "#fff" }]}>
-            <Text style={[styles.modalTitle, { color: isDark ? "#fff" : "#111" }]}>✅ User Created</Text>
-            <Text style={[styles.modalText, { color: isDark ? "#ccc" : "#444" }]}>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#065f46" : "#ffffff" }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? "#fef3c7" : "#047857" }]}>✅ User Created</Text>
+            <Text style={[styles.modalText, { color: isDark ? "#d1fae5" : "#4b5563" }]}>
               The new user has been successfully created.
             </Text>
 
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: "#10b981" }]}
+              style={[styles.modalButton, { backgroundColor: "#fbbf24" }]}
               onPress={() => setShowSuccess(false)}
             >
-              <Text style={{ color: "#fff", fontWeight: "600" }}>OK</Text>
+              <Text style={{ color: "#", fontWeight: "600" }}>OK</Text>
             </TouchableOpacity>
           </View>
         </View>

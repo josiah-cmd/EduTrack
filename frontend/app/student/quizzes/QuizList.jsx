@@ -1,28 +1,15 @@
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import {
-    ActivityIndicator,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
-import api from "../../lib/axios"; // ✅ Added import for your axios instance
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import api from "../../lib/axios";
 
 export default function QuizList() {
   const [quizzes, setQuizzes] = useState([]);
-  const [attempts, setAttempts] = useState([]); // ✅ New state for student's attempts
+  const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    fetchQuizzes();
-    fetchAttempts(); // ✅ Fetch student's previous quiz attempts
-  }, []);
 
   const fetchQuizzes = async () => {
     try {
@@ -35,7 +22,6 @@ export default function QuizList() {
     }
   };
 
-  // ✅ Fetch all quiz attempts by the student
   const fetchAttempts = async () => {
     try {
       const response = await api.get("/student/quizzes/attempts");
@@ -58,9 +44,27 @@ export default function QuizList() {
     }
   };
 
-  // ✅ Find attempt by quiz ID
   const getAttemptByQuiz = (quizId) =>
     attempts.find((a) => a.quiz_id === quizId && a.status === "completed");
+
+  // ✅ Fetch on mount
+  useEffect(() => {
+    fetchQuizzes();
+    fetchAttempts();
+  }, []);
+
+  // ✅ Fetch again when screen regains focus (after navigating back)
+  useFocusEffect(
+    useCallback(() => {
+      // ✅ ADDED — delay to ensure backend updated attempt status
+      const refresh = async () => {
+        await new Promise((res) => setTimeout(res, 500)); // small delay for consistency
+        await fetchQuizzes(); // ✅ ADDED — refresh quiz data too
+        await fetchAttempts(); // ✅ existing
+      };
+      refresh();
+    }, [])
+  );
 
   if (loading) {
     return (
@@ -128,7 +132,6 @@ export default function QuizList() {
                 </View>
               </View>
 
-              {/* ✅ Conditional button based on attempt */}
               {attempt ? (
                 <TouchableOpacity
                   style={[styles.startButton, { backgroundColor: "#2563eb" }]}
@@ -159,12 +162,11 @@ export default function QuizList() {
         })
       )}
 
-      {/* Confirmation Modal (unchanged) */}
       <Modal visible={showModal} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalBox}>
             <Text style={styles.modalText}>
-              Are you ready to start the quiz "{selectedQuiz?.title}"?
+              Are you ready to start the quiz {selectedQuiz?.title}?
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity

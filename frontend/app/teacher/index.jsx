@@ -1,48 +1,42 @@
+/* eslint-disable */
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { format } from "date-fns";
+import { addDays, endOfMonth, endOfWeek, format, isSameMonth, isToday, startOfMonth, startOfWeek } from "date-fns";
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import api from "../lib/axios";
 import AnnouncementForm from './AnnouncementForm';
 import AnnouncementList from './AnnouncementList';
+import GradeForm from "./grades/GradeForm";
+import GradeList from "./grades/GradeList";
 import Messages from "./messages";
 import NotificationList from "./NotificationList";
+import ChangePasswordForm from "./profile/ChangePasswordForm";
 import ProfileForm from "./profile/ProfileForm";
 import ProfileHeader from "./profile/ProfileHeader";
 import RoomContent from "./RoomContent";
-
-// ✅ date-fns import
-import { addDays, endOfMonth, endOfWeek, isSameMonth, isToday, startOfMonth, startOfWeek } from "date-fns";
 
 export default function TeacherDashboard() {
   const router = useRouter();
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [currentView, setCurrentView] = useState('dashboard');
 
-  // ✅ logged-in user
   const [userName, setUserName] = useState("");
-
-  // ✅ notifications
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownVisible, setDropdownVisible] = useState(false);
-
-  // ✅ refs for positioning
+  const [notificationTarget, setNotificationTarget] = useState(null);
   const bellRef = useRef(null);
 
-  // ✅ calendar state
   const [materials, setMaterials] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-// ✅ build weeks for table layout
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart);
@@ -62,23 +56,19 @@ export default function TeacherDashboard() {
     day = addDays(day, 7);
   }
 
-  // ✅ fetch deadlines for calendar
   useEffect(() => {
     const fetchDeadlines = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) return;
-
         const res = await axios.get("http://localhost:8000/api/materials", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         setMaterials(res.data);
       } catch (err) {
         console.error("Error fetching deadlines:", err.response?.data || err.message);
       }
     };
-
     fetchDeadlines();
   }, []);
 
@@ -87,58 +77,49 @@ export default function TeacherDashboard() {
       try {
         const token = await AsyncStorage.getItem("token");
         console.log("🔑 Token used for fetchRooms:", token);
-
         if (!token) {
           console.warn("⚠️ No auth token found in AsyncStorage");
           return;
         }
-
-        // ✅ fetch teacher rooms
         const response = await api.get("/teacher/rooms", {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log("✅ Teacher rooms fetched:", response.data);
         setRooms(response.data);
-
-        // ✅ fetch logged-in user (using api helper, not localhost!)
         const userRes = await api.get("/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log("👤 Logged-in user:", userRes.data);
         setUserName(userRes.data.name);
-
       } catch (error) {
-        console.error(
-          "Error fetching teacher dashboard:",
-          error.response?.data || error.message
-        );
+        console.error("Error fetching teacher dashboard:", error.response?.data || error.message);
       }
     };
-
     fetchRoomsAndUser();
   }, []);
 
-  // ✅ fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) return;
-
         const res = await api.get("/notifications", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        setNotifications(res.data.data); // ✅ corrected
-        const unread = res.data.data.filter(n => !n.read_at).length; // ✅ use read_at
+        setNotifications(res.data.data);
+        const unread = res.data.data.filter(n => !n.read_at).length;
         setUnreadCount(unread);
       } catch (err) {
         console.error("Error fetching notifications:", err.response?.data || err.message);
       }
     };
-
     fetchNotifications();
   }, []);
+
+  const stripHtml = (html) => {
+    if (!html) return "";
+    return html.replace(/<[^>]*>?/gm, "");
+  };
 
   const handleNotificationClick = (item) => {
     if (item.type === "message") {
@@ -153,14 +134,13 @@ export default function TeacherDashboard() {
         }
       }
     } else if (item.type === "announcement") {
-      setCurrentView("announcements");   // ✅ now works
+      setCurrentView("announcements");
     }
-    setDropdownVisible(false); // always close after click
+    setDropdownVisible(false);
   };
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-  const toggleProfileModal = () => setProfileModalVisible(!profileModalVisible);
   const logout = () => router.replace('/');
 
   const themeStyles = isDarkMode ? styles.dark : styles.light;
@@ -172,6 +152,30 @@ export default function TeacherDashboard() {
     setCurrentView('detail');
   };
 
+  // ✅ Helper: Format days safely (already existed)
+  const formatDays = (dayField) => {
+    if (!dayField) return "No schedule";
+    if (Array.isArray(dayField)) return dayField.join(", ");
+    try {
+      const parsed = JSON.parse(dayField);
+      return Array.isArray(parsed) ? parsed.join(", ") : dayField;
+    } catch {
+      return dayField;
+    }
+  };
+
+  // ✅ NEW helper: format multiple times safely
+  const formatTimes = (timeField) => {
+    if (!timeField) return "";
+    if (Array.isArray(timeField)) return timeField.join(", ");
+    try {
+      const parsed = JSON.parse(timeField);
+      return Array.isArray(parsed) ? parsed.join(", ") : timeField;
+    } catch {
+      return timeField;
+    }
+  };
+
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
@@ -180,24 +184,12 @@ export default function TeacherDashboard() {
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
             <Ionicons name="menu" size={28} color={textColor.color} />
           </TouchableOpacity>
-
-          {/* ✅ Added Logo here (same as login dashboard style) */}
-          <Image
-            source={require('../../assets/edutrack-logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-
+          <Image source={require('../../assets/edutrack-logo.png')} style={styles.logo} resizeMode="contain" />
           <Text style={[styles.brandText, textColor]}>EduTrack</Text>
         </View>
 
         <View style={styles.navRight}>
-          {/* ✅ Notification Bell with Dropdown */}
-          <TouchableOpacity
-            ref={bellRef}
-            onPress={() => setDropdownVisible(!dropdownVisible)}
-            style={{ position: "relative" }}
-          >
+          <TouchableOpacity ref={bellRef} onPress={() => setDropdownVisible(!dropdownVisible)} style={{ position: "relative" }}>
             <Ionicons name="notifications-outline" size={30} color={textColor.color} />
             {unreadCount > 0 && (
               <View style={styles.badge}>
@@ -205,7 +197,6 @@ export default function TeacherDashboard() {
               </View>
             )}
           </TouchableOpacity>
-
           <TouchableOpacity onPress={toggleDarkMode}>
             <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={30} color={textColor.color} />
           </TouchableOpacity>
@@ -215,7 +206,7 @@ export default function TeacherDashboard() {
         </View>
       </View>
 
-      {/* ✅ Notifications Dropdown */}
+      {/* Notifications Dropdown */}
       {dropdownVisible && (
         <View style={[styles.dropdown, isDarkMode ? styles.dropdownDark : styles.dropdownLight]}>
           <Text style={[styles.dropdownHeader, textColor]}>Notifications</Text>
@@ -224,12 +215,11 @@ export default function TeacherDashboard() {
             keyExtractor={(item, index) => index.toString()}
             style={{ maxHeight: 300 }}
             renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => handleNotificationClick(item)}> {/* 🟢 CLICK HANDLER */}
+              <TouchableOpacity onPress={() => handleNotificationClick(item)}>
                 <View style={styles.notificationItem}>
                   <Text style={[styles.notificationText, textColor]}>
                     [{item.type?.toUpperCase()}] {item.title}
                   </Text>
-                  {/* ✅ FIX: Show sender for messages + announcements */}
                   <Text style={[{ fontSize: 12 }, textColor]}>
                     {item.type === "message"
                       ? `A new message from ${item.sender_name || "Unknown"}`
@@ -247,9 +237,9 @@ export default function TeacherDashboard() {
           <TouchableOpacity
             style={styles.dropdownFooter}
             onPress={() => {
-              setCurrentView('notifications');  // switch main content
+              setCurrentView('notifications');
               setDropdownVisible(false);
-            }}      // close dropdown
+            }}
           >
             <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
           </TouchableOpacity>
@@ -303,28 +293,38 @@ export default function TeacherDashboard() {
           {/* Dashboard */}
           {currentView === 'dashboard' && !selectedRoom && (
             <>
-              <Text style={[styles.mainText, { color: isDarkMode ? "#FFD700" : "#000" }]}>
-                Teacher Dashboard
-              </Text>
+              <Text style={[styles.mainText, { color: isDarkMode ? "#FFD700" : "#000" }]}>Teacher Dashboard</Text>
               <View style={styles.subjectsContainer}>
                 {rooms.map((room, index) => (
                   <Animated.View
                     key={index}
-                    style={[styles.subjectCard, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff", borderColor: isDarkMode ? "#006400" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#333", },
-                    hoveredIndex === index && Platform.OS === "web" ? [styles.subjectCardHover, { shadowColor: isDarkMode ? "#FFD700" : "#007b55", transform: [{ scale: 1.05 }], },] : {},]}
+                    style={[
+                      styles.subjectCard,
+                      {
+                        backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff",
+                        borderColor: isDarkMode ? "#006400" : "#007b55",
+                        borderWidth: 1,
+                        shadowColor: isDarkMode ? "#006400" : "#333",
+                      },
+                      hoveredIndex === index && Platform.OS === "web"
+                        ? [styles.subjectCardHover, { shadowColor: isDarkMode ? "#FFD700" : "#007b55", transform: [{ scale: 1.05 }] }]
+                        : {},
+                    ]}
                     onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}>
+                    onMouseLeave={() => setHoveredIndex(null)}
+                  >
                     <TouchableOpacity onPress={() => handleRoomSelect(room)}>
-                      <Text style={[styles.subjectTitle, { color: isDarkMode ? "#FFD700" : "#006400" },]}>
+                      <Text style={[styles.subjectTitle, { color: isDarkMode ? "#FFD700" : "#006400" }]}>
                         {room.subject?.name}
                       </Text>
-                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#333" },]}>
+                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#333" }]}>
                         Section: {room.section?.name}
                       </Text>
-                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#ddd" : "#444" },]}>
-                        Schedule: {room.day} {room.time}
+                      {/* ✅ adjusted to show multiple days and times */}
+                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#ddd" : "#444" }]}>
+                        Schedule: {formatDays(room.day)} {formatTimes(room.time)}
                       </Text>
-                      <Text style={[styles.subjectDetails, { fontStyle: "italic", color: isDarkMode ? "#32CD32" : "#006400", },]}>
+                      <Text style={[styles.subjectDetails, { fontStyle: "italic", color: isDarkMode ? "#32CD32" : "#006400" }]}>
                         Code: {room.token || "No Token"}
                       </Text>
                     </TouchableOpacity>
@@ -344,8 +344,10 @@ export default function TeacherDashboard() {
                 rooms.map((room, index) => (
                   <View key={index} style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : '#ccc' }}>
                     <Text style={[{ fontSize: 18, fontWeight: '600' }, textColor]}>{room.subject?.name}</Text>
-                    <Text style={{ color: isDarkMode ? '#ccc' : '#555' }}>{room.day} {room.time}</Text>
-                    {/* 🟢 NEW: Show Token */}
+                    {/* ✅ adjusted to show multiple days and times */}
+                    <Text style={{ color: isDarkMode ? '#ccc' : '#555' }}>
+                      {formatDays(room.day)} {formatTimes(room.time)}
+                    </Text>
                     <Text style={{ color: "#4ade80", fontStyle: "italic" }}>
                       Code: {room.token || "No Token"}
                     </Text>
@@ -358,27 +360,25 @@ export default function TeacherDashboard() {
           {/* Subject Detail */}
           {currentView === "detail" && selectedRoom && (
             <ScrollView contentContainerStyle={styles.detailContainer}>
-              {/* Left side - Instructor */}
-              <View
-                style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff", borderColor: isDarkMode ? "#006400" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#333", },]}>
+              <View style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff", borderColor: isDarkMode ? "#006400" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#333", }]}>
                 <Image source={{ uri: selectedRoom.teacher?.user?.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", }} style={styles.profileImage} />
-                <Text style={[styles.instructorName, { color: isDarkMode ? "#FFD700" : "#006400" },]}>
+                <Text style={[styles.instructorName, { color: isDarkMode ? "#FFD700" : "#006400" }]}>
                   {selectedRoom.teacher?.user?.name || selectedRoom.teacher?.name || "No Name"}
                 </Text>
-                <Text style={[styles.instructorSection, { color: isDarkMode ? "#fff" : "#333" },]}>
+                <Text style={[styles.instructorSection, { color: isDarkMode ? "#fff" : "#333" }]}>
                   Section: {selectedRoom.section?.name || "No Section"}
                 </Text>
-                <Text style={[styles.instructorSchedule, { color: isDarkMode ? "#ddd" : "#444" },]}>
-                  Schedule: {selectedRoom.day} {selectedRoom.time}
+                {/* ✅ adjusted to show multiple days and times */}
+                <Text style={[styles.instructorSchedule, { color: isDarkMode ? "#ddd" : "#444" }]}>
+                  Schedule: {formatDays(selectedRoom.day)} {formatTimes(selectedRoom.time)}
                 </Text>
-                <Text style={{ color: isDarkMode ? "#32CD32" : "#006400", fontStyle: "italic", marginTop: 4, }}>
+                <Text style={{ color: isDarkMode ? "#32CD32" : "#006400", fontStyle: "italic", marginTop: 4 }}>
                   Code: {selectedRoom.token || "No Token"}
                 </Text>
               </View>
 
-              {/* Right side - Modules/Activities/Quizzes */}
               <View style={[styles.rightContainer]}>
-                <RoomContent room={selectedRoom} /> {/* ✅ inserted here */}
+                <RoomContent room={selectedRoom} />
               </View>
             </ScrollView>
           )}
@@ -509,7 +509,6 @@ export default function TeacherDashboard() {
           {currentView === 'grades' && (
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Grades</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No Grades</Text>
             </View>
           )}
 
@@ -517,7 +516,6 @@ export default function TeacherDashboard() {
           {currentView === 'messages' && (
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Messages</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No Messages</Text>
               <Messages isDarkMode={isDarkMode} />
             </View>
           )}
@@ -541,15 +539,46 @@ export default function TeacherDashboard() {
             </View>
           )}
           {currentView === "profileHeader" && (
-            <ProfileHeader isDarkMode={isDarkMode}
-              onEdit={() => setCurrentView("profileForm")}
+            <ProfileHeader
+              isDarkMode={isDarkMode}
+              onEdit={(view) =>
+                setCurrentView(view === "changePassword" ? "changePassword" : "profileForm")
+              }
             />
           )}
 
           {currentView === "profileForm" && (
-            <ProfileForm isDarkMode={isDarkMode}
-              onBack={() => setCurrentView("profileHeader")}
-            />
+            <ProfileForm isDarkMode={isDarkMode} onBack={() => setCurrentView("profileHeader")} />
+          )}
+
+          {currentView === "changePassword" && (
+            <ChangePasswordForm isDarkMode={isDarkMode} onBack={() => setCurrentView("profileHeader")} />
+          )}
+
+          {/* Grades Main (List) */}
+          {currentView === 'grades' && (
+            <View style={{ padding: 20 }}>
+              <GradeList
+                isDarkMode={isDarkMode}
+                onSelectRoom={(room) => {
+                  setSelectedRoom(room);
+                  setCurrentView('gradeForm'); // or 'gradeForm', depending on what should open
+                }}
+                onAddGrade={() => setCurrentView('gradeForm')}
+                onViewSummary={() => setCurrentView('gradeSummary')}
+              />
+            </View>
+          )}
+
+          {/* Add / Update Grades */}
+          {currentView === 'gradeForm' && (
+            <View style={{ padding: 20 }}>
+              <GradeForm
+                isDarkMode={isDarkMode}
+                room={selectedRoom}
+                onBack={() => setCurrentView('grades')}
+              />
+            </View>
           )}
         </View>
       </View>

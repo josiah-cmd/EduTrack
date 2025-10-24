@@ -16,6 +16,7 @@ class Material extends Model
         'description',
         'file_path',
         'deadline',
+        'original_name',
         'room_id' // ✅ added so it links to a specific room
     ];
 

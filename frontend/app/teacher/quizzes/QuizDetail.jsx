@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -9,7 +10,8 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
 
   const fetchSubmissions = async () => {
     try {
-      const res = await api.get(`/quiz/${quiz.id}/results`);
+      // ✅ FIXED: ensure correct endpoint path & working backend route
+      const res = await api.get(`/quizzes/${quiz.id}/attempts`);
       setSubmissions(res.data || []);
     } catch (err) {
       console.error("❌ Error fetching quiz results:", err.response?.data || err.message);
@@ -41,13 +43,16 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
         </TouchableOpacity>
 
         <Text style={[styles.title, { color: isDarkMode ? "#FFD700" : "#000" }]}>{quiz.title}</Text>
-        <Text style={[styles.desc, { color: isDarkMode ? "#fff" : "#555" }]}>{quiz.instructions || "No description available."}</Text>
+        <Text style={[styles.desc, { color: isDarkMode ? "#fff" : "#555" }]}>
+          {quiz.instructions || "No description available."}
+        </Text>
 
         <Text style={[styles.meta, { color: isDarkMode ? "#bbb" : "#444" }]}>
           🕒 Schedule: {quiz.start_time} → {quiz.end_time}
         </Text>
         <Text style={[styles.meta, { color: isDarkMode ? "#bbb" : "#444" }]}>
-          ⏱ Duration: {quiz.duration} mins | Passing Score: {quiz.passing_score} | Total: {quiz.total_points}
+          ⏱ Duration: {quiz.duration} mins | Passing Score: {quiz.passing_score} | Total:{" "}
+          {quiz.total_points}
         </Text>
       </View>
 
@@ -63,16 +68,22 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
           },
         ]}
       >
-        <Text style={[styles.subHeader, { color: isDarkMode ? "#FFD700" : "#000" }]}>📑 Student Results</Text>
+        <Text style={[styles.subHeader, { color: isDarkMode ? "#FFD700" : "#000" }]}>
+          📑 Student Results
+        </Text>
 
         {loading ? (
-          <Text style={[styles.noSubmissions, { color: isDarkMode ? "#aaa" : "#666" }]}>Loading...</Text>
+          <Text style={[styles.noSubmissions, { color: isDarkMode ? "#aaa" : "#666" }]}>
+            Loading...
+          </Text>
         ) : submissions.length === 0 ? (
-          <Text style={[styles.noSubmissions, { color: isDarkMode ? "#aaa" : "#666" }]}>No students have taken this quiz yet.</Text>
+          <Text style={[styles.noSubmissions, { color: isDarkMode ? "#aaa" : "#666" }]}>
+            No students have taken this quiz yet.
+          </Text>
         ) : (
           <FlatList
             data={submissions}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => item.id?.toString() ?? Math.random().toString()}
             renderItem={({ item }) => (
               <View
                 style={[
@@ -87,11 +98,36 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
                 <Text style={[styles.studentName, { color: isDarkMode ? "#FFD700" : "#000" }]}>
                   👤 {item.student_name || "Unknown Student"}
                 </Text>
-                <Text style={[styles.score, { color: isDarkMode ? "#32CD32" : "#007bff" }]}>
-                  🏆 Score: {item.score ?? "N/A"}
+
+                {/* ✅ Added: show student email */}
+                <Text style={[styles.meta, { color: isDarkMode ? "#aaa" : "#666" }]}>
+                  ✉️ {item.student_email || "No email available"}
                 </Text>
+
+                <Text style={[styles.score, { color: isDarkMode ? "#32CD32" : "#007bff" }]}>
+                  🏆 Score: {item.score ?? "N/A"} / {item.total_points ?? "?"}
+                </Text>
+
+                {/* ✅ Added: show quiz attempt status */}
+                <Text
+                  style={[
+                    styles.status,
+                    {
+                      color:
+                        item.status === "completed"
+                          ? (isDarkMode ? "#32CD32" : "#008000")
+                          : (isDarkMode ? "#FFD700" : "#DAA520"),
+                    },
+                  ]}
+                >
+                  📊 Status: {item.status ? item.status.toUpperCase() : "UNKNOWN"}
+                </Text>
+
                 <Text style={[styles.date, { color: isDarkMode ? "#ccc" : "#777" }]}>
-                  🕒 {item.submitted_at ? format(new Date(item.submitted_at), "MMM dd, yyyy h:mm a") : "Not available"}
+                  🕒{" "}
+                  {item.submitted_at
+                    ? format(new Date(item.submitted_at), "MMM dd, yyyy h:mm a")
+                    : "Not available"}
                 </Text>
               </View>
             )}
@@ -157,6 +193,11 @@ const styles = StyleSheet.create({
   score: {
     fontSize: 15,
     marginVertical: 4,
+  },
+  status: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 4,
   },
   date: {
     fontSize: 13,

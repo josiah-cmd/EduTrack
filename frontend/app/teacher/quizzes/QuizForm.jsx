@@ -19,7 +19,10 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
 
   const addQuestion = () => {
     if (!questionText || !correctAnswer || !points) {
-      Alert.alert("Incomplete", "Please fill in all fields and select a correct answer.");
+      Alert.alert(
+        isDarkMode ? "⚠️ Incomplete (Dark Mode)" : "⚠️ Incomplete",
+        "Please fill in all fields and select a correct answer."
+      );
       return;
     }
 
@@ -69,7 +72,10 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
 
   const saveQuiz = async () => {
     if (questions.length === 0) {
-      Alert.alert("Empty Quiz", "Please add at least one question before saving.");
+      Alert.alert(
+        isDarkMode ? "⚠️ Empty Quiz (Dark Mode)" : "⚠️ Empty Quiz",
+        "Please add at least one question before saving."
+      );
       return;
     }
 
@@ -87,7 +93,10 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
         })),
       });
 
-      Alert.alert("Success", "Quiz saved successfully!");
+      Alert.alert(
+        isDarkMode ? "🌙 Success (Dark Mode)" : "✅ Success",
+        "Quiz saved successfully!"
+      );
       
       // 🔹 added: go to next step (QuizReview.jsx) automatically
       if (onNextStep) {
@@ -98,17 +107,29 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
 
     } catch (error) {
       console.error(error.response?.data || error);
-      Alert.alert("Error", "Failed to save quiz.");
+      Alert.alert(
+        isDarkMode ? "❌ Error (Dark Mode)" : "❌ Error",
+        "Failed to save quiz."
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <View style={[styles.container]}>
-      <Text style={[styles.title, { color: isDarkMode ? "#fff" : "#000" }]}>Step 2 — Add Questions</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: isDarkMode ? "#000" : "#fff" }, // ✅ full container adapt
+      ]}
+    >
+      <Text style={[styles.title, { color: isDarkMode ? "#fff" : "#000" }]}>
+        Step 2 — Add Questions
+      </Text>
 
-      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Question Text</Text>
+      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>
+        Question Text
+      </Text>
       <TextInput
         style={[
           styles.input,
@@ -124,15 +145,27 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
         placeholderTextColor={isDarkMode ? "#aaa" : "#555"} // ✅ fixed visibility
       />
 
-      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Question Type</Text>
+      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>
+        Question Type
+      </Text>
       <View style={styles.typeRow}>
         {["multiple_choice", "true_false", "identification"].map((type) => (
           <TouchableOpacity
             key={type}
-            style={[styles.typeButton, questionType === type && styles.activeType]}
+            style={[
+              styles.typeButton,
+              questionType === type && styles.activeType,
+              { backgroundColor: isDarkMode ? (questionType === type ? "#007bff" : "#111") : (questionType === type ? "#007bff" : "#fff") },
+            ]}
             onPress={() => setQuestionType(type)}
           >
-            <Text style={[styles.typeText, questionType === type && styles.activeText]}>
+            <Text
+              style={[
+                styles.typeText,
+                { color: isDarkMode ? "#fff" : "#000" },
+                questionType === type && styles.activeText,
+              ]}
+            >
               {type.replace("_", " ")}
             </Text>
           </TouchableOpacity>
@@ -141,10 +174,19 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
 
       {questionType === "multiple_choice" && (
         <View>
-          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Options</Text>
+          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>
+            Options
+          </Text>
           {options.map((opt, index) => (
             <View key={opt.label} style={styles.optionRow}>
-              <Text style={[styles.optionLabel, { color: isDarkMode ? "#fff" : "#000" }]}>{opt.label}.</Text>
+              <Text
+                style={[
+                  styles.optionLabel,
+                  { color: isDarkMode ? "#fff" : "#000" },
+                ]}
+              >
+                {opt.label}.
+              </Text>
               <TextInput
                 style={[
                   styles.input,
@@ -162,9 +204,19 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
               />
               <TouchableOpacity onPress={() => setCorrectAnswer(opt.label)}>
                 <Ionicons
-                  name={correctAnswer === opt.label ? "checkmark-circle" : "ellipse-outline"}
+                  name={
+                    correctAnswer === opt.label
+                      ? "checkmark-circle"
+                      : "ellipse-outline"
+                  }
                   size={22}
-                  color={correctAnswer === opt.label ? "green" : isDarkMode ? "#aaa" : "gray"}
+                  color={
+                    correctAnswer === opt.label
+                      ? "green"
+                      : isDarkMode
+                      ? "#aaa"
+                      : "gray"
+                  }
                   style={{ marginLeft: 8 }}
                 />
               </TouchableOpacity>
@@ -178,10 +230,22 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
           {["True", "False"].map((val) => (
             <TouchableOpacity
               key={val}
-              style={[styles.typeButton, correctAnswer === val && styles.activeType]}
+              style={[
+                styles.typeButton,
+                correctAnswer === val && styles.activeType,
+                { backgroundColor: isDarkMode ? (correctAnswer === val ? "#007bff" : "#111") : (correctAnswer === val ? "#007bff" : "#fff") },
+              ]}
               onPress={() => setCorrectAnswer(val)}
             >
-              <Text style={[styles.typeText, correctAnswer === val && styles.activeText]}>{val}</Text>
+              <Text
+                style={[
+                  styles.typeText,
+                  { color: isDarkMode ? "#fff" : "#000" },
+                  correctAnswer === val && styles.activeText,
+                ]}
+              >
+                {val}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -189,7 +253,9 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
 
       {questionType === "identification" && (
         <View>
-          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Correct Answer</Text>
+          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>
+            Correct Answer
+          </Text>
           <TextInput
             style={[
               styles.input,
@@ -207,7 +273,9 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
         </View>
       )}
 
-      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Points</Text>
+      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>
+        Points
+      </Text>
       <TextInput
         style={[
           styles.input,
@@ -236,8 +304,14 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
         style={{ marginVertical: 10 }}
       />
 
-      <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={saveQuiz} disabled={isSaving}>
-        <Text style={styles.saveText}>{isSaving ? "Saving..." : "Save Quiz"}</Text>
+      <TouchableOpacity
+        style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
+        onPress={saveQuiz}
+        disabled={isSaving}
+      >
+        <Text style={styles.saveText}>
+          {isSaving ? "Saving..." : "Save Quiz"}
+        </Text>
       </TouchableOpacity>
     </View>
   );

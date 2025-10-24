@@ -32,7 +32,10 @@ export default function AssignmentDetail({ material, onBack, isDarkMode }) {
       }
     };
 
-    fetchSubmissions();
+    // ✅ Only fetch submissions if it's an assignment
+    if (material.type === "assignment") {
+      fetchSubmissions();
+    }
   }, [material.id]);
 
   // ✅ Preview file
@@ -58,7 +61,7 @@ export default function AssignmentDetail({ material, onBack, isDarkMode }) {
     }
   };
 
-  // ✅ Download file
+  // ✅ Download file (fixed)
   const handleDownload = async (id, filename = "download") => {
     try {
       const role = await AsyncStorage.getItem("role");
@@ -70,12 +73,20 @@ export default function AssignmentDetail({ material, onBack, isDarkMode }) {
 
       if (!res.ok) throw new Error("Failed to download file");
 
+      // ✅ Extract filename from the Content-Disposition header
+      const disposition = res.headers.get("Content-Disposition");
+      let suggestedName = filename;
+      if (disposition && disposition.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match) suggestedName = match[1];
+      }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename; // ✅ use original filename
+      a.download = suggestedName; // ✅ use the backend-provided filename + extension
       a.click();
 
       window.URL.revokeObjectURL(url);
@@ -88,92 +99,174 @@ export default function AssignmentDetail({ material, onBack, isDarkMode }) {
   return (
     <View style={[styles.wrapper]}>
       <View
-        style={[styles.containerBox, { backgroundColor: isDarkMode ? "#1a1a1a" : "#fff", borderColor: isDarkMode ? "#006400" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#333", },]}>
+        style={[
+          styles.containerBox,
+          {
+            backgroundColor: isDarkMode ? "#1a1a1a" : "#fff",
+            borderColor: isDarkMode ? "#006400" : "#007b55",
+            borderWidth: 1,
+            shadowColor: isDarkMode ? "#006400" : "#333",
+          },
+        ]}
+      >
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={[styles.backText, { color: isDarkMode ? "#FFD700" : "#007bff" },]}>
+          <Text
+            style={[
+              styles.backText,
+              { color: isDarkMode ? "#FFD700" : "#007bff" },
+            ]}
+          >
             ⬅ Back
           </Text>
         </TouchableOpacity>
 
-        <Text style={[styles.title, { color: isDarkMode ? "#FFD700" : "#000" },]}>
+        <Text
+          style={[styles.title, { color: isDarkMode ? "#FFD700" : "#000" }]}
+        >
           {material.title}
         </Text>
-        <Text style={[styles.desc, { color: isDarkMode ? "#fff" : "#555" },]}>
+        <Text
+          style={[styles.desc, { color: isDarkMode ? "#fff" : "#555" }]}
+        >
           {material.description}
         </Text>
         {material.deadline && (
-          <Text style={[styles.deadline, { color: isDarkMode ? "#FF6347" : "red" },]}>
+          <Text
+            style={[
+              styles.deadline,
+              { color: isDarkMode ? "#FF6347" : "red" },
+            ]}
+          >
             Deadline: {format(new Date(material.deadline), "yyyy-MM-dd h:mm a")}
           </Text>
         )}
 
         <View style={styles.actions}>
-          <TouchableOpacity onPress={() => handlePreview(material.id, material.title)}>
-            <Text style={[styles.actionBtn, { color: isDarkMode ? "#32CD32" : "#007bff" },]}>
+          <TouchableOpacity
+            onPress={() => handlePreview(material.id, material.title)}
+          >
+            <Text
+              style={[
+                styles.actionBtn,
+                { color: isDarkMode ? "#32CD32" : "#007bff" },
+              ]}
+            >
               👁 Preview
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => handleDownload(material.id, material.title)}>
-            <Text style={[styles.actionBtn, { color: isDarkMode ? "#32CD32" : "#007bff" },]}>
+            onPress={() => handleDownload(material.id, material.title)}
+          >
+            <Text
+              style={[
+                styles.actionBtn,
+                { color: isDarkMode ? "#32CD32" : "#007bff" },
+              ]}
+            >
               ⬇ Download
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ✅ Student submissions list */}
-      <View style={[styles.submissionsBox, { backgroundColor: isDarkMode ? "#111" : "#fff", borderColor: isDarkMode ? "#006400" : "#ddd", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#000", },]}>
-        <Text style={[styles.subHeader, { color: isDarkMode ? "#FFD700" : "#000" },]}>
-          📑 Student Submissions
-        </Text>
-
-        {submissions.length === 0 ? (
-          <Text style={[styles.noSubmissions, { color: isDarkMode ? "#aaa" : "#666" },]}>
-            No submissions yet
+      {/* ✅ Student submissions list — only for assignments */}
+      {material.type === "assignment" && (
+        <View
+          style={[
+            styles.submissionsBox,
+            {
+              backgroundColor: isDarkMode ? "#111" : "#fff",
+              borderColor: isDarkMode ? "#006400" : "#ddd",
+              borderWidth: 1,
+              shadowColor: isDarkMode ? "#006400" : "#000",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.subHeader,
+              { color: isDarkMode ? "#FFD700" : "#000" },
+            ]}
+          >
+            📑 Student Submissions
           </Text>
-        ) : (
-          <FlatList
-            data={submissions}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={[styles.submissionCard, { backgroundColor: isDarkMode ? "#1a1a1a" : "#f9f9f9", borderColor: isDarkMode ? "#006400" : "#ddd", borderWidth: 1, },]}>
-                <Text style={[styles.studentName, { color: isDarkMode ? "#FFD700" : "#000" },]}>
-                  👤 {item.student?.name || "Unknown"}
-                </Text>
-                {/* ✅ Show original filename */}
-                <Text style={[styles.fileName, { color: isDarkMode ? "#fff" : "#333" },]}>
-                  📄 {item.filename}
-                </Text>
-                <Text style={[styles.date, { color: isDarkMode ? "#ccc" : "#777" },]}>
-                  🕒{" "}
-                  {format(
-                    new Date(item.submitted_at),
-                    "MMM dd, yyyy h:mm a"
-                  )}
-                </Text>
-                <View style={styles.submissionActions}>
-                  <TouchableOpacity
-                    onPress={() => handlePreview(item.id, item.filename)}
+
+          {submissions.length === 0 ? (
+            <Text
+              style={[
+                styles.noSubmissions,
+                { color: isDarkMode ? "#aaa" : "#666" },
+              ]}
+            >
+              No submissions yet
+            </Text>
+          ) : (
+            <FlatList
+              data={submissions}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <View
+                  style={[
+                    styles.submissionCard,
+                    {
+                      backgroundColor: isDarkMode ? "#1a1a1a" : "#f9f9f9",
+                      borderColor: isDarkMode ? "#006400" : "#ddd",
+                      borderWidth: 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.studentName,
+                      { color: isDarkMode ? "#FFD700" : "#000" },
+                    ]}
                   >
-                    <Text style={[styles.subBtn, { color: isDarkMode ? "#32CD32" : "#007bff" },]}>
-                      👁 Preview
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDownload(item.id, item.filename)}
+                    👤 {item.student?.name || "Unknown"}
+                  </Text>
+                  <Text
+                    style={[styles.fileName, { color: isDarkMode ? "#fff" : "#333" }]}
                   >
-                    <Text style={[styles.subBtn, { color: isDarkMode ? "#32CD32" : "#007bff" },]}>
-                      ⬇ Download
-                    </Text>
-                  </TouchableOpacity>
+                    📄 {item.filename}
+                  </Text>
+                  <Text
+                    style={[styles.date, { color: isDarkMode ? "#ccc" : "#777" }]}
+                  >
+                    🕒{" "}
+                    {format(new Date(item.submitted_at), "MMM dd, yyyy h:mm a")}
+                  </Text>
+                  <View style={styles.submissionActions}>
+                    <TouchableOpacity
+                      onPress={() => handlePreview(item.id, item.filename)}
+                    >
+                      <Text
+                        style={[
+                          styles.subBtn,
+                          { color: isDarkMode ? "#32CD32" : "#007bff" },
+                        ]}
+                      >
+                        👁 Preview
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDownload(item.id, item.filename)}
+                    >
+                      <Text
+                        style={[
+                          styles.subBtn,
+                          { color: isDarkMode ? "#32CD32" : "#007bff" },
+                        ]}
+                      >
+                        ⬇ Download
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            )}
-          />
-        )}
-      </View>
+              )}
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 }

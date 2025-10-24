@@ -1,185 +1,302 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
+import { Picker } from "@react-native-picker/picker";
 import { useEffect, useState } from "react";
-import { Dimensions, ScrollView, StyleSheet, Text, View, } from "react-native";
-import { BarChart, LineChart, PieChart } from "react-native-chart-kit";
-
-const screenWidth = Dimensions.get("window").width;
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BarChart } from "react-native-chart-kit";
+import api from "../lib/axios"; // ✅ use centralized axios with token
 
 export default function Reports({ isDarkMode }) {
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalTeachers: 0,
-    totalStudents: 0,
-  });
+  const [loading, setLoading] = useState(true);
+  const [performance, setPerformance] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [subjectFilter, setSubjectFilter] = useState("All"); // ✅ added filter
 
-  // Dynamic colors based on prop
+  // ✅ NEW STATES
+  const [completionRates, setCompletionRates] = useState([]); // for subject completion data
+  const [verifications, setVerifications] = useState({}); // for verified/unverified grades
+
   const textColor = isDarkMode ? "#ffffff" : "#000000";
   const subTextColor = isDarkMode ? "#cccccc" : "#555555";
   const cardBg = isDarkMode ? "#1e1e1e" : "#f2f2f2";
-  const numberColor = isDarkMode ? "#4CAF50" : "#2e7d32";
+  const borderColor = isDarkMode ? "#333333" : "#dddddd";
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchReports = async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
-        const res = await axios.get("http://localhost:8000/api/stats", {
-          headers: { Authorization: `Bearer ${token}` },
+        setLoading(true);
+        // ✅ UPDATED: Added call to completion rates endpoint
+        const [perfRes, attendRes, completionRes] = await Promise.all([
+          api.get("/reports/performance"),
+          api.get("/reports/attendance"),
+          api.get("/reports/completion-rates"), // ✅ new API call
+        ]);
+
+        setPerformance(perfRes.data?.data || []);
+        setAttendance(attendRes.data?.data?.records || []);
+        setCompletionRates(completionRes.data?.data || []); // ✅ store completion rates
+
+        // ✅ Extract verification info if available from backend (assuming added to /reports/performance)
+        const verifData = {};
+        (perfRes.data?.data || []).forEach((item) => {
+          verifData[item.id] = item.is_verified;
         });
-        setStats(res.data);
+        setVerifications(verifData);
       } catch (err) {
-        console.error("Error fetching stats:", err.response?.data || err.message);
+        console.error("Error fetching reports:", err.response?.data || err.message);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchStats();
+    fetchReports();
   }, []);
 
-  const roleData = [
-    {
-      name: "Teachers",
-      population: stats.totalTeachers,
-      color: "#36A2EB",
-      legendFontColor: textColor,
-      legendFontSize: 14,
-    },
-    {
-      name: "Students",
-      population: stats.totalStudents,
-      color: "#FF6384",
-      legendFontColor: textColor,
-      legendFontSize: 14,
-    },
-  ];
+  if (loading) {
+    return (
+      <View style={[styles.center, { flex: 1, backgroundColor: isDarkMode ? "#121212" : "#fff" }]}>
+        <ActivityIndicator size="large" color={isDarkMode ? "#4CAF50" : "#2e7d32"} />
+        <Text style={{ color: textColor, marginTop: 10 }}>Loading reports...</Text>
+      </View>
+    );
+  }
 
-  const barData = {
-    labels: ["Teachers", "Students"],
-    datasets: [
-      {
-        data: [stats.totalTeachers, stats.totalStudents],
-      },
-    ],
-  };
+  // ✅ Compute summary stats
+  const totalStudents = [...new Set(performance.map((p) => p.student_name))].length;
+  const avgGrade =
+    performance.length > 0
+      ? (performance.reduce((sum, p) => sum + parseFloat(p.grade || 0), 0) / performance.length).toFixed(2)
+      : 0;
+  const avgAttendance =
+    attendance.length > 0
+      ? (
+          (attendance.reduce((sum, a) => sum + parseFloat(a.present_days || 0), 0) /
+            attendance.length) *
+          100
+        ).toFixed(1)
+      : 0;
 
-  const lineData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-    datasets: [
-      {
-        data: [
-          Math.max(1, stats.totalUsers - 30),
-          Math.max(1, stats.totalUsers - 20),
-          Math.max(1, stats.totalUsers - 10),
-          Math.max(1, stats.totalUsers - 5),
-          stats.totalUsers - 2,
-          stats.totalUsers,
-        ],
-        color: (opacity = 1) =>
-          isDarkMode
-            ? `rgba(54, 162, 235, ${opacity})`
-            : `rgba(25, 118, 210, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
-    legend: ["User Growth"],
-  };
+  // ✅ Filtered data
+  const filteredPerformance =
+    subjectFilter === "All"
+      ? performance
+      : performance.filter((item) => item.subject_name === subjectFilter);
+
+  // ✅ For chart visualization
+  const subjects = [...new Set(performance.map((p) => p.subject_name))];
+  const avgPerSubject = subjects.map((sub) => {
+    const subData = performance.filter((p) => p.subject_name === sub);
+    return (
+      subData.reduce((sum, p) => sum + parseFloat(p.grade || 0), 0) / subData.length
+    ).toFixed(2);
+  });
 
   return (
-    <ScrollView>
+    <ScrollView style={{ backgroundColor: isDarkMode ? "#121212" : "#fff" }}>
       <Text style={[styles.title, { color: textColor }]}>Reports</Text>
       <Text style={[styles.subtitle, { color: subTextColor }]}>
-        System summary reports
+        Academic and performance overview
       </Text>
 
-      {/* Cards */}
-      <View style={styles.cardRow}>
-        <View style={[styles.card, { backgroundColor: cardBg }]}>
-          <Text style={[styles.cardNumber, { color: numberColor }]}>
-            {stats.totalUsers}
-          </Text>
-          <Text style={[styles.cardLabel, { color: textColor }]}>Users</Text>
+      {/* ✅ Summary Cards */}
+      <View style={styles.summaryContainer}>
+        <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.summaryLabel, { color: subTextColor }]}>Total Students</Text>
+          <Text style={[styles.summaryValue, { color: textColor }]}>{totalStudents}</Text>
         </View>
-        <View style={[styles.card, { backgroundColor: cardBg }]}>
-          <Text style={[styles.cardNumber, { color: numberColor }]}>
-            {stats.totalTeachers}
-          </Text>
-          <Text style={[styles.cardLabel, { color: textColor }]}>Teachers</Text>
+        <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.summaryLabel, { color: subTextColor }]}>Avg Grade</Text>
+          <Text style={[styles.summaryValue, { color: textColor }]}>{avgGrade}%</Text>
         </View>
-        <View style={[styles.card, { backgroundColor: cardBg }]}>
-          <Text style={[styles.cardNumber, { color: numberColor }]}>
-            {stats.totalStudents}
-          </Text>
-          <Text style={[styles.cardLabel, { color: textColor }]}>Students</Text>
+        <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.summaryLabel, { color: subTextColor }]}>Avg Attendance</Text>
+          <Text style={[styles.summaryValue, { color: textColor }]}>{avgAttendance}%</Text>
         </View>
       </View>
 
-      {/* Pie Chart */}
-      <Text style={[styles.chartTitle, { color: textColor }]}>
-        Role Distribution
-      </Text>
-      <View style={[styles.chartCard, { backgroundColor: cardBg }]}>
-        <PieChart
-          data={roleData}
-          width={screenWidth - 30}
-          height={220}
-          chartConfig={chartConfig(isDarkMode, textColor)}
-          accessor={"population"}
-          backgroundColor={"transparent"}
-          paddingLeft={"15"}
-          absolute
-        />
+      {/* ✅ Subject Filter */}
+      <View style={{ marginHorizontal: 15, marginBottom: 15 }}>
+        <Text style={{ color: textColor, marginBottom: 5 }}>Filter by Subject:</Text>
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor,
+            borderRadius: 10,
+            overflow: "hidden",
+          }}
+        >
+          <Picker
+            selectedValue={subjectFilter}
+            onValueChange={(itemValue) => setSubjectFilter(itemValue)}
+            style={{ color: textColor, backgroundColor: cardBg }}
+          >
+            <Picker.Item label="All" value="All" />
+            {subjects.map((sub, i) => (
+              <Picker.Item key={i} label={sub} value={sub} />
+            ))}
+          </Picker>
+        </View>
       </View>
 
-      {/* Bar Chart */}
-      <Text style={[styles.chartTitle, { color: textColor }]}>
-        Users Breakdown
-      </Text>
-      <View style={[styles.chartCard, { backgroundColor: cardBg }]}>
-        <BarChart
-          style={styles.chart}
-          data={barData}
-          width={screenWidth - 30}
-          height={220}
-          chartConfig={chartConfig(isDarkMode, textColor)}
-          verticalLabelRotation={30}
-        />
+      {/* Student Performance Report */}
+      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>
+          Student Performance Report
+        </Text>
+        <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Student</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Average</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Grade</Text>
+          {/* ✅ NEW HEADER */}
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Verified</Text>
+        </View>
+        {filteredPerformance.length === 0 ? (
+          <Text style={[styles.emptyText, { color: subTextColor }]}>
+            No performance data available.
+          </Text>
+        ) : (
+          filteredPerformance.map((item, index) => (
+            <View
+              key={index}
+              style={[
+                styles.tableRow,
+                { borderBottomColor: borderColor },
+              ]}
+            >
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.student_name}
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.subject_name}
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.average_score}%
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.grade}
+              </Text>
+              {/* ✅ NEW COLUMN */}
+              <Text
+                style={[
+                  styles.td,
+                  {
+                    color: verifications[item.id]
+                      ? "#4CAF50"
+                      : "#F44336",
+                    flex: 1,
+                  },
+                ]}
+              >
+                {verifications[item.id] ? "Verified" : "Unverified"}
+              </Text>
+            </View>
+          ))
+        )}
       </View>
 
-      {/* Line Chart */}
-      <Text style={[styles.chartTitle, { color: textColor }]}>
-        User Growth (6 months)
-      </Text>
-      <View style={[styles.chartCard, { backgroundColor: cardBg }]}>
-        <LineChart
-          data={lineData}
-          width={screenWidth - 30}
-          height={220}
-          chartConfig={chartConfig(isDarkMode, textColor)}
-          bezier
-          style={styles.chart}
-        />
+      {/* Attendance Records */}
+      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>
+          Attendance Records
+        </Text>
+        <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Student</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Present</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Absent</Text>
+        </View>
+        {attendance.length === 0 ? (
+          <Text style={[styles.emptyText, { color: subTextColor }]}>
+            No attendance data available.
+          </Text>
+        ) : (
+          attendance.map((item, index) => (
+            <View
+              key={index}
+              style={[
+                styles.tableRow,
+                { borderBottomColor: borderColor },
+              ]}
+            >
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.student_name}
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.subject_name}
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.present_days}
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.absent_days}
+              </Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      {/* ✅ Grade Distribution Chart */}
+      {subjects.length > 0 && (
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>Grade Distribution</Text>
+          <BarChart
+            data={{
+              labels: subjects,
+              datasets: [{ data: avgPerSubject.map((n) => parseFloat(n)) }],
+            }}
+            width={Dimensions.get("window").width - 30}
+            height={220}
+            yAxisSuffix="%"
+            chartConfig={{
+              backgroundColor: cardBg,
+              backgroundGradientFrom: cardBg,
+              backgroundGradientTo: cardBg,
+              decimalPlaces: 1,
+              color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
+              labelColor: () => textColor,
+            }}
+            style={{ borderRadius: 16 }}
+          />
+        </View>
+      )}
+
+      {/* ✅ NEW SECTION: Subject Completion Rates */}
+      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>Subject Completion Rates</Text>
+        <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Total Students</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Completed</Text>
+          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Completion %</Text>
+        </View>
+        {completionRates.length === 0 ? (
+          <Text style={[styles.emptyText, { color: subTextColor }]}>
+            No completion data available.
+          </Text>
+        ) : (
+          completionRates.map((item, index) => (
+            <View
+              key={index}
+              style={[styles.tableRow, { borderBottomColor: borderColor }]}
+            >
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.subject_name}
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.total_students}
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.completed_students}
+              </Text>
+              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
+                {item.completion_rate}%
+              </Text>
+            </View>
+          ))
+        )}
       </View>
     </ScrollView>
   );
 }
-
-const chartConfig = (isDark, textColor) => ({
-  backgroundGradientFrom: "transparent",
-  backgroundGradientTo: "transparent",
-  decimalPlaces: 0,
-  color: (opacity = 1) =>
-    isDark
-      ? `rgba(255, 255, 255, ${opacity})`
-      : `rgba(0, 0, 0, ${opacity})`,
-  labelColor: () => textColor,
-  propsForLabels: {
-    fill: textColor,
-  },
-  propsForDots: {
-    r: "4",
-    strokeWidth: "2",
-    stroke: "#36A2EB",
-  },
-});
 
 const styles = StyleSheet.create({
   title: {
@@ -193,42 +310,62 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginLeft: 15,
   },
-  cardRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    paddingHorizontal: 10,
-  },
   card: {
-    flex: 1,
-    marginHorizontal: 5,
     borderRadius: 12,
-    padding: 20,
+    borderWidth: 1,
+    marginHorizontal: 10,
+    marginBottom: 20,
+    padding: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  tableHeader: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    paddingBottom: 8,
+    marginBottom: 5,
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    paddingVertical: 6,
+  },
+  th: {
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  td: {
+    fontSize: 14,
+  },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 10,
+    fontSize: 14,
+  },
+  center: {
+    justifyContent: "center",
     alignItems: "center",
   },
-  cardNumber: {
-    fontSize: 28,
+  summaryContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 20,
+  },
+  summaryCard: {
+    borderWidth: 1,
+    borderRadius: 10,
+    width: "30%",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  summaryLabel: {
+    fontSize: 13,
+  },
+  summaryValue: {
+    fontSize: 18,
     fontWeight: "bold",
-  },
-  cardLabel: {
-    fontSize: 14,
-    marginTop: 5,
-  },
-  chartTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginTop: 20,
-    marginBottom: 10,
-    marginLeft: 15,
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 12,
-  },
-  chartCard: {
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 15,
-    marginHorizontal: 10,
   },
 });

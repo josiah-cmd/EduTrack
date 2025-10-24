@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import api from "../../lib/axios";

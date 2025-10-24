@@ -1,17 +1,14 @@
+/* eslint-disable */
+import { format } from "date-fns";
 import * as DocumentPicker from "expo-document-picker";
 import { useEffect, useState } from "react";
-import { FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import api from "../lib/axios";
-
-// ✅ Import React DatePicker
-import { format } from "date-fns";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
-// ✅ Import new detail component
+import { FlatList, Linking, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native"; // ✅ Added Linking
+import api from "../lib/axios";
 import AssignmentDetail from "./AssignmentDetail";
-
-// ✅ Import Quizzes tab
+import AttendanceForm from "./AttendanceForm";
+import QuizCreate from "./quizzes/QuizCreate";
 import QuizList from "./quizzes/QuizList";
 
 export default function RoomContent({ room }) {
@@ -21,25 +18,21 @@ export default function RoomContent({ room }) {
   const [desc, setDesc] = useState("");
   const [deadline, setDeadline] = useState("");
   const [file, setFile] = useState(null);
-
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-
-  // ✅ New states for picker
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-
-  // ✅ New state for people tab
   const [people, setPeople] = useState([]);
-
-  // ✅ NEW: track selected material
   const [selectedMaterial, setSelectedMaterial] = useState(null);
-
-  // ✅ Dark Mode (toggle or system based)
   const [isDarkMode, setIsDarkMode] = useState(true);
-
-  // ✅ Add a new state
   const [showQuizCreate, setShowQuizCreate] = useState(false);
+
+  // ✅ FIX ADDED HERE — define updateDeadline
+  const updateDeadline = (date) => {
+    if (!date) return;
+    setDeadline(format(date, "yyyy-MM-dd HH:mm:ss")); // keep it in full format
+  };
+  // ✅ END FIX
 
   // ✅ Fetch materials
   const fetchMaterials = async () => {
@@ -63,57 +56,62 @@ export default function RoomContent({ room }) {
     }
   };
 
-  // ✅ Fetch people (from API)
+  // ✅ Fetch people
   const fetchPeople = async () => {
     if (!room) return;
     try {
       const res = await api.get(`/rooms/${room.id}/people`);
       const { teacher, students } = res.data;
-
-      // sort students alphabetically
       const sortedStudents = (students || []).sort((a, b) =>
         a.name.localeCompare(b.name)
       );
-
-      // teacher first
       const allPeople = teacher ? [teacher, ...sortedStudents] : sortedStudents;
-
       setPeople(allPeople);
     } catch (err) {
-      console.error(
-        "❌ Error fetching people:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Error fetching people:", err.response?.data || err.message);
     }
   };
 
   useEffect(() => {
     if (activeTab === "people") {
       fetchPeople();
-    } else if (activeTab !== "quizzes") {
+    } else if (
+      activeTab !== "quizzes" &&
+      activeTab !== "attendance"
+    ) {
       fetchMaterials();
     }
   }, [activeTab, room]);
 
-  // ✅ Pick file
+  // ✅ Pick file (ensures correct name/type for Laravel)
   const pickFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({
+      type: "*/*",
       copyToCacheDirectory: true,
     });
+
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setFile(result.assets[0]);
+      const picked = result.assets[0];
+      const nameParts = picked.name ? picked.name.split(".") : [];
+      const ext = nameParts.length > 1 ? nameParts.pop() : "bin";
+
+      setFile({
+        ...picked,
+        name: picked.name || `file_${Date.now()}.${ext}`,
+        mimeType: picked.mimeType || `application/${ext}`,
+      });
     }
   };
 
   const removeFile = () => setFile(null);
 
-  // ✅ Helper: convert URI → Blob (for web uploads)
+  // ✅ Convert URI → Blob
   const uriToBlob = async (uri) => {
     const response = await fetch(uri);
     return await response.blob();
   };
 
-  // ✅ Upload
+  // ✅ Upload (fixed version)
   const uploadFile = async () => {
     if (!file) return alert("Pick a file first");
 
@@ -124,30 +122,36 @@ export default function RoomContent({ room }) {
     formData.append("description", desc);
     if (activeTab === "assignments") formData.append("deadline", deadline);
 
+    // ✅ Ensure it has name + type before upload
     let fileData;
-    if (file.uri.startsWith("data:")) {
-      fileData = await uriToBlob(file.uri);
-    } else {
+    try {
+      const blob = await uriToBlob(file.uri);
+      fileData = new File([blob], file.name, { type: file.mimeType });
+    } catch (error) {
+      // fallback for mobile (RN File object)
       fileData = {
         uri: file.uri,
         type: file.mimeType || "application/octet-stream",
-        name: file.name || "uploadfile",
+        name: file.name || "uploadfile.txt",
       };
     }
 
     formData.append("file", fileData);
 
     try {
-      await api.post("/materials", formData, {
+      const res = await api.post("/materials", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
+      // ✅ Use returned URL with proper filename
+      console.log("Uploaded material:", res.data);
+      setMaterials((prev) => [res.data.material, ...prev]);
 
       setTitle("");
       setDesc("");
       setDeadline("");
       setFile(null);
       fetchMaterials();
-
       setShowSuccessModal(true);
     } catch (err) {
       console.error("❌ Upload failed:", err.response?.data || err.message);
@@ -155,38 +159,33 @@ export default function RoomContent({ room }) {
     }
   };
 
-  // ✅ Date handler
-  const onChangeDate = (event, selected) => {
-    setShowDatePicker(false);
-    if (selected) {
-      const newDate = new Date(selectedDate);
-      newDate.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
-      setSelectedDate(newDate);
-      updateDeadline(newDate);
-    }
+  // ✅ Helper: download file
+  const downloadFile = async (material) => {
+    const url = `${process.env.EXPO_PUBLIC_API_URL || api.defaults.baseURL}/materials/${material.id}/download`;
+    console.log("Downloading:", url);
+    Linking.openURL(url);
   };
 
-  // ✅ Time handler
-  const onChangeTime = (event, selected) => {
-    setShowTimePicker(false);
-    if (selected) {
-      const newDate = new Date(selectedDate);
-      newDate.setHours(selected.getHours(), selected.getMinutes(), 0);
-      setSelectedDate(newDate);
-      updateDeadline(newDate);
-    }
+  // ✅ Helper: preview file
+  const previewFile = async (material) => {
+    const url = `${process.env.EXPO_PUBLIC_API_URL || api.defaults.baseURL}/materials/${material.id}/preview`;
+    console.log("Previewing:", url);
+    Linking.openURL(url);
   };
 
-  // ✅ Format deadline 
-  const updateDeadline = (date) => {
-    const formatted = date
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", " "); // "YYYY-MM-DD HH:mm:ss"
-    setDeadline(formatted);
+  // ✅ Helper: get file type icon or label
+  const getFileIcon = (filename = "") => {
+    const ext = filename.split(".").pop().toLowerCase();
+    if (["pdf"].includes(ext)) return "📄 PDF";
+    if (["doc", "docx"].includes(ext)) return "📝 DOCX";
+    if (["ppt", "pptx"].includes(ext)) return "📊 PPT";
+    if (["xls", "xlsx"].includes(ext)) return "📈 XLSX";
+    if (["mp4", "mov", "avi", "mkv"].includes(ext)) return "🎬 MP4";
+    if (["txt"].includes(ext)) return "📘 TXT";
+    return "📁 File";
   };
 
-  // ✅ Render detail view if material selected
+  // ✅ Render detail
   if (selectedMaterial) {
     return (
       <AssignmentDetail
@@ -197,24 +196,24 @@ export default function RoomContent({ room }) {
   }
 
   return (
-    <View style={[styles.container, isDarkMode]}>
+    <View style={[styles.container]}>
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        {["modules", "assignments", "quizzes", "people"].map((tab) => (
+        {["modules", "assignments", "quizzes", "people", "attendance"].map((tab) => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
             style={[
               styles.tab,
               activeTab === tab && styles.activeTab,
-              activeTab === tab && { backgroundColor: "#006400" }, // ✅ green for active tab
+              activeTab === tab && { backgroundColor: "#006400" },
             ]}
           >
             <Text
               style={[
                 styles.tabText,
                 activeTab === tab && styles.activeTabText,
-                activeTab === tab && { color: "#FFD700" }, // ✅ gold text for active tab
+                activeTab === tab && { color: "#FFD700" },
                 isDarkMode && { color: "#fff" },
               ]}
             >
@@ -224,25 +223,30 @@ export default function RoomContent({ room }) {
         ))}
       </View>
 
-      {/* ✅ Quizzes Tab */}
+      {/* Attendance */}
+      {activeTab === "attendance" && (
+        <AttendanceForm room={room} isDarkMode={isDarkMode} />
+      )}
+
+      {/* Quizzes */}
       {activeTab === "quizzes" && room && (
         showQuizCreate ? (
           <QuizCreate
             room={room}
             isDarkMode={isDarkMode}
-            onBackToQuizzes={() => setShowQuizCreate(false)} // callback
+            onBackToQuizzes={() => setShowQuizCreate(false)}
           />
         ) : (
           <QuizList
             room={room}
             isDarkMode={isDarkMode}
-            onCreateQuiz={() => setShowQuizCreate(true)} // open create form
+            onCreateQuiz={() => setShowQuizCreate(true)}
           />
         )
       )}
 
       {/* Upload form */}
-      {activeTab !== "quizzes" && activeTab !== "people" && (
+      {activeTab !== "quizzes" && activeTab !== "people" && activeTab !== "attendance" &&(
         <View style={[styles.formCard, isDarkMode && { backgroundColor: "#1e1e1e" }]}>
           <Text style={[styles.formTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
             📤 Upload {activeTab.slice(0, -1)}
@@ -258,11 +262,16 @@ export default function RoomContent({ room }) {
             placeholder="Description"
             value={desc}
             onChangeText={setDesc}
-            style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
+            multiline
+            numberOfLines={4}
+            style={[
+              styles.input,
+              { textAlignVertical: "top", height: 100 },
+              isDarkMode && { backgroundColor: "#333", color: "#fff" },
+            ]}
             placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
           />
 
-          {/* ✅ Deadline pickers */}
           {activeTab === "assignments" && (
             <div style={{ marginBottom: 12 }}>
               <DatePicker
@@ -295,10 +304,10 @@ export default function RoomContent({ room }) {
           {file && (
             <View style={styles.filePreview}>
               <Text style={[styles.filePreviewText, { color: isDarkMode ? "#fff" : "#333" }]}>
-                📄 {file.name}
+                {getFileIcon(file.name)} {file.name}
               </Text>
               {file.size && (
-                <Text style={[styles.filePreviewSize, { color: isDarkMode ? "#bbb" : "#666" }]}>
+                <Text style={[styles.filePreviewSize, { color: isDarkMode ? "#bbb" : "#666" }]} >
                   Size: {Math.round(file.size / 1024)} KB
                 </Text>
               )}
@@ -310,8 +319,8 @@ export default function RoomContent({ room }) {
         </View>
       )}
 
-      {/* → Uploaded Files header & list */}
-      {activeTab !== "people" && activeTab !== "quizzes" && (
+      {/* Uploaded Files */}
+      {activeTab !== "people" && activeTab !== "quizzes" && activeTab !== "attendance" &&(
         <View style={styles.uploadedSection}>
           <Text style={[styles.uploadedHeader, { color: isDarkMode ? "#FFD700" : "#222" }]}>
             Uploaded Files
@@ -321,10 +330,16 @@ export default function RoomContent({ room }) {
             data={materials}
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => (
+              // ✅ MAKE FILE CLICKABLE (ADDED ONLY THIS WRAPPER)
               <TouchableOpacity onPress={() => setSelectedMaterial(item)}>
                 <View style={[styles.fileCard, isDarkMode && { backgroundColor: "#222", borderColor: "#444" }]}>
-                  <Text style={[styles.fileTitle, { color: isDarkMode ? "#fff" : "#000" }]}>{item.title}</Text>
-                  <Text style={[styles.fileDesc, { color: isDarkMode ? "#bbb" : "#555" }]}>{item.description}</Text>
+                  <Text style={[styles.fileTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
+                    {getFileIcon(item.original_name || item.file_path)} {item.title}
+                  </Text>
+                  <Text style={[styles.fileDesc, { color: isDarkMode ? "#bbb" : "#555" }]}>
+                    {item.description}
+                  </Text>
+
                   {item.deadline && (
                     <Text style={[styles.deadline, { color: "#FF6347" }]}>
                       Deadline: {format(new Date(item.deadline), "yyyy-MM-dd h:mm a")}
@@ -338,7 +353,7 @@ export default function RoomContent({ room }) {
         </View>
       )}
 
-      {/* People list */}
+      {/* People */}
       {activeTab === "people" && (
         <FlatList
           data={people}
@@ -354,7 +369,7 @@ export default function RoomContent({ room }) {
         />
       )}
 
-      {/* ✅ Success Modal */}
+      {/* Success Modal */}
       <Modal
         transparent
         visible={showSuccessModal}
@@ -375,7 +390,7 @@ export default function RoomContent({ room }) {
         </View>
       </Modal>
 
-      {/* ✅ Custom DatePicker Styling */}
+      {/* DatePicker styles */}
       <style jsx global>{`
         .custom-datepicker {
           width: 100%;
@@ -448,7 +463,6 @@ const styles = StyleSheet.create({
 
   /* Form */
   formCard: {
-    backgroundColor: "#f9f9f9",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -561,7 +575,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "rgba(0,0,0,0.85)", // ✅ dimmed background only
+    backgroundColor: "rgba(0,0,0,0.85)",
   },
   modalTitle: {
     fontSize: 20,

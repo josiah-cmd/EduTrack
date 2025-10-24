@@ -21,6 +21,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
+        // 🔒 Added: Check if the user is locked
+        if ($user->is_locked) {
+            return response()->json(['message' => 'Your account is locked. Please contact the administrator.'], 403);
+        }
+
         $token = $user->createToken('api-token')->plainTextToken;
 
         // Base user response

@@ -21,6 +21,10 @@ class User extends Authenticatable
         'profile_picture',
         'gender',
         'dob',
+        'grade_level', 
+        'section_id', 
+        'is_locked',
+        'locked_at', 
     ];
 
     protected $hidden = [
@@ -80,5 +84,10 @@ class User extends Authenticatable
     public function routeNotificationForDatabase($notification)
     {
         return $this->notifications();
+    }
+
+    public function section() 
+    {
+        return $this->belongsTo(Section::class);
     }
 }

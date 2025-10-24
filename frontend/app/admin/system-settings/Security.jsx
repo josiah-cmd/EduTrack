@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+// ✅ Correct imports
+import AccountLockUnlock from "./security-settings/AccountLockUnlock";
+import AuthenticationSettings from "./security-settings/AuthenticationSettings";
+
 export default function Security({ isDarkMode }) {
+  const [activeSection, setActiveSection] = useState(null);
+
   const themeStyles = isDarkMode ? styles.dark : styles.light;
   const textColor = { color: isDarkMode ? "#fff" : "#000" };
 
@@ -11,20 +18,38 @@ export default function Security({ isDarkMode }) {
       title: "Authentication Settings",
       desc: "Password rules, session timeout, login attempt limits.",
       icon: "key-outline",
+      component: <AuthenticationSettings isDarkMode={isDarkMode} />,
     },
     {
       id: "lock",
       title: "Account Lock/Unlock",
       desc: "Manually control user access and unlock accounts.",
       icon: "lock-closed-outline",
-    },
-    {
-      id: "2fa",
-      title: "Two-Factor Authentication",
-      desc: "Add an optional extra layer of login security.",
-      icon: "shield-checkmark-outline",
+      component: <AccountLockUnlock isDarkMode={isDarkMode} />,
     },
   ];
+
+  if (activeSection) {
+    const selected = sections.find((s) => s.id === activeSection);
+    return (
+      <ScrollView style={[styles.container, themeStyles]}>
+        <TouchableOpacity
+          onPress={() => setActiveSection(null)}
+          style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}
+        >
+          <Ionicons
+            name="arrow-back-outline"
+            size={22}
+            color={isDarkMode ? "#4caf50" : "#2563eb"}
+          />
+          <Text style={[{ marginLeft: 8, fontSize: 16, fontWeight: "600" }, textColor]}>
+            Back
+          </Text>
+        </TouchableOpacity>
+        {selected.component}
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, themeStyles]}>
@@ -35,7 +60,7 @@ export default function Security({ isDarkMode }) {
           key={item.id}
           style={[styles.card, isDarkMode ? styles.cardDark : styles.cardLight]}
           activeOpacity={0.7}
-          onPress={() => console.log(`${item.title} clicked`)} // 🔹 future modal
+          onPress={() => setActiveSection(item.id)}
         >
           <Ionicons name={item.icon} size={26} color={isDarkMode ? "#4caf50" : "#2563eb"} />
           <View style={{ flex: 1 }}>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import api from "../../lib/axios";
 
-export default function QuizReview({ quizId, onBack, onFinish }) {
+export default function QuizReview({ quizId, onBack, onFinish, isDarkMode }) { // ✅ added isDarkMode prop
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [isFinishing, setIsFinishing] = useState(false);
@@ -41,6 +41,7 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
     try {
       setIsFinishing(true);
       await api.put(`/quizzes/${quizId}`, { status });
+
       // ✅ Show modal instead of Alert
       setShowPublishModal(true);
     } catch (error) {
@@ -60,36 +61,89 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
     }
   };
 
-  if (!quiz) return <Text>Loading quiz details...</Text>;
+  if (!quiz)
+    return (
+      <Text style={{ color: isDarkMode ? "#fff" : "#000" }}>
+        Loading quiz details...
+      </Text>
+    );
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Step 4 — Review & Save</Text>
+    <ScrollView
+      style={[
+        styles.container,
+        { backgroundColor: isDarkMode ? "#000" : "#fff" },
+      ]}
+    >
+      <Text style={[styles.title, { color: isDarkMode ? "#fff" : "#000" }]}>
+        Step 4 — Review & Save
+      </Text>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Title:</Text>
-        <Text style={styles.value}>{quiz.title}</Text>
+        <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>
+          Title:
+        </Text>
+        <Text style={[styles.value, { color: isDarkMode ? "#ccc" : "#000" }]}>
+          {quiz.title}
+        </Text>
 
-        <Text style={styles.label}>Description:</Text>
-        <Text style={styles.value}>{quiz.description}</Text>
+        <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>
+          Description:
+        </Text>
+        <Text style={[styles.value, { color: isDarkMode ? "#ccc" : "#000" }]}>
+          {quiz.description}
+        </Text>
 
-        <Text style={styles.label}>Total Questions:</Text>
-        <Text style={styles.value}>{questions.length}</Text>
+        <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>
+          Total Questions:
+        </Text>
+        <Text style={[styles.value, { color: isDarkMode ? "#ccc" : "#000" }]}>
+          {questions.length}
+        </Text>
       </View>
 
-      <Text style={styles.subTitle}>Questions:</Text>
+      <Text
+        style={[styles.subTitle, { color: isDarkMode ? "#fff" : "#000" }]}
+      >
+        Questions:
+      </Text>
+
       {questions.map((q, i) => (
-        <View key={i} style={styles.questionCard}>
-          <Text style={styles.questionText}>{i + 1}. {q.question_text}</Text>
-          <Text style={styles.meta}>Type: {q.type} | Points: {q.points}</Text>
+        <View
+          key={i}
+          style={[
+            styles.questionCard,
+            { backgroundColor: isDarkMode ? "#222" : "#f0f0f0" },
+          ]}
+        >
+          <Text
+            style={[styles.questionText, { color: isDarkMode ? "#fff" : "#000" }]}
+          >
+            {i + 1}. {q.question_text}
+          </Text>
+          <Text style={[styles.meta, { color: isDarkMode ? "#aaa" : "gray" }]}>
+            Type: {q.type} | Points: {q.points}
+          </Text>
 
-          {Array.isArray(q.options) && q.options.length > 0 && q.options.map((opt, idx) => (
-            <Text key={idx} style={styles.option}>
-              • {typeof opt === "string" ? opt : `${opt.label ?? String.fromCharCode(65 + idx)}. ${opt.option_text ?? opt.text}`}
-            </Text>
-          ))}
+          {Array.isArray(q.options) &&
+            q.options.length > 0 &&
+            q.options.map((opt, idx) => (
+              <Text
+                key={idx}
+                style={[styles.option, { color: isDarkMode ? "#ccc" : "#000" }]}
+              >
+                •{" "}
+                {typeof opt === "string"
+                  ? opt
+                  : `${opt.label ?? String.fromCharCode(65 + idx)}. ${
+                      opt.option_text ?? opt.text
+                    }`}
+              </Text>
+            ))}
 
-          <Text style={styles.correct}>✅ Correct Answer: {q.correct_answer}</Text>
+          <Text style={[styles.correct, { color: isDarkMode ? "lightgreen" : "green" }]}>
+            ✅ Correct Answer: {q.correct_answer}
+          </Text>
         </View>
       ))}
 
@@ -99,7 +153,9 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
         disabled={isFinishing}
       >
         <Ionicons name="checkmark-circle-outline" size={20} color="white" />
-        <Text style={styles.btnText}>{isFinishing ? "Publishing..." : "Save & Publish"}</Text>
+        <Text style={styles.btnText}>
+          {isFinishing ? "Publishing..." : "Save & Publish"}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -108,7 +164,9 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
         disabled={isFinishing}
       >
         <Ionicons name="save-outline" size={20} color="white" />
-        <Text style={styles.btnText}>{isFinishing ? "Saving..." : "Save as Draft"}</Text>
+        <Text style={styles.btnText}>
+          {isFinishing ? "Saving..." : "Save as Draft"}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.backBtn} onPress={onBack}>
@@ -124,13 +182,29 @@ export default function QuizReview({ quizId, onBack, onFinish }) {
         onRequestClose={() => setShowPublishModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>✅ Quiz Published</Text>
-            <Text style={styles.modalText}>Your quiz has been published successfully!</Text>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={handleModalOK}
+          <View
+            style={[
+              styles.modalBox,
+              { backgroundColor: isDarkMode ? "#222" : "white" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: isDarkMode ? "#fff" : "#000" },
+              ]}
             >
+              ✅ Quiz Published
+            </Text>
+            <Text
+              style={[
+                styles.modalText,
+                { color: isDarkMode ? "#ccc" : "#000" },
+              ]}
+            >
+              Your quiz has been published successfully!
+            </Text>
+            <TouchableOpacity style={styles.modalButton} onPress={handleModalOK}>
               <Text style={styles.modalButtonText}>OK</Text>
             </TouchableOpacity>
           </View>

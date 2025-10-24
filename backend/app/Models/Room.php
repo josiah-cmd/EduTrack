@@ -10,6 +10,10 @@ class Room extends Model {
 
     protected $fillable = ['subject_id','teacher_id','section_id','day','time','created_by', 'token'];
 
+    protected $casts = [
+        'day' => 'array',
+    ];
+
     public function subject() {
         return $this->belongsTo(Subject::class);
     }
@@ -26,12 +30,10 @@ class Room extends Model {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    // 🔹 Students that joined this room
     public function students() {
-        return $this->belongsToMany(User::class, 'room_user')->where('role', 'student');
+        return $this->belongsToMany(User::class, 'room_user', 'room_id', 'user_id')->where('role', 'student');
     }
 
-    // 🔹 Materials uploaded for this room
     public function materials() {
         return $this->hasMany(Material::class);
     }

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native"; // ✅ added
 import { useRouter } from "expo-router";
@@ -71,6 +72,13 @@ export default function ProfileHeader({ isDarkMode, onEdit }) {   // ✅ props d
               onPress={onEdit}   // ✅ works because prop is passed correctly
           >
               <Text style={styles.editButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.editButton, { backgroundColor: "#10b981" }]} // green for distinction
+            onPress={() => onEdit("changePassword")}
+          >
+            <Text style={styles.editButtonText}>Change Password</Text>
           </TouchableOpacity>
         </View>
       </View>

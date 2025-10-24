@@ -1,19 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // 🟢 Added for token
 import axios from 'axios';
-import { format } from "date-fns";
+import { addDays, endOfMonth, endOfWeek, format, isSameMonth, isToday, startOfMonth, startOfWeek } from "date-fns";
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import api from "../lib/axios";
 import AnnouncementList from './AnnouncementList';
+import GradeList from "./grades/GradeList";
 import Messages from "./messages";
 import NotificationList from './NotificationList';
+import ChangePasswordForm from "./profile/ChangePasswordForm";
 import ProfileForm from "./profile/ProfileForm";
 import ProfileHeader from "./profile/ProfileHeader";
 import RoomContent from "./RoomContent";
-// ✅ date-fns import
-import { addDays, endOfMonth, endOfWeek, isSameMonth, isToday, startOfMonth, startOfWeek } from "date-fns";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -64,6 +64,9 @@ export default function StudentDashboard() {
   const startDate = startOfWeek(monthStart);
   const endDate = endOfWeek(monthEnd);
 
+  // 🟢 ADDED safety — ensure setActiveTab exists before use
+  const [activeTab, setActiveTab] = useState("materials");
+
   const weeks = [];
   let day = startDate;
   while (day <= endDate) {
@@ -85,7 +88,7 @@ export default function StudentDashboard() {
       .then((response) => setSubjects(response.data))
       .catch((error) => console.error('Error fetching subjects:', error));
 
-    const fetchRoomsAndUser = async () => {
+    const fetchRoomsAndUser = async () => { 
       try {
         const role = await AsyncStorage.getItem("role"); // ✅ match axios.js
         const token = await AsyncStorage.getItem(`${role}Token`);
@@ -144,23 +147,83 @@ export default function StudentDashboard() {
     setNotificationTarget(null);
   };
 
-  // 🟢 Handle notification click → updated logic
+  // ✅ Added helper functions for multiple schedules
+  const formatDays = (dayField) => {
+    if (!dayField) return "No schedule";
+    if (Array.isArray(dayField)) return dayField.join(", ");
+    try {
+      const parsed = JSON.parse(dayField);
+      return Array.isArray(parsed) ? parsed.join(", ") : dayField;
+    } catch {
+      return dayField;
+    }
+  };
+
+  const formatTimes = (timeField) => {
+    if (!timeField) return "";
+    if (Array.isArray(timeField)) return timeField.join(" | ");
+    try {
+      const parsed = JSON.parse(timeField);
+      return Array.isArray(parsed) ? parsed.join(" | ") : timeField;
+    } catch {
+      return timeField;
+    }
+  };
+
+  // 🟢 Handle notification click → updated logic (QUIZ HANDLER FIX)
   const handleNotificationClick = (item) => {
+    const sender = item.sender_name || item.sender?.name || "Unknown";
+
     if (item.type === "message") {
       setCurrentView("messages");
-    } else if (item.type === "material") {
-      setNotificationTarget(item);
+
+    // ✅ Recognize module/assignment notifications either by type or presence of material_id
+    } else if (item.type === "module" || item.type === "assignment" || item.material_id) {
+      // Normalize notification target so RoomContent gets a predictable shape
+      const target = {
+        id: item.material_id ?? null,
+        type: item.type ?? (item.material_id ? 'module' : null),
+        section_id: item.section_id ?? null,
+        room_id: item.room_id ?? null,
+      };
+      setNotificationTarget(target);
+
+      // First try to find room by section_id, then by room_id (covers both cases)
+      let room = null;
       if (item.section_id) {
-        const room = rooms.find(r => r.section?.id === item.section_id);
-        if (room) {
-          setSelectedRoom(room);
-          setCurrentView("detail");
-        }
+        room = rooms.find(r => r.section?.id === item.section_id);
       }
+      if (!room && item.room_id) {
+        room = rooms.find(r => r.id === item.room_id);
+      }
+
+      if (room) {
+        setSelectedRoom(room);
+        setCurrentView("detail");
+        setTimeout(() => {
+          setActiveTab("materials");
+        }, 100);
+      }
+
     } else if (item.type === "announcement") {
-      setCurrentView("announcements");   // ✅ now works
+      setCurrentView("announcements");
+
+    } else if (item.type === "quiz") {
+      // ✅ FIXED: proper quiz open
+      const quizSection = item.section_id || item.room_id;
+      const room = rooms.find(
+        (r) => r.section?.id === quizSection || r.id === quizSection
+      );
+      if (room) {
+        setSelectedRoom(room);
+        setCurrentView("detail");
+        setTimeout(() => {
+          setActiveTab("quizzes");
+        }, 300);
+      }
     }
-    setDropdownVisible(false); // always close after click
+
+    setDropdownVisible(false);
   };
 
   // 🟢 Join Room logic
@@ -221,7 +284,6 @@ export default function StudentDashboard() {
             <Ionicons name="menu" size={28} color={textColor.color} />
           </TouchableOpacity>
 
-          {/* ✅ Added Logo here (same as login dashboard style) */}
           <Image
             source={require('../../assets/edutrack-logo.png')}
             style={styles.logo}
@@ -232,7 +294,6 @@ export default function StudentDashboard() {
         </View>
 
         <View style={styles.navRight}>
-          {/* ✅ Notification Bell */}
           <TouchableOpacity
             ref={bellRef}
             onPress={() => setDropdownVisible(!dropdownVisible)}
@@ -264,18 +325,21 @@ export default function StudentDashboard() {
             keyExtractor={(item, index) => index.toString()}
             style={{ maxHeight: 300 }}
             renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => handleNotificationClick(item)}> {/* 🟢 CLICK HANDLER */}
+              <TouchableOpacity
+                onPress={() => handleNotificationClick(item)}
+              >
                 <View style={styles.notificationItem}>
                   <Text style={[styles.notificationText, textColor]}>
                     [{item.type?.toUpperCase()}] {item.title}
                   </Text>
-                  {/* ✅ FIX: Show sender for messages + announcements */}
                   <Text style={[{ fontSize: 12 }, textColor]}>
                     {item.type === "message"
                       ? `A new message from ${item.sender_name || "Unknown"}`
                       : item.type === "announcement"
                         ? `A new announcement from ${item.sender_name || "Unknown"}`
-                        : stripHtml(item.content) || "No content"}
+                        : item.type === "quiz"
+                          ? "A new quiz has been published for your class"
+                          : stripHtml(item.content) || "No content"}
                   </Text>
                   <Text style={{ fontSize: 12, color: "gray" }}>
                     {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
@@ -287,9 +351,9 @@ export default function StudentDashboard() {
           <TouchableOpacity
             style={styles.dropdownFooter}
             onPress={() => {
-              setCurrentView('notifications');  // switch main content
+              setCurrentView("notifications");
               setDropdownVisible(false);
-            }}      // close dropdown
+            }}
           >
             <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
           </TouchableOpacity>
@@ -406,8 +470,9 @@ export default function StudentDashboard() {
                       <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#333" },]}>
                         Section: {room.section?.name}
                       </Text>
+                      {/* ✅ Adjusted for multiple days and times */}
                       <Text style={[styles.subjectDetails, { color: isDarkMode ? "#ddd" : "#444" },]}>
-                        Schedule: {room.day} {room.time}
+                        Schedule: {formatDays(room.day)} {formatTimes(room.time)}
                       </Text>
                       <Text style={[styles.subjectDetails, { fontStyle: "italic", color: isDarkMode ? "#32CD32" : "#006400", },]}>
                         Code: {room.token || "No Token"}
@@ -432,15 +497,15 @@ export default function StudentDashboard() {
                 <Text style={[styles.instructorSection, { color: isDarkMode ? "#fff" : "#333" },]}>
                   Section: {selectedRoom.section?.name || "No Section"}
                 </Text>
+                {/* ✅ Adjusted for multiple days and times */}
                 <Text style={[styles.instructorSchedule, { color: isDarkMode ? "#ddd" : "#444" },]}>
-                  Schedule: {selectedRoom.day} {selectedRoom.time}
+                  Schedule: {formatDays(selectedRoom.day)} {formatTimes(selectedRoom.time)}
                 </Text>
                 <Text style={{ color: isDarkMode ? "#32CD32" : "#006400", fontStyle: "italic", marginTop: 4, }}>
                   Code: {selectedRoom.token || "No Token"}
                 </Text>
               </View>
               <View style={styles.rightContainer}>
-                {/* 🟢 Pass openMaterial directly and a callback to clear it once consumed */}
                 <RoomContent
                   room={selectedRoom}
                   openMaterial={notificationTarget}
@@ -571,7 +636,7 @@ export default function StudentDashboard() {
           {currentView === 'grades' && (
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Grades</Text>
-              <Text style={{ color: textColor.color }}>Your grades will appear here.</Text>
+              <GradeList isDarkMode={isDarkMode}/>
             </View>
           )}
 
@@ -596,23 +661,50 @@ export default function StudentDashboard() {
                       setSelectedRoom(room);
                       setCurrentView("detail");
                     }
+                  } else if (data.room_id) {
+                    const room = rooms.find(r => r.id === data.room_id);
+                    if (room) {
+                      setSelectedRoom(room);
+                      setCurrentView("detail");
+                    }
                   }
                 }}
                 onOpenMessages={() => setCurrentView("messages")}
                 onOpenAnnouncements={() => setCurrentView("announcements")}
+
+                // 🟣 NEW: Handle quiz notifications → open room + quizzes tab
+                onOpenQuiz={(data) => {
+                  if (data.room_id || data.section_id) {
+                    const room = rooms.find(
+                      (r) => r.id === data.room_id || r.section?.id === data.section_id
+                    );
+                    if (room) {
+                      setSelectedRoom(room);
+                      setCurrentView("detail"); // enter the room
+                      setTimeout(() => {
+                        setActiveTab("quizzes"); // switch to quizzes tab
+                      }, 300);
+                    }
+                  }
+                }}
               />
             </View>
           )}
           {currentView === "profileHeader" && (
-            <ProfileHeader isDarkMode={isDarkMode}
-              onEdit={() => setCurrentView("profileForm")}
+            <ProfileHeader
+              isDarkMode={isDarkMode}
+              onEdit={(view) =>
+                setCurrentView(view === "changePassword" ? "changePassword" : "profileForm")
+              }
             />
           )}
 
           {currentView === "profileForm" && (
-            <ProfileForm isDarkMode={isDarkMode}
-              onBack={() => setCurrentView("profileHeader")}
-            />
+            <ProfileForm isDarkMode={isDarkMode} onBack={() => setCurrentView("profileHeader")} />
+          )}
+
+          {currentView === "changePassword" && (
+            <ChangePasswordForm isDarkMode={isDarkMode} onBack={() => setCurrentView("profileHeader")} />
           )}
         </View>
       </View>

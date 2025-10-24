@@ -1,10 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+// Import the three subcomponents
+import AcademicSetupForm from "./general-settings/AcademicSetupForm";
+import GradingSystemForm from "./general-settings/GradingSystemForm";
+import SchoolInfoForm from "./general-settings/SchoolInfoForm";
+
 export default function General({ isDarkMode }) {
+  const [activeSection, setActiveSection] = useState(null); // Track which section is open
+
   const themeStyles = isDarkMode ? styles.dark : styles.light;
   const textColor = { color: isDarkMode ? "#fff" : "#000" };
 
+  // Define the main setting sections
   const sections = [
     {
       id: "school",
@@ -24,20 +33,22 @@ export default function General({ isDarkMode }) {
       desc: "Customize grading scale (percentages, letters, pass/fail).",
       icon: "bar-chart-outline",
     },
-    {
-      id: "theme",
-      title: "Theme & Branding",
-      desc: "Toggle light/dark, set school colors, favicon/logo.",
-      icon: "color-palette-outline",
-    },
-    {
-      id: "notifications",
-      title: "Notification Settings",
-      desc: "Enable or disable email, SMS, and in-app notifications.",
-      icon: "notifications-outline",
-    },
   ];
 
+  // If a section is open, render its corresponding component
+  if (activeSection === "school") {
+    return <SchoolInfoForm isDarkMode={isDarkMode} onBack={() => setActiveSection(null)} />;
+  }
+
+  if (activeSection === "academic") {
+    return <AcademicSetupForm isDarkMode={isDarkMode} onBack={() => setActiveSection(null)} />;
+  }
+
+  if (activeSection === "grading") {
+    return <GradingSystemForm isDarkMode={isDarkMode} onBack={() => setActiveSection(null)} />;
+  }
+
+  // Otherwise, render the General Settings overview
   return (
     <ScrollView style={[styles.container, themeStyles]}>
       <Text style={[styles.title, textColor]}>General Settings</Text>
@@ -47,14 +58,12 @@ export default function General({ isDarkMode }) {
           key={item.id}
           style={[styles.card, isDarkMode ? styles.cardDark : styles.cardLight]}
           activeOpacity={0.7}
-          onPress={() => console.log(`${item.title} clicked`)} // later: navigate or open modal
+          onPress={() => setActiveSection(item.id)} // Switch content dynamically
         >
           <Ionicons name={item.icon} size={26} color={isDarkMode ? "#4caf50" : "#2563eb"} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardTitle, textColor]}>{item.title}</Text>
-            <Text style={[styles.cardDesc, { color: isDarkMode ? "#aaa" : "#555" }]}>
-              {item.desc}
-            </Text>
+            <Text style={[styles.cardDesc, { color: isDarkMode ? "#aaa" : "#555" }]}>{item.desc}</Text>
           </View>
           <Ionicons name="chevron-forward-outline" size={22} color={isDarkMode ? "#aaa" : "#555"} />
         </TouchableOpacity>

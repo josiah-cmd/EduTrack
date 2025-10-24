@@ -51,15 +51,11 @@ export default function Index() {
       }
     } catch (e) {
       console.error("Login error:", e.response?.data || e.message);
-
-      // ✅ Show popup alert
       Alert.alert(
         "Login Failed",
         e.response?.data?.message || "Invalid username or password.",
         [{ text: "OK" }]
       );
-
-      // ✅ Inline error message
       setErrorMessage(e.response?.data?.message || "Invalid username or password.");
     } finally {
       setLoading(false);
@@ -77,9 +73,18 @@ export default function Index() {
       />
       {/* ===== dark overlay ===== */}
       <View style={styles.overlay} />
-      {/* ============================================================== */}
+
+      {/* 🏫 Academic Hero Header */}
+      <View style={styles.heroHeader}>
+        <Text style={styles.heroTitle}>Divine Word Academy of Dagupan</Text>
+        <Text style={styles.heroSubtitle}>“Witness to the Word • Wisdom in Action”</Text>
+      </View>
 
       <View style={styles.card}>
+        {/* Decorative top corners */}
+        <View style={styles.decorTopLeft} />
+        <View style={styles.decorTopRight} />
+
         <View style={styles.logoContainer}>
           <Image
             source={require('../assets/edutrack-logo.png')}
@@ -87,22 +92,22 @@ export default function Index() {
             resizeMode="contain"
           />
           <Text style={styles.title}>EduTrack</Text>
+          <View style={styles.divider} />
           <Text style={styles.subtitle}>Learning Management System</Text>
         </View>
 
-        {/* ✅ Inline error message */}
         {errorMessage ? (
           <Text style={styles.errorText}>{errorMessage}</Text>
         ) : null}
 
         <View style={[
           styles.inputGroup,
-          errorMessage && { borderColor: 'red' } // ✅ turn border red if error
+          errorMessage && { borderColor: 'red' }
         ]}>
-          <Icon name="mail-outline" size={20} color="#888" style={styles.icon} />
+          <Icon name="mail-outline" size={20} color="#006400" style={styles.icon} />
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Institutional Email"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -113,9 +118,9 @@ export default function Index() {
 
         <View style={[
           styles.inputGroup,
-          errorMessage && { borderColor: 'red' } // ✅ turn border red if error
+          errorMessage && { borderColor: 'red' }
         ]}>
-          <Icon name="lock-closed-outline" size={20} color="#888" style={styles.icon} />
+          <Icon name="lock-closed-outline" size={20} color="#006400" style={styles.icon} />
           <TextInput
             style={styles.input}
             placeholder="Password"
@@ -125,7 +130,7 @@ export default function Index() {
             onSubmitEditing={login}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Icon name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#888" />
+            <Icon name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#006400" />
           </TouchableOpacity>
         </View>
 
@@ -137,11 +142,21 @@ export default function Index() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Login</Text>
+            <Text style={styles.buttonText}>LOGIN</Text>
           )}
         </TouchableOpacity>
 
-        <Text style={styles.footer}>© 2025 EDUTRACK. All Rights Reserved.</Text>
+        <View style={styles.quoteContainer}>
+          <Text style={styles.quoteText}>“Learn. Lead. Inspire.”</Text>
+        </View>
+
+        <Text style={styles.footer}>
+          © 2025 EduTrack • In partnership with Divine Word Academy of Dagupan
+        </Text>
+
+        {/* Decorative bottom corners */}
+        <View style={styles.decorBottomLeft} />
+        <View style={styles.decorBottomRight} />
       </View>
     </View>
   );
@@ -150,14 +165,12 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    /* ===== CHANGED: make container transparent so bg image shows through ===== */
-    backgroundColor: 'transparent', // <-- was '#f9fafb' before (changed)
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
     minHeight: '100vh',
   },
-  /* ===== ADDED: style for the bg image ===== */
   bgImage: {
     position: 'absolute',
     top: 0,
@@ -166,68 +179,97 @@ const styles = StyleSheet.create({
     height: '100%',
     zIndex: -2,
   },
-  /* ===== ADDED: dark overlay ===== */
   overlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     width: '100%',
     height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.4)', // semi-transparent black
+    backgroundColor: 'rgba(0,0,0,0.35)',
     zIndex: -1,
   },
-  /* ====================================================================== */
+  heroHeader: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  heroLogo: {
+    width: 70,
+    height: 70,
+    marginBottom: 6,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fdfdfd',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    color: '#f1f1f1',
+    fontStyle: 'italic',
+  },
   card: {
     width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 16,
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    /* ✅ DWAD theme border */
+    maxWidth: 420,
+    backgroundColor: 'rgba(255,255,255,0.9)', // Glass effect
+    padding: 26,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: '#006400',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    position: 'relative',
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   logo: {
     width: 60,
     height: 60,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#006400', // ✅ DWAD green
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#006400',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+  },
+  divider: {
+    width: 60,
+    height: 3,
+    backgroundColor: '#FFD700',
+    marginVertical: 6,
+    borderRadius: 3,
   },
   subtitle: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 13,
+    color: '#444',
     fontStyle: 'italic',
+  },
+  roleText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#006400',
+    fontWeight: '600',
   },
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: '#ccc',
+    borderColor: '#bbb',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 16,
-    backgroundColor: '#fff', // ✅ keep white for clarity
+    backgroundColor: '#fff',
   },
   icon: {
     marginRight: 8,
-    color: '#006400', // ✅ green icons
   },
   input: {
     flex: 1,
@@ -235,24 +277,35 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   button: {
-    backgroundColor: '#006400', // ✅ DWAD green
+    backgroundColor: '#006400',
     paddingVertical: 14,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderWidth: 1,
+    borderRadius: 10,
+    marginBottom: 16,
   },
   buttonText: {
-    color: '#FFD700', // ✅ gold text
+    color: '#FFD700',
     textAlign: 'center',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 16,
     textTransform: 'uppercase',
   },
+  quoteContainer: {
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    paddingTop: 10,
+  },
+  quoteText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: '#333',
+    textAlign: 'center',
+  },
   footer: {
     textAlign: 'center',
-    color: '#006400', // ✅ green footer
-    fontSize: 13,
-    marginTop: 8,
+    color: '#006400',
+    fontSize: 12,
+    marginTop: 10,
   },
   errorText: {
     color: 'red',
@@ -260,5 +313,50 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
+  },
+  /* Decorative corners */
+  decorTopLeft: {
+    position: 'absolute',
+    top: -8,
+    left: -8,
+    width: 20,
+    height: 20,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: '#006400',
+    borderTopLeftRadius: 4,
+  },
+  decorTopRight: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 20,
+    height: 20,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#FFD700',
+    borderTopRightRadius: 4,
+  },
+  decorBottomLeft: {
+    position: 'absolute',
+    bottom: -8,
+    left: -8,
+    width: 20,
+    height: 20,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: '#FFD700',
+    borderBottomLeftRadius: 4,
+  },
+  decorBottomRight: {
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
+    width: 20,
+    height: 20,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#006400',
+    borderBottomRightRadius: 4,
   },
 });

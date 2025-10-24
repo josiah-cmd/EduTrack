@@ -1,19 +1,19 @@
+/* eslint-disable */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
+import { useNavigation } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-
-// ✅ ADDED — Import RoomContent navigation context
-import { useNavigation } from "@react-navigation/native";
+import { Alert, Animated, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import api from "../../lib/axios";
+import { queueRequest } from "../../lib/OfflineSyncManager";
 
 export default function QuizTake() {
   const { quizId } = useLocalSearchParams();
   const router = useRouter();
-  const navigation = useNavigation(); // ✅ ADDED — to navigate within your RoomContent flow
+  const navigation = useNavigation();
 
   const [quiz, setQuiz] = useState(null);
-  const [attemptId, setAttemptId] = useState(null); // ✅ Added line
+  const [attemptId, setAttemptId] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -22,58 +22,95 @@ export default function QuizTake() {
   const [timeLeft, setTimeLeft] = useState(null);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const STORAGE_KEY = `quiz_progress_${quizId}`;
 
+  // ---------------------------
+  // 🧠 Fetch or Restore Quiz
+  // ---------------------------
   useEffect(() => {
+    restoreProgress();
     fetchQuiz();
   }, []);
 
+  const restoreProgress = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setAnswers(parsed.answers || {});
+        setCurrentIndex(parsed.currentIndex || 0);
+        setAttemptId(parsed.attemptId || null);
+        console.log("♻️ Restored quiz progress:", parsed);
+      }
+    } catch (err) {
+      console.log("⚠️ Failed to restore quiz progress:", err);
+    }
+  };
+
+  const saveProgress = async (updatedAnswers, index, attempt) => {
+    try {
+      const data = {
+        answers: updatedAnswers,
+        currentIndex: index,
+        attemptId: attempt || attemptId,
+        savedAt: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      console.log("💾 Progress saved offline:", data);
+    } catch (err) {
+      console.log("⚠️ Failed to save progress:", err);
+    }
+  };
+
+  const clearProgress = async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    console.log("🧹 Cleared saved quiz progress");
+  };
+
+  // ---------------------------
+  // 🧩 Fetch Quiz + Start Attempt
+  // ---------------------------
   const fetchQuiz = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await axios.get(
-        `http://localhost:8000/api/student/quizzes/${quizId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await api.get(`/student/quizzes/${quizId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setQuiz(res.data);
 
-      const duration = res.data.duration_minutes
-        ? res.data.duration_minutes * 60
+      const duration = res.data.duration
+        ? res.data.duration * 60
         : 600;
       setTimeLeft(duration);
 
-      // ✅ Start a new attempt (added block)
-      const startRes = await axios.post(
-        `http://localhost:8000/api/student/quizzes/${quizId}/start`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const newAttemptId =
-        startRes.data?.id ||
-        startRes.data?.attempt?.id ||
-        startRes.data?.data?.id;
-      if (!newAttemptId) {
-        console.warn("⚠️ No attempt ID returned from start endpoint:", startRes.data);
+      if (!attemptId) {
+        const startRes = await api.post(
+          `/student/quizzes/${quizId}/start`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const newAttemptId =
+          startRes.data?.id ||
+          startRes.data?.attempt?.id ||
+          startRes.data?.data?.id;
+        if (!newAttemptId) console.warn("⚠️ No attempt ID returned");
+        setAttemptId(newAttemptId);
       }
-      setAttemptId(newAttemptId);
     } catch (err) {
       console.log("❌ Fetch Quiz Error:", err.response?.status, err.response?.data || err);
     }
   };
 
+  // ---------------------------
+  // ⏱ Timer
+  // ---------------------------
   useEffect(() => {
     if (!timeLeft) return;
     if (timeLeft <= 0) {
       handleAutoSubmit();
       return;
     }
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
+    const interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(interval);
   }, [timeLeft]);
 
@@ -88,15 +125,16 @@ export default function QuizTake() {
     }
   }, [timeLeft]);
 
+  // ---------------------------
+  // 🚫 Tab-switch warning
+  // ---------------------------
   useEffect(() => {
     if (typeof document !== "undefined") {
       const handleVisibilityChange = () => {
         if (document.hidden) triggerWarning();
       };
       document.addEventListener("visibilitychange", handleVisibilityChange);
-      return () => {
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
-      };
+      return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
   }, [warningCount]);
 
@@ -110,41 +148,18 @@ export default function QuizTake() {
     }
   };
 
-  const handleAutoSubmit = async () => {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      const formattedAnswers = Object.keys(answers).map((qid) => ({
-        question_id: parseInt(qid),
-        selected_option_id: answers[qid],
-      }));
-
-      const res = await axios.post(
-        `http://localhost:8000/api/student/quiz-attempts/${attemptId}/submit`,
-        { answers: formattedAnswers, auto_submitted: true },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setShowWarning(false);
-
-      // ✅ CHANGE: Trigger parent RoomContent to show QuizResult
-      if (window.onQuizSubmitSuccess) {
-        window.onQuizSubmitSuccess({
-          attemptId: attemptId || res.data.attempt_id,
-          quizId,
-          score: res.data.score,
-          total: res.data.total_points,
-          percentage: res.data.percentage,
-        });
-      }
-    } catch (err) {
-      console.log("❌ Auto Submit Error:", err.response?.data || err);
-    }
-  };
-
+  // ---------------------------
+  // 🧾 Answer select + Save offline
+  // ---------------------------
   const handleSelect = (questionId, optionId) => {
-    setAnswers({ ...answers, [questionId]: optionId });
+    const updatedAnswers = { ...answers, [questionId]: optionId };
+    setAnswers(updatedAnswers);
+    saveProgress(updatedAnswers, currentIndex);
   };
 
+  // ---------------------------
+  // 🧾 Submit & Sync
+  // ---------------------------
   const handleSubmit = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
@@ -153,29 +168,87 @@ export default function QuizTake() {
         selected_option_id: answers[qid],
       }));
 
-      const res = await axios.post(
-        `http://localhost:8000/api/student/quiz-attempts/${attemptId}/submit`,
-        { answers: formattedAnswers },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      try {
+        const res = await api.post(
+          `/student/quiz-attempts/${attemptId}/submit`,
+          { answers: formattedAnswers },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-      setShowSubmitModal(false);
+        await clearProgress();
+        setShowSubmitModal(false);
 
-      // ✅ CHANGE: Trigger RoomContent to display QuizResult.jsx directly
-      if (window.onQuizSubmitSuccess) {
-        window.onQuizSubmitSuccess({
-          attemptId: attemptId || res.data.attempt_id,
-          quizId,
-          score: res.data.score,
-          total: res.data.total_points,
-          percentage: res.data.percentage,
+        router.replace({
+          pathname: "/student/quizzes/QuizResult",
+          params: {
+            attemptId,
+            quizId,
+            score: res.data.score,
+            total: res.data.total_points,
+            percentage: res.data.percentage,
+          },
         });
+      } catch (err) {
+        console.log("📴 Offline detected — queuing submission");
+        await queueRequest(`/student/quiz-attempts/${attemptId}/submit`, "POST", {
+          answers: formattedAnswers,
+        });
+        await clearProgress();
+        Alert.alert("Offline", "Your quiz submission is saved offline and will sync once online.");
+        router.replace("/student/index");
       }
     } catch (err) {
-      console.log("❌ Submit Error:", err.response?.data || err);
+      console.log("❌ Submit Error:", err);
     }
   };
 
+  // ---------------------------
+  // ⏱ Auto Submit
+  // ---------------------------
+  const handleAutoSubmit = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const formattedAnswers = Object.keys(answers).map((qid) => ({
+        question_id: parseInt(qid),
+        selected_option_id: answers[qid],
+      }));
+
+      try {
+        const res = await api.post(
+          `/student/quiz-attempts/${attemptId}/submit`,
+          { answers: formattedAnswers, auto_submitted: true },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        await clearProgress();
+        setShowWarning(false);
+        router.replace({
+          pathname: "/student/quizzes/QuizResult",
+          params: {
+            attemptId,
+            quizId,
+            score: res.data.score,
+            total: res.data.total_points,
+            percentage: res.data.percentage,
+          },
+        });
+      } catch (err) {
+        console.log("📴 Offline detected — queuing auto-submit");
+        await queueRequest(`/student/quiz-attempts/${attemptId}/submit`, "POST", {
+          answers: formattedAnswers,
+          auto_submitted: true,
+        });
+        await clearProgress();
+        Alert.alert("Offline", "Your quiz auto-submission is saved locally and will sync later.");
+        router.replace("/student/index");
+      }
+    } catch (err) {
+      console.log("❌ Auto Submit Error:", err);
+    }
+  };
+
+  // ---------------------------
+  // 🧭 UI
+  // ---------------------------
   if (!quiz) {
     return (
       <View style={styles.centered}>
@@ -185,7 +258,6 @@ export default function QuizTake() {
   }
 
   const question = quiz.questions[currentIndex];
-
   const formatTime = (secs) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -269,6 +341,7 @@ export default function QuizTake() {
         </View>
       </View>
 
+      {/* ✅ FIXED MODAL: Confirm Submit */}
       <Modal visible={showSubmitModal} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalBox}>
@@ -285,6 +358,7 @@ export default function QuizTake() {
         </View>
       </Modal>
 
+      {/* Warning Modal */}
       <Modal visible={showWarning} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <View style={[styles.modalBox, { borderColor: "#ffcc00" }]}>

@@ -22,18 +22,35 @@ class RoomController extends Controller
             'subject_id' => 'required|exists:subjects,id',
             'teacher_id' => 'required|exists:teachers,id',
             'section_id' => 'required|exists:sections,id',
-            'day' => 'required|string',
-            'time' => 'required|string',
+            'day' => 'required', // adjusted to allow array or string
+            'time' => 'required', // adjusted to allow array or string
         ]);
 
         $token = Str::random(10); // 🔹 generate token
+
+        // 🟢 NEW: Build combined schedule if multiple days/times are provided
+        $schedule = [];
+        if (is_array($validated['day']) && is_array($validated['time'])) {
+            foreach ($validated['day'] as $i => $d) {
+                $schedule[] = [
+                    'day' => $d,
+                    'time' => $validated['time'][$i] ?? $validated['time'][0] ?? ''
+                ];
+            }
+        } else {
+            $schedule[] = [
+                'day' => is_array($validated['day']) ? $validated['day'][0] : $validated['day'],
+                'time' => is_array($validated['time']) ? $validated['time'][0] : $validated['time']
+            ];
+        }
 
         $room = Room::create([
             'subject_id' => $validated['subject_id'],
             'teacher_id' => $validated['teacher_id'],
             'section_id' => $validated['section_id'],
-            'day' => $validated['day'],
-            'time' => $validated['time'],
+            'day' => $this->sortDays($validated['day']),
+            'time' => is_array($validated['time']) ? json_encode($validated['time']) : $validated['time'],
+            'schedule' => json_encode($schedule), // 🟢 new line
             'created_by' => $user->id,
             'token' => $token,
         ]);
@@ -101,6 +118,7 @@ class RoomController extends Controller
 
         return response()->json($rooms);
     }
+
     public function update(Request $request, Room $room)
     {
         $user = Auth::user();
@@ -113,9 +131,30 @@ class RoomController extends Controller
             'subject_id' => 'required|exists:subjects,id',
             'teacher_id' => 'required|exists:teachers,id',
             'section_id' => 'required|exists:sections,id',
-            'day' => 'required|string',
-            'time' => 'required|string',
+            'day' => 'required', // adjusted to allow array or string
+            'time' => 'required', // adjusted to allow array or string
         ]);
+
+        // 🟢 NEW: Build combined schedule again for update
+        $schedule = [];
+        if (is_array($validated['day']) && is_array($validated['time'])) {
+            foreach ($validated['day'] as $i => $d) {
+                $schedule[] = [
+                    'day' => $d,
+                    'time' => $validated['time'][$i] ?? $validated['time'][0] ?? ''
+                ];
+            }
+        } else {
+            $schedule[] = [
+                'day' => is_array($validated['day']) ? $validated['day'][0] : $validated['day'],
+                'time' => is_array($validated['time']) ? $validated['time'][0] : $validated['time']
+            ];
+        }
+
+        // adjusted to handle array or string
+        $validated['day'] = $this->sortDays($validated['day']);
+        $validated['time'] = is_array($validated['time']) ? json_encode($validated['time']) : $validated['time'];
+        $validated['schedule'] = json_encode($schedule); // 🟢 new line
 
         $room->update($validated);
 
@@ -149,5 +188,25 @@ class RoomController extends Controller
             'teacher' => $room->teacher ? $room->teacher->user : null,
             'students' => $room->students
         ]);
+    }
+
+    public function students($roomId)
+    {
+        $room = \App\Models\Room::with('students:id,name')->findOrFail($roomId);
+
+        return response()->json($room->students);
+    }
+
+    // 🟢 Helper to keep days sorted in order
+    private function sortDays($days)
+    {
+        if (is_string($days)) {
+            $days = json_decode($days, true) ?? [$days];
+        }
+
+        $order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+        usort($days, fn($a, $b) => array_search($a, $order) <=> array_search($b, $order));
+
+        return json_encode($days);
     }
 }

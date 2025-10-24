@@ -15,7 +15,12 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StudentQuizController;
-
+use App\Http\Controllers\GradeController;
+use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\SystemSecurityController;
+use App\Http\Controllers\GeneralSettingsController;
+use App\Http\Controllers\SystemMaintenanceController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -32,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rooms/join', [RoomController::class, 'joinRoom']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::get('/rooms/{room}/people', [RoomController::class, 'people']);
+    Route::get('/rooms/{room}/students', [RoomController::class, 'students']);
 
     /* ------------------- SUBJECTS / TEACHERS / SECTIONS ------------------- */
     Route::get('/subjects', [SubjectController::class, 'index']);
@@ -75,6 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/profile', [ProfileController::class, 'me']);
     Route::post('/profile/update', [ProfileController::class, 'update']);
+    Route::post('/profile/change-password', [ProfileController::class, 'changePassword']);
 
     /* ------------------- QUIZZES ------------------- */
     Route::get('/quizzes', [QuizController::class, 'index']);
@@ -87,10 +94,56 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/quizzes/{id}/questions', [QuizController::class, 'getQuestions']);
     Route::patch('/quizzes/{id}/publish', [QuizController::class, 'publish']);
 
+    // ✅ STUDENT QUIZ ROUTES
     Route::get('/student/quizzes', [StudentQuizController::class, 'index']);
+
+    // ✅ Move this ABOVE {id} to prevent "attempts" being treated as ID
+    Route::get('/student/quizzes/attempts', [StudentQuizController::class, 'attempts']);
+
     Route::get('/student/quizzes/{id}', [StudentQuizController::class, 'show']);
     Route::post('/student/quizzes/{quiz_id}/start', [StudentQuizController::class, 'start']);
     Route::post('/student/quiz-attempts/{attempt_id}/submit', [StudentQuizController::class, 'submit']);
     Route::get('/student/quiz-attempts/{attempt_id}/result', [StudentQuizController::class, 'result']);
-    Route::get('/student/quizzes/attempts', [StudentQuizController::class, 'attempts']);
+    Route::get('/quizzes/{id}/attempts', [QuizController::class, 'attemptsByQuiz']);
+
+    Route::get('/grades', [GradeController::class, 'index']);
+    Route::post('/grades', [GradeController::class, 'store']);
+    Route::get('/grades/student/{id}', [GradeController::class, 'showStudentGrades']);
+    Route::get('/grades/autoCompute/{student_id}/{quarter}', [GradeController::class, 'autoCompute']);
+    Route::get('/grades/{student}/{quarter}', [GradeController::class, 'getGrade']);
+    Route::get('/student/grades', [GradeController::class, 'getStudentGrades']);
+    Route::patch('/grades/{id}/verify', [GradeController::class, 'verify']);
+    Route::patch('/grades/{id}/unverify', [GradeController::class, 'unverify']);
+
+    Route::get('/reports/performance', [ReportsController::class, 'studentPerformance']);
+    Route::get('/reports/attendance', [ReportsController::class, 'attendanceReport']);
+    Route::post('/reports/attendance', [ReportsController::class, 'storeAttendance']);
+    Route::get('/reports/completion-rates', [ReportsController::class, 'subjectCompletionRates']);
+
+    // ✅ Attendance routes
+    Route::get('/attendance', [AttendanceController::class, 'index']);
+    Route::post('/attendance', [AttendanceController::class, 'store']);
+
+    /* ------------------- SYSTEM SECURITY ------------------- */
+    Route::get('/security/settings', [SystemSecurityController::class, 'getSettings']);
+    Route::post('/security/settings', [SystemSecurityController::class, 'updateSettings']);
+    Route::get('/security/users', [SystemSecurityController::class, 'getUsers']);
+    Route::post('/security/users/{id}/lock', [SystemSecurityController::class, 'lockUser']);
+    Route::post('/security/users/{id}/unlock', [SystemSecurityController::class, 'unlockUser']);
+
+    /* ------------------- GENERAL SETTINGS ------------------- */
+    Route::get('/settings/school-info', [GeneralSettingsController::class, 'getSchoolInfo']);
+    Route::post('/settings/school-info', [GeneralSettingsController::class, 'updateSchoolInfo']);
+    Route::get('/settings/academic-year', [GeneralSettingsController::class, 'getAcademicYear']);
+    Route::post('/settings/academic-year', [GeneralSettingsController::class, 'updateAcademicYear']);
+    Route::get('/settings/grading-system', [GeneralSettingsController::class, 'getGradingSystem']);
+    Route::post('/settings/grading-system', [GeneralSettingsController::class, 'updateGradingSystem']);
+
+    /* ------------------- SYSTEM MAINTENANCE ------------------- */
+    Route::get('/system-maintenance/audit-logs', [SystemMaintenanceController::class, 'getAuditLogs']);
+    Route::post('/system-maintenance/clear-cache', [SystemMaintenanceController::class, 'clearCache']);
+    Route::post('/backup', [SystemMaintenanceController::class, 'createBackup']);
+    Route::post('/restore', [SystemMaintenanceController::class, 'restoreBackup']);
+    Route::post('/system-maintenance/import-data', [SystemMaintenanceController::class, 'importData']);
+    Route::get('/system-maintenance/export-data', [SystemMaintenanceController::class, 'exportData']);
 });

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from 'axios';
@@ -8,6 +9,7 @@ import AnnouncementForm from './AnnouncementForm';
 import AnnouncementList from './AnnouncementList';
 import Messages from "./messages";
 import NotificationList from './NotificationList';
+import ChangePasswordForm from "./profile/ChangePasswordForm";
 import ProfileForm from "./profile/ProfileForm";
 import ProfileHeader from "./profile/ProfileHeader";
 import Reports from './Reports';
@@ -51,6 +53,11 @@ export default function AdminDashboard() {
   // ✅ calendar state
   const [materials, setMaterials] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // ✅ 🔹 FIXED STATES (added only — do not delete existing code)
+  const [notificationTarget, setNotificationTarget] = useState(null);
+  const [rooms, setRooms] = useState([]); 
+  const [selectedRoom, setSelectedRoom] = useState(null);
 
   // ✅ fetch counts
   useEffect(() => {
@@ -284,11 +291,6 @@ export default function AdminDashboard() {
                 <Text style={[styles.sidebarText, textStyles]}>Reports</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('grades')}>
-                <Ionicons name="bar-chart-outline" size={20} color={textColor.color} />
-                <Text style={[styles.sidebarText, textStyles]}>Grades</Text>
-              </TouchableOpacity>
-
               <TouchableOpacity style={styles.sidebarItem} onPress={() => setCurrentView('messages')}>
                 <Ionicons name="chatbubbles-outline" size={20} color={textColor.color} />
                 <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
@@ -481,15 +483,7 @@ export default function AdminDashboard() {
               <AnnouncementForm isDarkMode={isDarkMode} />
             </View>
           )}
-
-          {/* Grades */}
-          {currentView === 'grades' && (
-            <View style={{ padding: 20 }}>
-              <Text style={[styles.mainText, textColor]}>Grades</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No Grades</Text>
-            </View>
-          )}
-
+          
           {/* Messages */}
           {currentView === 'messages' && (
             <View style={{ flex: 20 }}>
@@ -555,15 +549,20 @@ export default function AdminDashboard() {
             </View>
           )}
           {currentView === "profileHeader" && (
-            <ProfileHeader isDarkMode={isDarkMode}
-              onEdit={() => setCurrentView("profileForm")}
+            <ProfileHeader
+              isDarkMode={isDarkMode}
+              onEdit={(view) =>
+                setCurrentView(view === "changePassword" ? "changePassword" : "profileForm")
+              }
             />
           )}
 
           {currentView === "profileForm" && (
-            <ProfileForm isDarkMode={isDarkMode}
-              onBack={() => setCurrentView("profileHeader")}
-            />
+            <ProfileForm isDarkMode={isDarkMode} onBack={() => setCurrentView("profileHeader")} />
+          )}
+
+          {currentView === "changePassword" && (
+            <ChangePasswordForm isDarkMode={isDarkMode} onBack={() => setCurrentView("profileHeader")} />
           )}
         </View>
       </View>

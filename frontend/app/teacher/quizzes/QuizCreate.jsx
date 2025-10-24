@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";

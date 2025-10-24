@@ -1,49 +1,80 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+// 🔹 Import subcomponents
+import AuditLogs from "./system-maintenance/AuditLogs";
+import BackupRestore from "./system-maintenance/BackupRestore";
+import ClearCache from "./system-maintenance/ClearCache";
+import DataImportExport from "./system-maintenance/DataImportExport";
+
 export default function Maintenance({ isDarkMode }) {
+  const [activeSection, setActiveSection] = useState(null);
+
   const themeStyles = isDarkMode ? styles.dark : styles.light;
   const textColor = { color: isDarkMode ? "#fff" : "#000" };
 
+  // 🔹 Each section entry
   const sections = [
     {
       id: "backup",
       title: "Backup & Restore",
       desc: "Database + files backup, restore option.",
       icon: "cloud-upload-outline",
+      component: <BackupRestore isDarkMode={isDarkMode} />,
     },
     {
       id: "cache",
       title: "Clear Cache / Reset Temporary Data",
       desc: "Keep the system fast and clean.",
       icon: "trash-outline",
+      component: <ClearCache isDarkMode={isDarkMode} />,
     },
     {
       id: "audit",
       title: "Audit Logs",
       desc: "View login history, account changes, activity trail.",
       icon: "list-outline",
-    },
-    {
-      id: "errors",
-      title: "Error Logs Viewer",
-      desc: "Check system errors for debugging.",
-      icon: "bug-outline",
-    },
-    {
-      id: "update",
-      title: "Update / Version Info",
-      desc: "Show current EduTrack version, apply updates.",
-      icon: "refresh-circle-outline",
+      component: <AuditLogs isDarkMode={isDarkMode} />,
     },
     {
       id: "import",
       title: "Data Import/Export",
       desc: "Bulk upload (CSV/Excel) for users, subjects, grades.",
       icon: "download-outline",
+      component: <DataImportExport isDarkMode={isDarkMode} />,
     },
   ];
 
+  // 🔹 If a section is active, show its subcomponent
+  if (activeSection) {
+    const section = sections.find((s) => s.id === activeSection);
+
+    return (
+      <View style={[styles.container, themeStyles]}>
+        {/* Back button + title */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => setActiveSection(null)}
+            style={styles.backButton}
+          >
+            <Ionicons
+              name="arrow-back-outline"
+              size={24}
+              color={isDarkMode ? "#fff" : "#000"}
+            />
+            <Text style={[styles.backText, textColor]}>Back</Text>
+          </TouchableOpacity>
+          <Text style={[styles.title, textColor]}>{section.title}</Text>
+        </View>
+
+        {/* Subcomponent */}
+        <ScrollView>{section.component}</ScrollView>
+      </View>
+    );
+  }
+
+  // 🔹 Otherwise, show the main list
   return (
     <ScrollView style={[styles.container, themeStyles]}>
       <Text style={[styles.title, textColor]}>System Maintenance</Text>
@@ -53,7 +84,7 @@ export default function Maintenance({ isDarkMode }) {
           key={item.id}
           style={[styles.card, isDarkMode ? styles.cardDark : styles.cardLight]}
           activeOpacity={0.7}
-          onPress={() => console.log(`${item.title} clicked`)} // 🔹 future: modal/form
+          onPress={() => setActiveSection(item.id)}
         >
           <Ionicons name={item.icon} size={26} color={isDarkMode ? "#4caf50" : "#2563eb"} />
           <View style={{ flex: 1 }}>
@@ -74,10 +105,24 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+    gap: 10,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  backText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
-    marginBottom: 20,
   },
   dark: {
     backgroundColor: "#000",

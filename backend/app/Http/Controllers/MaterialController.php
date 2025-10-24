@@ -3,61 +3,81 @@
 namespace App\Http\Controllers;
 
 use App\Models\Material;
-use App\Models\User; // ✅ to target recipients
-use App\Models\Room; // ✅ to fetch room info
+use App\Models\User;
+use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use App\Services\NotificationService; // ✅ use the same service
+use App\Services\NotificationService;
+use Illuminate\Support\Str;
 
 class MaterialController extends Controller
 {
-    // Upload
+    // Upload Material
     public function store(Request $request)
     {
         $request->validate([
             'type' => 'required|in:module,assignment',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'file' => 'required|mimes:pdf,doc,docx,txt,ppt,pptx,xls,xlsx|max:20480',
+            'file' => 'required|file|mimes:pdf,doc,docx,txt,ppt,pptx,xls,xlsx,mp4,avi,mov,mkv|max:51200',
             'deadline' => 'nullable|date',
-            'room_id' => 'required|exists:rooms,id' // ✅ ensure material belongs to a room
+            'room_id' => 'required|exists:rooms,id'
         ]);
 
-        $path = $request->file('file')->store('uploads', 'public');
+        $uploadedFile = $request->file('file');
+        $originalName = $uploadedFile->getClientOriginalName();
+        $safeName = time() . '_' . \Illuminate\Support\Str::random(6) . '.' . $uploadedFile->getClientOriginalExtension();
+        $path = $uploadedFile->storeAs('uploads', $safeName, 'public');
 
-        $material = Material::create([
-            'teacher_id' => Auth::id(),
+        $material = \App\Models\Material::create([
+            'teacher_id' => \Illuminate\Support\Facades\Auth::id(),
             'type' => $request->type,
             'title' => $request->title,
             'description' => $request->description,
             'file_path' => $path,
+            'original_name' => $originalName,
             'deadline' => $request->deadline,
-            'room_id' => $request->room_id // ✅ link material to specific room
+            'room_id' => $request->room_id,
         ]);
 
-        // ✅ Create notifications for students in the same room
-        $teacher = Auth::user();
-        $room = Room::with('students')->findOrFail($request->room_id); // assumes Room has students() relation
+        // ✅ Notify students who joined the room only
+        $room = \App\Models\Room::with('students')->find($request->room_id);
 
-        $recipients = $room->students->pluck('id')->toArray(); // ✅ all students in this room only
+        if ($room && $room->students->count() > 0) {
+            $recipients = $room->students->pluck('id')->toArray();
 
-        NotificationService::notify(
-            'material',
-            $material->title,
-            "A new {$material->type} has been uploaded by {$teacher->name}.",
-            $teacher->id,
-            $recipients,
-            $room->section_id // ✅ use room's section
-        );
+            if ($request->type === 'module') {
+                $notifType = 'module';
+                $notifTitle = '[MODULE] ' . $request->title;
+                $notifMessage = 'A new module been uploaded by ' . \Illuminate\Support\Facades\Auth::user()->name;
+            } else {
+                $notifType = 'assignment';
+                $notifTitle = '[ASSIGNMENT] ' . $request->title;
+                $notifMessage = 'A new assignment been uploaded by ' . \Illuminate\Support\Facades\Auth::user()->name;
+            }
 
-        return response()->json(['message' => 'Material uploaded successfully!', 'material' => $material]);
+            \App\Services\NotificationService::notify(
+                $notifType,
+                $notifTitle,
+                $notifMessage,
+                \Illuminate\Support\Facades\Auth::id(),
+                $recipients,
+                $room->section_id ?? null
+            );
+        }
+
+        return response()->json([
+            'message' => 'Material uploaded successfully!',
+            'material' => $material,
+            'download_url' => url("/materials/{$material->id}/download")
+        ]);
     }
 
-    // List materials
+    // List Materials
     public function index(Request $request)
     {
-        $type = $request->query('type'); 
+        $type = $request->query('type');
         $materials = Material::when($type, fn($q) => $q->where('type', $type))
             ->with('teacher:id,name')
             ->orderBy('created_at', 'desc')
@@ -66,19 +86,51 @@ class MaterialController extends Controller
         return response()->json($materials);
     }
 
-    // Force Download
+    // Download Material (always returns correct file)
     public function download($id)
     {
         $material = Material::findOrFail($id);
-        return Storage::disk('public')->download($material->file_path);
+        $filePath = Storage::disk('public')->path($material->file_path);
+
+        if (!file_exists($filePath)) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        // ✅ FIX: Ensure proper filename with extension
+        $fileName = $material->original_name;
+        if (!pathinfo($fileName, PATHINFO_EXTENSION)) {
+            $fileName .= '.' . pathinfo($filePath, PATHINFO_EXTENSION);
+        }
+
+        // ✅ Send file with correct headers
+        return response()->download($filePath, $fileName, [
+            'Content-Type' => mime_content_type($filePath),
+        ]);
     }
 
-    // Preview Inline
+    // Preview PDF Inline
     public function preview($id)
     {
         $material = Material::findOrFail($id);
-        $path = Storage::disk('public')->path($material->file_path);
+        $filePath = Storage::disk('public')->path($material->file_path);
 
-        return response()->file($path);
+        if (!file_exists($filePath)) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $mime = mime_content_type($filePath);
+
+        // ✅ Allow inline viewing for PDF or video (mp4, mov, avi, mkv)
+        if (in_array($extension, ['pdf', 'mp4', 'mov', 'avi', 'mkv'])) {
+            return response()->file($filePath, [
+                'Content-Type' => $mime,
+                'Content-Disposition' => 'inline; filename="' . ($material->original_name ?? $material->title . '.' . $extension) . '"',
+            ]);
+        }
+
+        // Other files → force download
+        $fileName = $material->original_name ?? ($material->title . '.' . $extension);
+        return response()->download($filePath, $fileName);
     }
 }

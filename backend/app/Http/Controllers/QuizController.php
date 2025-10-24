@@ -5,19 +5,21 @@ namespace App\Http\Controllers;
 use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\Option;
+use App\Models\QuizAttempt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Room;
 
 class QuizController extends Controller
 {
-    // Step 1 — list all quizzes
     public function index()
     {
         $quizzes = Quiz::with('questions')->orderBy('created_at', 'desc')->get();
         return response()->json($quizzes);
     }
 
-    // Step 1 — create quiz info
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -47,7 +49,6 @@ class QuizController extends Controller
         return response()->json($quiz, 201);
     }
 
-    // Step 2 — add questions + options properly (CREATES Option rows)
     public function addQuestions(Request $request, $id)
     {
         $quiz = Quiz::findOrFail($id);
@@ -66,7 +67,6 @@ class QuizController extends Controller
         DB::beginTransaction();
         try {
             foreach ($validated['questions'] as $q) {
-                // Create the question
                 $question = Question::create([
                     'quiz_id' => $quiz->id,
                     'question_text' => $q['question_text'],
@@ -75,7 +75,6 @@ class QuizController extends Controller
                     'correct_answer' => $q['correct_answer'],
                 ]);
 
-                // ✅ Ensure options save to DB
                 if (isset($q['options']) && is_array($q['options']) && count($q['options']) > 0) {
                     foreach ($q['options'] as $opt) {
                         Option::create([
@@ -95,14 +94,12 @@ class QuizController extends Controller
         }
     }
 
-    // Step 3 — show quiz + questions (EAGER LOAD options)
     public function show($id)
     {
         $quiz = Quiz::with('questions.options')->findOrFail($id);
         return response()->json($quiz);
     }
 
-    // Step 3 — update quiz (status or details)
     public function update(Request $request, $id)
     {
         $quiz = Quiz::findOrFail($id);
@@ -118,12 +115,35 @@ class QuizController extends Controller
             'status' => 'nullable|string|in:draft,published',
         ]);
 
+        $wasDraft = $quiz->status === 'draft';
         $quiz->update($validated);
+
+        if ($wasDraft && isset($validated['status']) && $validated['status'] === 'published') {
+            $quiz->load('room.students');
+            $teacher = Auth::user();
+
+            if ($quiz->room && $quiz->room->students->count() > 0) {
+                $recipients = $quiz->room->students->pluck('id')->filter()->toArray();
+
+                if (!empty($recipients)) {
+                    $title = "[QUIZ] " . $quiz->title;
+                    $body = "A new quiz has been published by {$teacher->name}.";
+
+                    NotificationService::notify(
+                        'quiz',
+                        $title,
+                        $body,
+                        $teacher->id,
+                        $recipients,
+                        $quiz->room->section_id
+                    );
+                }
+            }
+        }
 
         return response()->json(['message' => 'Quiz updated successfully', 'quiz' => $quiz]);
     }
 
-    // delete a quiz
     public function destroy($id)
     {
         $quiz = Quiz::findOrFail($id);
@@ -132,7 +152,6 @@ class QuizController extends Controller
         return response()->json(['message' => 'Quiz deleted successfully']);
     }
 
-    // toggle active/inactive quiz status
     public function toggleStatus($id)
     {
         $quiz = Quiz::findOrFail($id);
@@ -142,7 +161,6 @@ class QuizController extends Controller
         return response()->json(['message' => 'Quiz status toggled', 'status' => $quiz->status]);
     }
 
-    // Get all questions for a quiz (returns options as label/text)
     public function getQuestions($id)
     {
         $quiz = Quiz::with(['questions.options'])->find($id);
@@ -173,21 +191,61 @@ class QuizController extends Controller
                 'id' => $quiz->id,
                 'title' => $quiz->title,
                 'instructions' => $quiz->instructions,
+                'duration' => $quiz->duration,
             ],
             'questions' => $questions,
         ]);
     }
 
-    // ✅ FIX ADDED — publish route logic
     public function publish($id)
     {
-        $quiz = Quiz::findOrFail($id);
+        $quiz = Quiz::with('room.students')->findOrFail($id);
         $quiz->status = 'published';
         $quiz->save();
 
+        $teacher = Auth::user();
+
+        if ($quiz->room && $quiz->room->students->count() > 0) {
+            $recipients = $quiz->room->students->pluck('id')->filter()->toArray();
+
+            if (!empty($recipients)) {
+                $title = "[QUIZ] " . $quiz->title;
+                $body = "A new quiz has been published by {$teacher->name}.";
+
+                NotificationService::notify(
+                    'quiz',
+                    $title,
+                    $body,
+                    $teacher->id,
+                    $recipients,
+                    $quiz->room->section_id
+                );
+            }
+        }
+
         return response()->json([
-            'message' => 'Quiz published successfully!',
+            'message' => 'Quiz published successfully and notifications sent!',
             'quiz' => $quiz
         ]);
+    }
+
+    public function attemptsByQuiz($id)
+    {
+        $attempts = QuizAttempt::with('student:id,name,email')
+            ->where('quiz_id', $id)
+            ->get()
+            ->map(function ($attempt) {
+                return [
+                    'id' => $attempt->id,
+                    'student_name' => $attempt->student->name ?? 'Unknown',
+                    'student_email' => $attempt->student->email ?? 'N/A',
+                    'score' => $attempt->score,
+                    'total_points' => $attempt->total_points,
+                    'status' => $attempt->status,
+                    'submitted_at' => $attempt->updated_at,
+                ];
+            });
+
+        return response()->json($attempts);
     }
 }

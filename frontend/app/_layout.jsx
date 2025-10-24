@@ -1,7 +1,14 @@
-import { Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { initOfflineSyncWatcher } from "./lib/OfflineSyncManager"; // ✅ import the sync watcher
 
 export default function Layout() {
+  useEffect(() => {
+    // ✅ Initialize offline sync globally
+    initOfflineSyncWatcher();
+  }, []);
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <Stack>

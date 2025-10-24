@@ -16,8 +16,10 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'role' => 'required|in:student,teacher,admin,staff',
             'email' => 'required|email|unique:users,email',
-            'department' => 'nullable|string|max:255', // ✅ added
-            'subject_id' => 'nullable|integer|exists:subjects,id', // ✅ added
+            'department' => 'nullable|string|max:255',
+            'subject_id' => 'nullable|integer|exists:subjects,id',
+            'grade_level' => 'nullable|string|max:50', // ✅ Added
+            'section_id' => 'nullable|integer|exists:sections,id', // ✅ Added
         ]);
 
         $user = User::create([
@@ -25,15 +27,17 @@ class UserController extends Controller
             'role' => $validated['role'],
             'email' => $validated['email'],
             'password' => Hash::make('password'), // default password
+            'grade_level' => $validated['grade_level'] ?? null, // ✅ Added
+            'section_id' => $validated['section_id'] ?? null, // ✅ Added
         ]);
         
         // 🔹 If the new user is a teacher, create a teacher record
         if ($validated['role'] === 'teacher') {
             \App\Models\Teacher::create([
                 'user_id' => $user->id,
-                'name' => $user->name, // optional field
-                'department' => $validated['department'] ?? null, // ✅ accepts from form
-                'subject_id' => $validated['subject_id'] ?? null, // ✅ accepts from form
+                'name' => $user->name,
+                'department' => $validated['department'] ?? null,
+                'subject_id' => $validated['subject_id'] ?? null,
             ]);
         }
 
@@ -45,9 +49,9 @@ class UserController extends Controller
 
     public function stats()
     {
-        $totalUsers = \App\Models\User::count();
-        $totalTeachers = \App\Models\User::where('role', 'teacher')->count();
-        $totalStudents = \App\Models\User::where('role', 'student')->count();
+        $totalUsers = User::count();
+        $totalTeachers = User::where('role', 'teacher')->count();
+        $totalStudents = User::where('role', 'student')->count();
 
         return response()->json([
             'totalUsers' => $totalUsers,
@@ -61,4 +65,4 @@ class UserController extends Controller
     {
         return response()->json(User::all());
     }
-}   
+}

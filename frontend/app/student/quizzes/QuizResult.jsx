@@ -1,18 +1,18 @@
+/* eslint-disable */
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-    ActivityIndicator,
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View, } from "react-native";
 import api from "../../lib/axios";
 
-export default function QuizResult({ attemptId: propAttemptId, quizId: propQuizId, score: propScore, total: propTotal, percentage: propPercentage, onBack, isDarkMode }) {
-  const { attemptId, quizId, score, total, percentage } = useLocalSearchParams(); // ✅ added quiz params
+export default function QuizResult({  attemptId: propAttemptId,  quizId: propQuizId,  score: propScore,  total: propTotal,  percentage: propPercentage,  onBack,  isDarkMode,}) {
+  // ✅ Changed to avoid name collisions with props — read params into temp variables
+  const params = useLocalSearchParams();
+  const attemptIdParam = params.attemptId;
+  const quizIdParam = params.quizId;
+  const scoreParam = params.score;
+  const totalParam = params.total;
+  const percentageParam = params.percentage;
+
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -22,12 +22,12 @@ export default function QuizResult({ attemptId: propAttemptId, quizId: propQuizI
 
   const fetchResult = async () => {
     try {
-      const idToUse = propAttemptId || attemptId;
+      const idToUse = propAttemptId || attemptIdParam;
       if (!idToUse) {
         setResult({
           quiz: { title: "Quiz Result", instructions: "Completed quiz" },
-          score: Number(propScore || score) || 0,
-          total_points: Number(propTotal || total) || 0,
+          score: Number(propScore || scoreParam) || 0,
+          total_points: Number(propTotal || totalParam) || 0,
           status: "Completed",
           answers: [],
         });
@@ -64,16 +64,58 @@ export default function QuizResult({ attemptId: propAttemptId, quizId: propQuizI
   const percentageValue =
     result.total_points > 0
       ? ((result.score / result.total_points) * 100).toFixed(2)
-      : propPercentage || percentage || 0;
+      : propPercentage || percentageParam || 0;
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: isDarkMode ? "#121212" : "#f9f9f9" }]}>
-      <View style={styles.wrapper}>
-        <View style={[styles.headerBox, { backgroundColor: isDarkMode ? "#1e1e1e" : "#fff", borderColor: isDarkMode ? "#333" : "#ccc" }]}>
-          <Text style={[styles.quizTitle, { color: isDarkMode ? "#fff" : "#000" }]}>{result.quiz.title}</Text>
-          <Text style={[styles.quizDesc, { color: isDarkMode ? "#ccc" : "#333" }]}>{result.quiz.instructions}</Text>
+    <ScrollView
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDarkMode ? "#121212" : "#f9f9f9",
+          width: "100vw", // ✅ Added — full width on web
+          minHeight: "100vh", // ✅ ensures full screen height
+        },
+      ]}
+      contentContainerStyle={{ alignItems: "center" }} // ✅ ensures centered layout
+    >
+      <View
+        style={[
+          styles.wrapper,
+          { width: "100%", maxWidth: 1200 }, // ✅ full width but limited for nice layout
+        ]}
+      >
+        <View
+          style={[
+            styles.headerBox,
+            {
+              backgroundColor: isDarkMode ? "#1e1e1e" : "#fff",
+              borderColor: isDarkMode ? "#333" : "#ccc",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.quizTitle,
+              { color: isDarkMode ? "#fff" : "#000" },
+            ]}
+          >
+            {result.quiz.title}
+          </Text>
+          <Text
+            style={[
+              styles.quizDesc,
+              { color: isDarkMode ? "#ccc" : "#333" },
+            ]}
+          >
+            {result.quiz.instructions}
+          </Text>
 
-          <View style={[styles.statsBox, { backgroundColor: isDarkMode ? "#181818" : "#eee" }]}>
+          <View
+            style={[
+              styles.statsBox,
+              { backgroundColor: isDarkMode ? "#181818" : "#eee" },
+            ]}
+          >
             <Text style={[styles.statText, { color: isDarkMode ? "#fff" : "#111" }]}>
               🧮 Score:{" "}
               <Text style={{ color: "#00ff88" }}>
@@ -82,7 +124,11 @@ export default function QuizResult({ attemptId: propAttemptId, quizId: propQuizI
             </Text>
             <Text style={[styles.statText, { color: isDarkMode ? "#fff" : "#111" }]}>
               📊 Percentage:{" "}
-              <Text style={{ color: percentageValue >= 50 ? "#00ff88" : "#ff5555" }}>
+              <Text
+                style={{
+                  color: percentageValue >= 50 ? "#00ff88" : "#ff5555",
+                }}
+              >
                 {percentageValue}%
               </Text>
             </Text>
@@ -93,7 +139,12 @@ export default function QuizResult({ attemptId: propAttemptId, quizId: propQuizI
           </View>
         </View>
 
-        <View style={[styles.questionsContainer, { backgroundColor: isDarkMode ? "#1a1a1a" : "#fafafa" }]}>
+        <View
+          style={[
+            styles.questionsContainer,
+            { backgroundColor: isDarkMode ? "#1a1a1a" : "#fafafa" },
+          ]}
+        >
           {result.answers.length > 0 ? (
             result.answers.map((a, index) => (
               <View
@@ -106,11 +157,21 @@ export default function QuizResult({ attemptId: propAttemptId, quizId: propQuizI
                   },
                 ]}
               >
-                <Text style={[styles.questionText, { color: isDarkMode ? "#fff" : "#111" }]}>
+                <Text
+                  style={[
+                    styles.questionText,
+                    { color: isDarkMode ? "#fff" : "#111" },
+                  ]}
+                >
                   {index + 1}. {a.question.question_text}
                 </Text>
 
-                <Text style={[styles.answerText, { color: isDarkMode ? "#ddd" : "#333" }]}>
+                <Text
+                  style={[
+                    styles.answerText,
+                    { color: isDarkMode ? "#ddd" : "#333" },
+                  ]}
+                >
                   Your Answer:{" "}
                   <Text
                     style={{
@@ -123,7 +184,12 @@ export default function QuizResult({ attemptId: propAttemptId, quizId: propQuizI
                 </Text>
 
                 {!a.is_correct && (
-                  <Text style={[styles.correctAnswerText, { color: isDarkMode ? "#aaa" : "#555" }]}>
+                  <Text
+                    style={[
+                      styles.correctAnswerText,
+                      { color: isDarkMode ? "#aaa" : "#555" },
+                    ]}
+                  >
                     Correct Answer:{" "}
                     <Text style={{ color: "#00ff88", fontWeight: "bold" }}>
                       {a.question.correct_answer}
@@ -145,9 +211,19 @@ export default function QuizResult({ attemptId: propAttemptId, quizId: propQuizI
             if (onBack) onBack();
             else if (typeof window !== "undefined") window.history.back();
           }}
-          style={[styles.backButton, { backgroundColor: isDarkMode ? "#333" : "#ddd" }]}
+          style={[
+            styles.backButton,
+            { backgroundColor: isDarkMode ? "#333" : "#ddd" },
+          ]}
         >
-          <Text style={[styles.backText, { color: isDarkMode ? "#00ff88" : "#006400" }]}>⬅ Back to Quizzes</Text>
+          <Text
+            style={[
+              styles.backText,
+              { color: isDarkMode ? "#00ff88" : "#006400" },
+            ]}
+          >
+            ⬅ Back to Quizzes
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

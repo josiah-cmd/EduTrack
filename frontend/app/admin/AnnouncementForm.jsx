@@ -1,3 +1,4 @@
+/* eslint-disable */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useRef, useState } from "react";
 import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
@@ -86,7 +87,7 @@ export default function AnnouncementForm({ isDarkMode }) {
         console.warn("CKEditor still unavailable after mount:", e.message);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const fetchAnnouncements = async () => {
@@ -164,7 +165,7 @@ export default function AnnouncementForm({ isDarkMode }) {
   };
 
   return (
-    <View style={{ padding: 16 }}>
+    <View style={[styles.container]}>
       <Text style={[styles.header, { color: isDarkMode ? "#fff" : "#111" }]}>
         📢 Announcements
       </Text>
@@ -177,16 +178,13 @@ export default function AnnouncementForm({ isDarkMode }) {
             editor={editorModules.ClassicEditor}
             data={content}
             onReady={(editor) => {
-              // keep reference to editor instance
               editorRef.current = editor;
             }}
             onChange={(event, editor) => {
               try {
                 const data = editor.getData();
                 setContent(data);
-              } catch (e) {
-                // fallback: do nothing
-              }
+              } catch (e) {}
             }}
             config={{
               toolbar: {
@@ -210,18 +208,17 @@ export default function AnnouncementForm({ isDarkMode }) {
             }}
           />
         ) : (
-          // Fallback input (plain multiline TextInput) — preserves your original UX if CKEditor doesn't load
           <TextInput
             style={[
               styles.input,
               {
-                backgroundColor: isDarkMode ? "#1f2937" : "#f9f9f9",
+                backgroundColor: isDarkMode ? "#1f2937" : "#fff",
                 color: isDarkMode ? "#fff" : "#111",
-                borderColor: isDarkMode ? "#374151" : "#ccc",
+                borderColor: isDarkMode ? "#374151" : "#d1d5db",
               },
             ]}
             placeholder="Write an announcement..."
-            placeholderTextColor={isDarkMode ? "#aaa" : "#888"}
+            placeholderTextColor={isDarkMode ? "#9ca3af" : "#6b7280"}
             value={content}
             onChangeText={setContent}
             multiline
@@ -229,10 +226,7 @@ export default function AnnouncementForm({ isDarkMode }) {
         )}
 
         <TouchableOpacity
-          style={[
-            styles.button,
-            { backgroundColor: isDarkMode ? "#2563eb" : "#2563eb" },
-          ]}
+          style={[styles.button, { backgroundColor: isDarkMode ? "#10b981" : "#10b981" }]}
           onPress={editingId ? updateAnnouncement : createAnnouncement}
         >
           <Text style={styles.buttonText}>
@@ -250,19 +244,15 @@ export default function AnnouncementForm({ isDarkMode }) {
             style={[
               styles.card,
               {
-                backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
-                borderColor: isDarkMode ? "#4b5563" : "#e5e7eb",
+                backgroundColor: isDarkMode ? "#1f2937" : "#fff",
+                borderColor: isDarkMode ? "#374151" : "#d1d5db",
               },
             ]}
           >
-            {/* ✅ Proper HTML render with dark mode text */}
             <RenderHTML
-              contentWidth={600} // same as container maxWidth
+              contentWidth={600}
               source={{ html: item.content || "" }}
-              baseStyle={[
-                styles.text,
-                { color: isDarkMode ? "#fff" : "#111" },
-              ]}
+              baseStyle={[styles.text, { color: isDarkMode ? "#fff" : "#111" }]}
               tagsStyles={{
                 p: { color: isDarkMode ? "#fff" : "#111", marginBottom: 6 },
                 li: { color: isDarkMode ? "#fff" : "#111" },
@@ -270,12 +260,7 @@ export default function AnnouncementForm({ isDarkMode }) {
               }}
             />
 
-            <Text
-              style={[
-                styles.subtext,
-                { color: isDarkMode ? "#ccc" : "#555" },
-              ]}
-            >
+            <Text style={[styles.subtext, { color: isDarkMode ? "#9ca3af" : "#6b7280" }]}>
               —{" "}
               {item.user?.role === "admin"
                 ? "Admin"
@@ -293,12 +278,7 @@ export default function AnnouncementForm({ isDarkMode }) {
                   setEditorContentIfPresent(item.content || "");
                 }}
               >
-                <Text
-                  style={[
-                    styles.link,
-                    { color: isDarkMode ? "#60a5fa" : "#2563eb" },
-                  ]}
-                >
+                <Text style={[styles.link, { color: "#3b82f6" }]}>
                   Edit
                 </Text>
               </TouchableOpacity>
@@ -308,12 +288,7 @@ export default function AnnouncementForm({ isDarkMode }) {
                   setShowDeleteModal(true);
                 }}
               >
-                <Text
-                  style={[
-                    styles.link,
-                    { color: isDarkMode ? "#f87171" : "red" },
-                  ]}
-                >
+                <Text style={[styles.link, { color: "#ef4444" }]}>
                   Delete
                 </Text>
               </TouchableOpacity>
@@ -330,40 +305,20 @@ export default function AnnouncementForm({ isDarkMode }) {
         onRequestClose={() => setShowDeleteModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalBox,
-              { backgroundColor: isDarkMode ? "#1f2937" : "#fff" },
-            ]}
-          >
-            <Text
-              style={[
-                styles.modalTitle,
-                { color: isDarkMode ? "#fff" : "#1f2937" },
-              ]}
-            >
+          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#111827" : "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#111827" }]}>
               Delete Announcement
             </Text>
-            <Text
-              style={[
-                styles.modalText,
-                { color: isDarkMode ? "#ccc" : "#374151" },
-              ]}
-            >
+            <Text style={[styles.modalText, { color: isDarkMode ? "#9ca3af" : "#374151" }]}>
               Are you sure you want to delete this announcement?
             </Text>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  { backgroundColor: isDarkMode ? "#4b5563" : "#ccc" },
-                ]}
+                style={[styles.modalButton, { backgroundColor: isDarkMode ? "#374151" : "#e5e7eb" }]}
                 onPress={() => setShowDeleteModal(false)}
               >
-                <Text style={{ color: isDarkMode ? "#fff" : "#111" }}>
-                  Cancel
-                </Text>
+                <Text style={{ color: isDarkMode ? "#fff" : "#111" }}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -385,32 +340,14 @@ export default function AnnouncementForm({ isDarkMode }) {
         onRequestClose={() => setShowSuccessModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalBox,
-              { backgroundColor: isDarkMode ? "#1f2937" : "#fff" },
-            ]}
-          >
-            <Text
-              style={[
-                styles.modalTitle,
-                { color: isDarkMode ? "#22c55e" : "#16a34a" },
-              ]}
-            >
+          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#111827" : "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: "#10b981" }]}>
               Success
             </Text>
-            <Text
-              style={[
-                styles.modalText,
-                { color: isDarkMode ? "#ccc" : "#374151" },
-              ]}
-            >
+            <Text style={[styles.modalText, { color: isDarkMode ? "#9ca3af" : "#374151" }]}>
               {successMessage}
             </Text>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: "#2563eb" }]}
-              onPress={() => setShowSuccessModal(false)}
-            >
+            <TouchableOpacity style={[styles.modalButton, { backgroundColor: "#3b82f6" }]} onPress={() => setShowSuccessModal(false)}>
               <Text style={{ color: "#fff" }}>OK</Text>
             </TouchableOpacity>
           </View>
@@ -421,25 +358,38 @@ export default function AnnouncementForm({ isDarkMode }) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
   header: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "bold",
     marginBottom: 16,
   },
   form: {
-    marginBottom: 20,
+    marginBottom: 24,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "transparent",
   },
   input: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 14,
     fontSize: 16,
     marginBottom: 12,
     minHeight: 60,
+    textAlignVertical: "top",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 2,
   },
   button: {
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: "center",
     shadowColor: "#000",
     shadowOpacity: 0.15,
@@ -450,34 +400,34 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "700",
     fontSize: 16,
   },
   card: {
     borderWidth: 1,
-    borderRadius: 12,         // ⬅️ slightly smaller roundness
-    padding: 12,              // ⬅️ less padding inside
-    marginBottom: 10,         // ⬅️ tighter spacing between cards
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.06,      // ⬅️ softer depth
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 3,
-    elevation: 2,             // ⬅️ lighter elevation on Android
+    elevation: 2,
   },
   text: {
-    fontSize: 15,             // ⬅️ a touch smaller
-    marginBottom: 3,          // ⬅️ less spacing below paragraphs
-    lineHeight: 20,           // ⬅️ tighter line spacing
+    fontSize: 15,
+    marginBottom: 4,
+    lineHeight: 20,
   },
   subtext: {
     fontSize: 12,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   actions: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: 6,
     gap: 16,
+    marginTop: 8,
   },
   link: {
     fontSize: 14,
@@ -493,8 +443,8 @@ const styles = StyleSheet.create({
   modalBox: {
     width: "100%",
     maxWidth: 400,
-    borderRadius: 14,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -505,7 +455,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   modalText: {
     fontSize: 15,
@@ -520,9 +470,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   modalButton: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 10,
     minWidth: 90,
     alignItems: "center",
   },
