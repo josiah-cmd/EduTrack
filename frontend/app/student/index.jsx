@@ -47,6 +47,9 @@ export default function StudentDashboard() {
   // 🟢 NEW: store notification target (normalized { id, type })
   const [notificationTarget, setNotificationTarget] = useState(null);
 
+  // ✅ logout modal state (added)
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+
   // ✅ helper to remove <p>, <br>, <b>, etc.
   const stripHtml = (html) => {
     if (!html) return "No content";
@@ -129,7 +132,6 @@ export default function StudentDashboard() {
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const toggleProfileModal = () => setProfileModalVisible(!profileModalVisible);
-  const logout = () => router.replace('/');
 
   const themeStyles = isDarkMode ? styles.dark : styles.light;
   const textColor = { color: isDarkMode ? '#fff' : '#000' };
@@ -275,10 +277,17 @@ export default function StudentDashboard() {
     fetchDeadlines();
   }, []);
 
+  // ✅ logout now uses modal: open modal first; actual logout function below closes and redirects
+  const confirmLogout = () => setLogoutModalVisible(true);
+  const logout = () => {
+    setLogoutModalVisible(false);
+    router.replace('/');
+  };
+
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
-      <View style={[styles.navbar, themeStyles]}>
+      <View style={[styles.navbar, { backgroundColor: isDarkMode ? '#12362D' : '#FFFFFF' }]}>
         <View style={styles.navLeft}>
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
             <Ionicons name="menu" size={28} color={textColor.color} />
@@ -310,11 +319,42 @@ export default function StudentDashboard() {
           <TouchableOpacity onPress={toggleDarkMode}>
             <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={30} color={textColor.color} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={logout}>
+          {/* open modal instead of immediate logout */}
+          <TouchableOpacity onPress={confirmLogout}>
             <Ionicons name="log-out-outline" size={30} color={textColor.color} />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        transparent
+        visible={logoutModalVisible}
+        animationType="fade"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#12352E" : "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
+              Are you sure you want to log out?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#2E2E2E" : "#ccc" }]}
+                onPress={() => setLogoutModalVisible(false)}
+              >
+                <Text style={{ color: isDarkMode ? "#fff" : "#000" }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.logoutButton, { backgroundColor: "#FF0000" }]}
+                onPress={logout}
+              >
+                <Text style={{ color: "#fff" }}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ✅ Notifications Dropdown */}
       {dropdownVisible && (
@@ -433,10 +473,10 @@ export default function StudentDashboard() {
             <TouchableOpacity
                 style={[styles.userContainer, { backgroundColor: isDarkMode ? "#1e1e1e" : "#f9f9f9" }]}
                 onPress={() => setCurrentView("profileHeader")}>
-                <Text style={[styles.userLabel, { color: isDarkMode ? "#ccc" : "#333" }]}>
+                <Text style={[styles.userLabel, { color: isDarkMode ? "#BFD9D2" : "#333" }]}>
                   👤 Logged in as:
                 </Text>
-                <Text style={[styles.userName, { color: isDarkMode ? "#fff" : "#000" }]}>
+                <Text style={[styles.userName, { color: isDarkMode ? "#FFD700" : "#000" }]}>
                   {userName ? userName : "Loading..."}
                 </Text>
               </TouchableOpacity>
@@ -459,7 +499,7 @@ export default function StudentDashboard() {
                 {rooms.map((room, index) => (
                   <Animated.View
                     key={index}
-                    style={[styles.subjectCard, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff", borderColor: isDarkMode ? "#006400" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#333", },
+                    style={[styles.subjectCard, { backgroundColor: isDarkMode ? "#12352E" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },
                     hoveredIndex === index && Platform.OS === "web" ? [styles.subjectCardHover, { shadowColor: isDarkMode ? "#FFD700" : "#007b55", transform: [{ scale: 1.05 }], },] : {},]}
                     onMouseEnter={() => setHoveredIndex(index)}
                     onMouseLeave={() => setHoveredIndex(null)}>
@@ -489,7 +529,7 @@ export default function StudentDashboard() {
             <ScrollView contentContainerStyle={styles.detailContainer}>
               {/* Left side - Instructor */}
               <View
-                style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff", borderColor: isDarkMode ? "#006400" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#006400" : "#333", },]}>
+                style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#12352E" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },]}>
                 <Image source={{ uri: selectedRoom.teacher?.user?.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", }} style={styles.profileImage} />
                 <Text style={[styles.instructorName, { color: isDarkMode ? "#FFD700" : "#006400" },]}>
                   {selectedRoom.teacher?.user?.name || selectedRoom.teacher?.name || "No Name"}
@@ -738,7 +778,8 @@ const styles = StyleSheet.create({
   },
   brandText: {
     fontSize: 25,
-    fontWeight: '700'
+    fontWeight: '700',
+    color: '#FFD700', // gold brand name to match admin
   },
   sidebarToggle: {
     paddingRight: 4
@@ -759,8 +800,8 @@ const styles = StyleSheet.create({
     borderRightWidth: 1
   },
   sidebarDark: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#333333'
+    backgroundColor: '#0F2E25',
+    borderColor: '#215C49'
   },
   sidebarLight: {
     backgroundColor: '#f1f1f1',
@@ -773,7 +814,8 @@ const styles = StyleSheet.create({
     gap: 10
   },
   sidebarText: {
-    fontSize: 20
+    fontSize: 20,
+    color: '#ffffff', // white text for dark sidebar
   },
   mainContent: {
     flex: 1,
@@ -781,7 +823,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20
   },
   mainContentDark: {
-    backgroundColor: '#000000'
+    backgroundColor: '#0B1F1A', // deep green background to match admin
   },
   mainContentLight: {
     backgroundColor: '#ffffff'
@@ -791,7 +833,9 @@ const styles = StyleSheet.create({
   },
   mainText: { 
     fontSize: 25, 
-    marginBottom: 12 
+    marginBottom: 12,
+    color: '#FFD700', // gold headings
+    fontWeight: '700',
   },
   light: { 
     backgroundColor: '#ffffff', 
@@ -817,7 +861,8 @@ const styles = StyleSheet.create({
     width: 300, 
     padding: 20, 
     borderRadius: 12, 
-    alignItems: 'center' },
+    alignItems: 'center' 
+  },
   modalText: { 
     fontSize: 18, 
     marginBottom: 16 
@@ -827,29 +872,26 @@ const styles = StyleSheet.create({
     paddingVertical: 10, 
     paddingHorizontal: 20, 
     borderRadius: 8, 
-    marginTop: 10 },
+    marginTop: 10 
+  },
   subjectsContainer: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
     gap: 16, 
     marginTop: 12 
   },
-  subjectsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
   subjectCard: {
     width: 250,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#12352E', // updated default subject card
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 6,
     transform: [{ scale: 1 }],
     transitionDuration: '200ms',
+    borderColor: '#215C49',
   },
   subjectCardHover: {
     transform: [{ scale: 1.05 }],
@@ -857,13 +899,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
   },
   subjectTitle: {
-    color: '#fff',
+    color: '#FFD700',
     fontWeight: '700',
     fontSize: 20,
     marginBottom: 6,
   },
   subjectDetails: {
-    color: '#ccc',
+    color: '#fff',
     fontSize: 15,
     marginBottom: 2,
   },
@@ -876,9 +918,11 @@ const styles = StyleSheet.create({
   leftContainer: {
     width: 250,
     alignItems: 'center',
-    backgroundColor: '#1f2937',
+    backgroundColor: '#12352E',
     padding: 55,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#215C49',
   },
   profileImage: {
     width: 120,
@@ -887,19 +931,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   instructorName: {
-    color: '#fff',
+    color: '#FFD700',
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   instructorSchedule: {
-    color: '#ccc',
+    color: '#ddd',
     fontSize: 14,
     marginTop: 4,
     textAlign: 'center'
   },
   rightContainer: {
     flex: 1,
+    justifyContent: 'flex-start',
     padding: 16,
   },
   joinInput: {
@@ -962,7 +1007,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#12352E',
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -971,13 +1016,13 @@ const styles = StyleSheet.create({
   },
   userLabel: {
     fontSize: 14,
-    color: '#aaa',
+    color: '#BFD9D2',
     fontWeight: '500',
   },
   userName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#4caf50', // ✅ green highlight for username
+    color: '#FFD700', // gold highlight for username
     marginLeft: 6,
   },
   // ✅ badge
@@ -1044,5 +1089,58 @@ const styles = StyleSheet.create({
   notificationText: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)", // dim backdrop
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    zIndex: 999,
+  },
+
+  modalBox: {
+    width: "30%",
+    borderRadius: 16,
+    paddingVertical: 25,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 20,
+    color: "#fff",
+  },
+
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 10,
+    gap: 10,
+  },
+
+  cancelButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  logoutButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

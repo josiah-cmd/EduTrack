@@ -6,23 +6,11 @@ export default function MessageDetail({ message, onBack, isDarkMode }) {
   const subTextColor = isDarkMode ? "#cccccc" : "#555555";
   const cardBg = isDarkMode ? "#1e1e1e" : "#f9f9f9";
 
+  // ✅ Get device width for proper rendering
   const contentWidth = Dimensions.get("window").width - 40;
 
-  if (!message) {
-    return (
-      <View style={[styles.container, { backgroundColor: cardBg }]}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={[styles.backText, { color: isDarkMode ? "#60a5fa" : "#2563eb" }]}>
-            ← Back to Inbox
-          </Text>
-        </TouchableOpacity>
-        <Text style={{ color: textColor }}>Message not found.</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.container, { backgroundColor: cardBg }]}>
+    <View>
       {/* Back Button */}
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
         <Text style={[styles.backText, { color: isDarkMode ? "#60a5fa" : "#2563eb" }]}>
@@ -44,8 +32,8 @@ export default function MessageDetail({ message, onBack, isDarkMode }) {
       {/* Recipient */}
       <Text style={[styles.meta, { color: subTextColor }]}>
         To: {message.recipient?.name
-          ? `${message.recipient?.name} (${message.recipient?.email})`
-          : message.recipient?.email}
+              ? `${message.recipient?.name} (${message.recipient?.email})`
+              : message.recipient?.email}
       </Text>
 
       {/* Full message content */}

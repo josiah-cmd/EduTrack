@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from 'axios';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AnnouncementForm from './AnnouncementForm';
 import AnnouncementList from './AnnouncementList';
 import Messages from "./messages";
@@ -58,6 +58,9 @@ export default function AdminDashboard() {
   const [notificationTarget, setNotificationTarget] = useState(null);
   const [rooms, setRooms] = useState([]); 
   const [selectedRoom, setSelectedRoom] = useState(null);
+
+  // ✅ 🔹 Added new state for logout confirmation modal
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
   // ✅ fetch counts
   useEffect(() => {
@@ -130,7 +133,12 @@ export default function AdminDashboard() {
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-  const logout = () => router.replace('/');
+
+  // ✅ Updated logout to close modal and then logout
+  const logout = () => {
+    setLogoutModalVisible(false);
+    router.replace('/');
+  };
 
   const themeStyles = isDarkMode ? styles.dark : styles.light;
   const textColor = { color: isDarkMode ? '#fff' : '#000' };
@@ -174,7 +182,7 @@ export default function AdminDashboard() {
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
-      <View style={[styles.navbar, themeStyles]}>
+      <View style={[styles.navbar, { backgroundColor: isDarkMode ? '#12362D' : '#FFFFFF', },]}>
         <View style={styles.navLeft}>
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
             <Ionicons name="menu" size={28} color={textColor.color} />
@@ -208,11 +216,43 @@ export default function AdminDashboard() {
           <TouchableOpacity onPress={toggleDarkMode}>
             <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={30} color={textColor.color} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={logout}>
+
+          {/* ✅ Replaced direct logout with modal trigger */}
+          <TouchableOpacity onPress={() => setLogoutModalVisible(true)}>
             <Ionicons name="log-out-outline" size={30} color={textColor.color} />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ✅ Logout Confirmation Modal */}
+      <Modal
+        transparent
+        visible={logoutModalVisible}
+        animationType="fade"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#12352E" : "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
+              Are you sure you want to log out?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#2E2E2E" : "#ccc" }]}
+                onPress={() => setLogoutModalVisible(false)}
+              >
+                <Text style={{ color: isDarkMode ? "#fff" : "#000" }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.logoutButton, { backgroundColor: "#FF0000" }]}
+                onPress={logout}
+              >
+                <Text style={{ color: "#fff" }}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ✅ Notifications Dropdown */}
       {dropdownVisible && (
@@ -242,9 +282,9 @@ export default function AdminDashboard() {
           <TouchableOpacity
             style={styles.dropdownFooter}
             onPress={() => {
-              setCurrentView('notifications');  // switch main content
+              setCurrentView('notifications');
               setDropdownVisible(false);
-            }}      // close dropdown
+            }}
           >
             <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
           </TouchableOpacity>
@@ -256,7 +296,6 @@ export default function AdminDashboard() {
         {/* Sidebar */}
         {sidebarOpen && (
           <View style={[styles.sidebar, isDarkMode ? styles.sidebarDark : styles.sidebarLight]}>
-            {/* ✅ Wrap sidebar content in ScrollView */}
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 30 }}
@@ -296,7 +335,6 @@ export default function AdminDashboard() {
                 <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
               </TouchableOpacity>
 
-              {/* ✅ NEW System Settings Dropdown */}
               <TouchableOpacity style={styles.sidebarItem} onPress={() => setSettingsMenuOpen(!settingsMenuOpen)}>
                 <Ionicons name="settings-outline" size={20} color={textColor.color} />
                 <Text style={[styles.sidebarText, textStyles]}>System Settings</Text>
@@ -322,12 +360,12 @@ export default function AdminDashboard() {
               )}
 
               <TouchableOpacity
-                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#1e1e1e" : "#f9f9f9" }]}
+                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#12352E" : "#f9f9f9" }]}
                 onPress={() => setCurrentView("profileHeader")}>
-                <Text style={[styles.userLabel, { color: isDarkMode ? "#ccc" : "#333" }]}>
+                <Text style={[styles.userLabel, { color: isDarkMode ? "#BFD9D2" : "#333" }]}>
                   👤 Logged in as:
                 </Text>
-                <Text style={[styles.userName, { color: isDarkMode ? "#fff" : "#000" }]}>
+                <Text style={[styles.userName, { color: isDarkMode ? "#FFD700" : "#000" }]}>
                   {userName ? userName : "Loading..."}
                 </Text>
               </TouchableOpacity>
@@ -337,28 +375,26 @@ export default function AdminDashboard() {
 
         {/* Main Content */}
         <View style={[styles.mainContent, isDarkMode ? styles.mainContentDark : styles.mainContentLight, !sidebarOpen && styles.fullWidth]}>
-          {/* Dashboard */}
           {currentView === 'dashboard' && !selectedSubject && (
             <ScrollView>
               <Text style={[styles.mainText, textColor]}>Admin Dashboard</Text>
 
               {/* ✅ Stats container */}
               <View style={styles.statsContainer}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{totalUsers}</Text>
-                  <Text style={styles.statLabel}>Users</Text>
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#12352E', borderColor: '#FFD700' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{totalUsers}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#FFD700' }]}>Users</Text>
                 </View>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{totalTeachers}</Text>
-                  <Text style={styles.statLabel}>Teachers</Text>
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#12352E', borderColor: '#FFD700' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{totalTeachers}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#FFD700' }]}>Teachers</Text>
                 </View>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{totalStudents}</Text>
-                  <Text style={styles.statLabel}>Students</Text>
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#12352E', borderColor: '#FFD700' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{totalStudents}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#FFD700' }]}>Students</Text>
                 </View>
               </View>
 
-              {/* ✅ Announcements preview */}
               <View style={{ marginTop: 20 }}>
                 <Text style={[styles.mainText, textColor]}>Latest Announcements</Text>
                 <AnnouncementList />
@@ -584,8 +620,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    backgroundColor: '#0b0b0b', // ✅ darker navbar for contrast
-    borderColor: '#1DB954', // ✅ green accent bottom border
+    backgroundColor: '#12362D', // ✅ Deep DWAD green for dark mode
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 5,
   },
   navLeft: {
     flexDirection: 'row',
@@ -621,8 +661,8 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
   },
   sidebarDark: {
-    backgroundColor: '#111111',
-    borderColor: '#333333',
+    backgroundColor: '#0F2E25',
+    borderColor: '#215C49',
   },
   sidebarLight: {
     backgroundColor: '#f1f1f1',
@@ -646,7 +686,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   mainContentDark: {
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#0B1F1A',
   },
   mainContentLight: {
     backgroundColor: '#ffffff',
@@ -798,5 +838,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#fff", // ✅ clear white
+  },
+  modalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0, 0, 0, 0.6)", // dim backdrop
+  justifyContent: "center",
+  alignItems: "center",
+  paddingHorizontal: 20,
+  zIndex: 999,
+},
+
+modalBox: {
+  width: "30%",
+  borderRadius: 16,
+  paddingVertical: 25,
+  paddingHorizontal: 20,
+  alignItems: "center",
+  justifyContent: "center",
+  shadowColor: "#000",
+  shadowOpacity: 0.4,
+  shadowRadius: 8,
+  elevation: 10,
+  borderWidth: 1,
+  borderColor: "#FFD700", // ✅ gold accent border
+},
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 20,
+    color: "#fff",
+  },
+
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 10,
+    gap: 10,
+  },
+
+  cancelButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  logoutButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -48,7 +48,7 @@ export default function ChangePasswordForm({ isDarkMode, onBack }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? "#121212" : "#f5f6fa" }]}>
+    <View style={[styles.container]}>
       <Text style={[styles.title, { color: isDarkMode ? "#fff" : "#111" }]}>Change Password</Text>
 
       <TextInput

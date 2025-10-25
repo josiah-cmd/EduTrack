@@ -28,7 +28,7 @@ export default function ClearCache({ isDarkMode }) {
   };
 
   return (
-    <View style={[styles.container, isDarkMode ? styles.dark : styles.light]}>
+    <View>
       <Text style={[styles.desc, textColor]}>
         Clears system cache and temporary data to keep performance smooth.
       </Text>

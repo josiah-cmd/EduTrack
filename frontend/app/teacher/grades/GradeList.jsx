@@ -37,18 +37,11 @@ export default function GradeList({ isDarkMode, onSelectRoom }) {
   };
 
   return (
-    <View style={[styles.container, theme]}>
+    <View style={[styles.container]}>
       {/* Header */}
       <View style={styles.headerContainer}>
-        <View
-          style={[
-            styles.headerAccent,
-            { backgroundColor: isDarkMode ? "#2563eb" : "#1d4ed8" },
-          ]}
-        />
-        <Text
-          style={[styles.header, { color: isDarkMode ? "#fff" : "#111827" }]}
-        >
+        <View style={[styles.headerAccent,{ backgroundColor: isDarkMode ? "#41ab5d" : "#41ab5d" }]}/>
+        <Text style={[styles.header, { color: isDarkMode ? "#fff" : "#111827" }]}>
           Grade Records
         </Text>
       </View>
@@ -82,34 +75,19 @@ export default function GradeList({ isDarkMode, onSelectRoom }) {
                 activeOpacity={0.8}
                 onPress={() => onSelectRoom(item)}
               >
-                <View
-                  style={[
-                    styles.card,
-                    { backgroundColor: isDarkMode ? "#2a2a2a" : "#fff" },
-                  ]}
-                >
+                <View style={[styles.card,{ backgroundColor: isDarkMode ? "#2a2a2a" : "#fff" },]}>
                   <View style={styles.subjectInfo}>
                     <Ionicons
                       name={subjectIcons[subjectName] || "school-outline"}
                       size={24}
-                      color={subjectColors[subjectName] || "#2563eb"}
+                      color={subjectColors[subjectName] || "#41ab5d"}
                       style={styles.icon}
                     />
                     <View>
-                      <Text
-                        style={[
-                          styles.subject,
-                          { color: isDarkMode ? "#f3f4f6" : "#111827" },
-                        ]}
-                      >
+                      <Text style={[styles.subject,{ color: isDarkMode ? "#f3f4f6" : "#111827" },]}>
                         {subjectName}
                       </Text>
-                      <Text
-                        style={[
-                          styles.section,
-                          { color: isDarkMode ? "#9ca3af" : "#6b7280" },
-                        ]}
-                      >
+                      <Text style={[styles.section, { color: isDarkMode ? "#9ca3af" : "#6b7280" },]}>
                         Section: {sectionName}
                       </Text>
                     </View>

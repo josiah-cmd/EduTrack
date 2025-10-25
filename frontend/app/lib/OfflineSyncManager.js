@@ -3,6 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import api from "./axios"; // your existing Axios instance
 
+export default {};
+
 const QUEUE_KEY = "offline_sync_queue";
 
 /**

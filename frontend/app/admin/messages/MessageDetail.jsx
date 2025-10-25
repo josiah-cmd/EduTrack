@@ -10,7 +10,7 @@ export default function MessageDetail({ message, onBack, isDarkMode }) {
   const contentWidth = Dimensions.get("window").width - 40;
 
   return (
-    <View style={[styles.container, { backgroundColor: cardBg }]}>
+    <View>
       {/* Back Button */}
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
         <Text style={[styles.backText, { color: isDarkMode ? "#60a5fa" : "#2563eb" }]}>

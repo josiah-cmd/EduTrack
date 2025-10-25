@@ -72,14 +72,9 @@ export default function AttendanceForm({ room, isDarkMode }) {
 };
 
   return (
-    <View
-      style={[
-        styles.container,
-        isDarkMode && { backgroundColor: "#121212", borderColor: "#333" },
-      ]}
-    >
+    <View style={[styles.container, isDarkMode && { backgroundColor: "#121212", borderColor: "#333" }]}>
       <Text style={[styles.header, { color: isDarkMode ? "#FFD700" : "#000" }]}>
-        🗓 Record Attendance
+        Record Attendance
       </Text>
 
       <div style={{ marginBottom: 15 }}>

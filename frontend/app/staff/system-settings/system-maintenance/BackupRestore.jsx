@@ -44,7 +44,7 @@ export default function BackupRestore({ isDarkMode }) {
   };
 
   return (
-    <View style={[styles.container, isDarkMode ? styles.dark : styles.light]}>
+    <View>
       <Text style={[styles.desc, textColor]}>
         Create and restore system backups including database and uploaded files.
       </Text>

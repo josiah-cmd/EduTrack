@@ -48,7 +48,7 @@ export default function ProfileHeader({ isDarkMode, onEdit }) {   // ✅ props d
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? "#121212" : "#fff" }]}>
+    <View style={[styles.container]}>
       <View style={[styles.card, { backgroundColor: isDarkMode ? "#1f1f1f" : "#f9f9f9" }]}>
         <Image
           source={{ uri: user.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" }}

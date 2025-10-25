@@ -52,9 +52,7 @@ export default function AuthenticationSettings({ isDarkMode, onBack }) {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, isDarkMode ? styles.dark : styles.light]}
-    >
+    <ScrollView>
       <Text style={[styles.title, textColor]}>Authentication Settings</Text>
       <Text style={[styles.desc, { color: isDarkMode ? "#aaa" : "#555" }]}>
         Configure login rules and session management.

@@ -54,7 +54,7 @@ export default function SchoolInfoForm({ isDarkMode, onBack }) {
   if (loading) return <ActivityIndicator style={{ flex: 1, marginTop: 100 }} size="large" color="#4caf50" />;
 
   return (
-    <ScrollView style={[styles.container, theme]}>
+    <ScrollView>
       {/* Back Button */}
       <TouchableOpacity style={styles.backBtn} onPress={onBack}>
         <Ionicons name="arrow-back-outline" size={22} color={textColor.color} />

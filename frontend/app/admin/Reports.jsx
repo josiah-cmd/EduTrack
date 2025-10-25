@@ -90,7 +90,7 @@ export default function Reports({ isDarkMode }) {
   });
 
   return (
-    <ScrollView style={{ backgroundColor: isDarkMode ? "#121212" : "#fff" }}>
+    <ScrollView>
       <Text style={[styles.title, { color: textColor }]}>Reports</Text>
       <Text style={[styles.subtitle, { color: subTextColor }]}>
         Academic and performance overview

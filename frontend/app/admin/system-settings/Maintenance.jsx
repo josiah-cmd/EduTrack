@@ -51,7 +51,7 @@ export default function Maintenance({ isDarkMode }) {
     const section = sections.find((s) => s.id === activeSection);
 
     return (
-      <View style={[styles.container, themeStyles]}>
+      <View>
         {/* Back button + title */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -76,7 +76,7 @@ export default function Maintenance({ isDarkMode }) {
 
   // 🔹 Otherwise, show the main list
   return (
-    <ScrollView style={[styles.container, themeStyles]}>
+    <ScrollView>
       <Text style={[styles.title, textColor]}>System Maintenance</Text>
 
       {sections.map((item) => (

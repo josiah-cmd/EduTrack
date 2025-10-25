@@ -75,7 +75,7 @@ export default function DataImportExport({ isDarkMode }) {
   };
 
   return (
-    <View style={[styles.container, isDarkMode ? styles.dark : styles.light]}>
+    <View>
       <Text style={[styles.desc, textColor]}>
         Import or export system data such as users, subjects, and grades.
       </Text>

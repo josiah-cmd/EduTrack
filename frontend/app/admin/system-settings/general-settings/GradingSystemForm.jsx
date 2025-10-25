@@ -56,7 +56,7 @@ export default function GradingSystemForm({ isDarkMode, onBack }) {
   if (loading) return <ActivityIndicator style={{ flex: 1, marginTop: 100 }} size="large" color="#4caf50" />;
 
   return (
-    <ScrollView style={[styles.container, theme]}>
+    <ScrollView>
       <TouchableOpacity style={styles.backBtn} onPress={onBack}>
         <Ionicons name="arrow-back-outline" size={22} color={textColor.color} />
         <Text style={[styles.backText, textColor]}>Back</Text>

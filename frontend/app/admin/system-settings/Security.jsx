@@ -32,7 +32,7 @@ export default function Security({ isDarkMode }) {
   if (activeSection) {
     const selected = sections.find((s) => s.id === activeSection);
     return (
-      <ScrollView style={[styles.container, themeStyles]}>
+      <ScrollView>
         <TouchableOpacity
           onPress={() => setActiveSection(null)}
           style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}
@@ -52,7 +52,7 @@ export default function Security({ isDarkMode }) {
   }
 
   return (
-    <ScrollView style={[styles.container, themeStyles]}>
+    <ScrollView>
       <Text style={[styles.title, textColor]}>Security & Access</Text>
 
       {sections.map((item) => (

@@ -75,7 +75,7 @@ export default function DataImportExport({ isDarkMode }) {
   };
 
   return (
-    <View style={[styles.container, isDarkMode ? styles.dark : styles.light]}>
+    <View>
       <Text style={[styles.desc, textColor]}>
         Import or export system data such as users, subjects, and grades.
       </Text>
@@ -134,6 +134,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
-  dark: { backgroundColor: "#000" },
-  light: { backgroundColor: "#fff" },
+  dark: { 
+    backgroundColor: "#000" 
+  },
+  light: { 
+    backgroundColor: "#fff" 
+  },
 });

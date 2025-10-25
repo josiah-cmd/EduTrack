@@ -37,7 +37,7 @@ export default function AuditLogs({ isDarkMode }) {
   const textColor = { color: isDarkMode ? "#fff" : "#000" };
 
   return (
-    <View style={[styles.container, isDarkMode ? styles.dark : styles.light]}>
+    <View>
       <Text style={[styles.desc, textColor]}>
         Displays login activity, account changes, and other system actions.
       </Text>

@@ -87,7 +87,7 @@ export default function MessageForm({ onSent, isDarkMode }) {
   };
 
   return (
-    <View style={[styles.form, { backgroundColor: isDarkMode ? "#1e1e1e" : "#fff" }]}>
+    <View style={[styles.form]}>
       {/* Recipient */}
       <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Recipient</Text>
       <TextInput

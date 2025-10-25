@@ -39,13 +39,8 @@ export default function GradeList({ isDarkMode }) {
   };
 
   return (
-    <View style={[styles.container, theme]}>
-      <Text
-        style={[
-          styles.header,
-          { color: isDarkMode ? "#fff" : "#000", fontWeight: "bold" },
-        ]}
-      >
+    <View style={[styles.container]}>
+      <Text style={[styles.header,{ color: isDarkMode ? "#fff" : "#000", fontWeight: "bold" },]}>
         My Grades
       </Text>
 

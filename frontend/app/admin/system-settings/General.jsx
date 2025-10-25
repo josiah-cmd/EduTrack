@@ -50,7 +50,7 @@ export default function General({ isDarkMode }) {
 
   // Otherwise, render the General Settings overview
   return (
-    <ScrollView style={[styles.container, themeStyles]}>
+    <ScrollView>
       <Text style={[styles.title, textColor]}>General Settings</Text>
 
       {sections.map((item) => (
