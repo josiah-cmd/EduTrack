@@ -316,7 +316,7 @@ export default function TeacherDashboard() {
               <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.userContainer, { backgroundColor: isDarkMode ? "#12352E" : "#f9f9f9" }]}
+              style={[styles.userContainer, { backgroundColor: isDarkMode ? "#202020" : "#f9f9f9" }]}
               onPress={() => setCurrentView("profileHeader")}>
               <Text style={[styles.userLabel, { color: isDarkMode ? "#BFD9D2" : "#333" }]}>
                 👤 Logged in as:
@@ -341,8 +341,8 @@ export default function TeacherDashboard() {
                     style={[
                       styles.subjectCard,
                       {
-                        backgroundColor: isDarkMode ? "#12352E" : "#ffffff",
-                        borderColor: isDarkMode ? "#215C49" : "#007b55",
+                        backgroundColor: isDarkMode ? "#202020" : "#ffffff",
+                        borderColor: isDarkMode ? "#215C49" : "#202020",
                         borderWidth: 1,
                         shadowColor: isDarkMode ? "#000000" : "#333",
                       },
@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
   },
   // ✅ new styles for logged-in user
   userContainer: {
-    marginTop: 300,
+    marginTop: 290,
     marginHorizontal: 12,
     paddingVertical: 10,
     paddingHorizontal: 14,

@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import api from "../../lib/axios";
 
 export default function GradeList({ isDarkMode }) {
@@ -40,9 +47,43 @@ export default function GradeList({ isDarkMode }) {
 
   return (
     <View style={[styles.container]}>
-      <Text style={[styles.header,{ color: isDarkMode ? "#fff" : "#000", fontWeight: "bold" },]}>
+      <Text
+        style={[
+          styles.header,
+          { color: isDarkMode ? "#fff" : "#000", fontWeight: "bold" },
+        ]}
+      >
         My Grades
       </Text>
+
+      {/* Reminder Box */}
+      <View
+        style={[
+          styles.reminderBox,
+          {
+            backgroundColor: isDarkMode ? "#374151" : "#fef3c7",
+            borderLeftColor: isDarkMode ? "#facc15" : "#c9b037",
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.reminderText,
+            { color: isDarkMode ? "#fef9c3" : "#1a1a1a" },
+          ]}
+        >
+          ⚠️ These grades are{" "}
+          <Text
+            style={{
+              fontWeight: "bold",
+              color: isDarkMode ? "#fff" : "#000",
+            }}
+          >
+            not yet official
+          </Text>
+          . Please verify before final submission.
+        </Text>
+      </View>
 
       {/* Quarter Buttons */}
       <View style={styles.quarterContainer}>
@@ -210,6 +251,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     marginBottom: 20,
+  },
+
+  // Reminder box
+  reminderBox: {
+    borderLeftWidth: 6,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 15,
+  },
+  reminderText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 
   // Quarter buttons

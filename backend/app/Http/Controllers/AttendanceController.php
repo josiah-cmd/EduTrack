@@ -9,7 +9,12 @@ class AttendanceController extends Controller
 {
     public function index()
     {
-        return response()->json(Attendance::with(['student', 'subject'])->get());
+        return response()->json(
+        Attendance::with([
+            'student:id,name,lrn',
+            'subject:id,subject_name'
+        ])->get()
+    );
     }
 
     public function store(Request $request)

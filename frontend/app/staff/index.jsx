@@ -377,7 +377,7 @@ export default function AdminDashboard() {
         <View style={[styles.mainContent, isDarkMode ? styles.mainContentDark : styles.mainContentLight, !sidebarOpen && styles.fullWidth]}>
           {currentView === 'dashboard' && !selectedSubject && (
             <ScrollView>
-              <Text style={[styles.mainText, textColor]}>Admin Dashboard</Text>
+              <Text style={[styles.mainText, textColor]}>Staff Dashboard</Text>
 
               {/* ✅ Stats container */}
               <View style={styles.statsContainer}>

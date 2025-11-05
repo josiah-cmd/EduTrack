@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   modalBox: { 
     padding: 20, 
     borderRadius: 15, 
-    width: "80%", 
+    width: "30%", 
     alignItems: "center" 
   },
   modalBtn: { 

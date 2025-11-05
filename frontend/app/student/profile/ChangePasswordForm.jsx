@@ -1,7 +1,7 @@
 /* eslint-disable */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import api from "../../lib/axios";
 
 export default function ChangePasswordForm({ isDarkMode, onBack }) {
@@ -9,6 +9,8 @@ export default function ChangePasswordForm({ isDarkMode, onBack }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false); // 🟢 Added modal state
+  const [modalMessage, setModalMessage] = useState(""); // 🟢 Modal message
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -37,8 +39,9 @@ export default function ChangePasswordForm({ isDarkMode, onBack }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      alert("✅ " + res.data.message);
-      onBack();
+      // ✅ Instead of alert, show success modal
+      setModalMessage("✅ " + res.data.message);
+      setModalVisible(true);
     } catch (err) {
       console.error("❌ Error changing password:", err.response?.data || err.message);
       alert(err.response?.data?.message || "Failed to change password");
@@ -110,6 +113,36 @@ export default function ChangePasswordForm({ isDarkMode, onBack }) {
       <TouchableOpacity style={styles.cancelButton} onPress={onBack}>
         <Text style={styles.cancelButtonText}>↩ Back</Text>
       </TouchableOpacity>
+
+      {/* 🟢 Confirmation Modal */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#1e1e1e" : "#fff" }]}>
+            <Text
+              style={[
+                styles.modalMessage,
+                { color: isDarkMode ? "#fff" : "#000" },
+              ]}
+            >
+              {modalMessage}
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setModalVisible(false);
+                onBack(); // Return after success
+              }}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -161,5 +194,35 @@ const styles = StyleSheet.create({
     color: "#999",
     fontSize: 15,
     textDecorationLine: "underline",
+  },
+  /* 🟢 Modal Styles */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBox: {
+    width: "30%",
+    padding: 25,
+    borderRadius: 12,
+    alignItems: "center",
+    elevation: 10,
+  },
+  modalMessage: {
+    fontSize: 17,
+    textAlign: "center",
+    marginBottom: 18,
+  },
+  modalButton: {
+    backgroundColor: "#2563eb",
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

@@ -36,8 +36,11 @@ export default function Messages({ isDarkMode }) {
     fetchMessages(1, true);
   }, [activeTab, sortOrder]);
 
+  // ✅ FIXED VERSION: prevents duplicates and double-fetching
   const fetchMessages = async (pageNumber = page, reset = false) => {
-    if (loading || (!hasMore && !reset)) return;
+    if (loading) return; // prevent double calls
+    if (!reset && !hasMore) return;
+
     setLoading(true);
 
     try {
@@ -58,11 +61,12 @@ export default function Messages({ isDarkMode }) {
         }
       });
 
-      if (reset) {
-        setMessages(data);
-      } else {
-        setMessages((prev) => [...prev, ...data]);
-      }
+      // ✅ Prevent duplicate messages by ID and handle reset properly
+      setMessages((prev) => {
+        const combined = reset ? data : [...prev, ...data];
+        const unique = Array.from(new Map(combined.map((m) => [m.id, m])).values());
+        return unique;
+      });
 
       if (meta) {
         setHasMore(meta.current_page < meta.last_page);
@@ -193,6 +197,8 @@ export default function Messages({ isDarkMode }) {
         <MessageForm
           onSent={() => {
             setShowForm(false);
+            setMessages([]); // ✅ clear first
+            setPage(1);
             fetchMessages(1, true);
           }}
           isDarkMode={isDarkMode}

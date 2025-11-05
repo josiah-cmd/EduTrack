@@ -1,9 +1,7 @@
-/* eslint-disable */
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import api from "../../lib/axios";
 
-// ---- CKEditor safe loader (same pattern as AnnouncementForm.jsx) ----
 let initialEditor = null;
 if (typeof window !== "undefined") {
   try {
@@ -24,13 +22,12 @@ export default function MessageForm({ onSent, isDarkMode }) {
   const [selectedRecipient, setSelectedRecipient] = useState("");
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [editorModules, setEditorModules] = useState(initialEditor);
   const editorRef = useRef(null);
 
   useEffect(() => {
     fetchRecipients();
-
-    // ensure CKEditor is loaded client-side
     if (!editorModules && typeof window !== "undefined") {
       try {
         const ck = require("@ckeditor/ckeditor5-react");
@@ -56,7 +53,6 @@ export default function MessageForm({ onSent, isDarkMode }) {
   };
 
   const handleSend = async () => {
-    // 🔥 force sync latest editor data before sending
     if (editorRef.current) {
       const latestData = editorRef.current.getData();
       if (latestData !== content) {
@@ -75,11 +71,14 @@ export default function MessageForm({ onSent, isDarkMode }) {
         subject: subject,
         body: content,
       });
-      alert("Message sent!");
+
+      // ✅ Show success modal instead of instantly closing
+      setSuccessModalVisible(true);
+
+      // Clear input fields
       setSubject("");
       setContent("");
       setSelectedRecipient("");
-      onSent?.();
     } catch (error) {
       console.error("Error sending message:", error);
       alert("Failed to send message");
@@ -87,11 +86,11 @@ export default function MessageForm({ onSent, isDarkMode }) {
   };
 
   return (
-    <View style={[styles.form]}>
+    <View style={styles.form}>
       {/* Recipient */}
       <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Recipient</Text>
       <TextInput
-        placeholder="Enter recipient"
+        placeholder="Enter recipient email"
         placeholderTextColor={isDarkMode ? "#aaa" : "#888"}
         value={selectedRecipient}
         onChangeText={setSelectedRecipient}
@@ -161,9 +160,34 @@ export default function MessageForm({ onSent, isDarkMode }) {
       </View>
 
       {/* Send Button */}
-      <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-        <Text style={styles.sendText}>Send</Text>
-      </TouchableOpacity>
+      <View style={{ alignItems: "flex-end" }}>
+        <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
+          <Text style={styles.sendText}>Send</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ✅ Success Modal */}
+      <Modal
+        visible={successModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSuccessModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>✅ Message Sent Successfully!</Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setSuccessModalVisible(false);
+                onSent?.(); // ✅ Now trigger parent after closing modal
+              }}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -202,11 +226,41 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
+    width: 70,
   },
   sendText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
-    textTransform: "uppercase",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalBox: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 25,
+    alignItems: "center",
+    width: "30%",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  modalButton: {
+    backgroundColor: "#28a745",
+    paddingHorizontal: 30,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });

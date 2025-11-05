@@ -499,7 +499,7 @@ export default function StudentDashboard() {
                 {rooms.map((room, index) => (
                   <Animated.View
                     key={index}
-                    style={[styles.subjectCard, { backgroundColor: isDarkMode ? "#12352E" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },
+                    style={[styles.subjectCard, { backgroundColor: isDarkMode ? "#202020" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#202020", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },
                     hoveredIndex === index && Platform.OS === "web" ? [styles.subjectCardHover, { shadowColor: isDarkMode ? "#FFD700" : "#007b55", transform: [{ scale: 1.05 }], },] : {},]}
                     onMouseEnter={() => setHoveredIndex(index)}
                     onMouseLeave={() => setHoveredIndex(null)}>
@@ -529,7 +529,7 @@ export default function StudentDashboard() {
             <ScrollView contentContainerStyle={styles.detailContainer}>
               {/* Left side - Instructor */}
               <View
-                style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#12352E" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },]}>
+                style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#202020" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },]}>
                 <Image source={{ uri: selectedRoom.teacher?.user?.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", }} style={styles.profileImage} />
                 <Text style={[styles.instructorName, { color: isDarkMode ? "#FFD700" : "#006400" },]}>
                   {selectedRoom.teacher?.user?.name || selectedRoom.teacher?.name || "No Name"}

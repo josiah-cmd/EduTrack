@@ -192,7 +192,9 @@ class RoomController extends Controller
 
     public function students($roomId)
     {
-        $room = \App\Models\Room::with('students:id,name')->findOrFail($roomId);
+        $room = \App\Models\Room::with(['students' => function ($query) {
+            $query->select('users.id', 'users.name', 'users.lrn', 'users.email');
+        }])->findOrFail($roomId);
 
         return response()->json($room->students);
     }

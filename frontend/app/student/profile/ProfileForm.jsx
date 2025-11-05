@@ -1,12 +1,14 @@
 /* eslint-disable */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native"; // 🟢 Added Modal
 import api from "../../lib/axios";
 
 export default function ProfileForm({ isDarkMode, onBack }) {
   const [user, setUser] = useState(null);
   const [dob, setDob] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false); // 🟢 Added
+  const [modalMessage, setModalMessage] = useState(""); // 🟢 Added
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -47,8 +49,9 @@ export default function ProfileForm({ isDarkMode, onBack }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      alert("✅ Profile updated successfully!");
-      onBack();
+      // ✅ Show modal instead of alert
+      setModalMessage("✅ Profile updated successfully!");
+      setModalVisible(true);
     } catch (err) {
       console.error("❌ Error updating profile:", err.response?.data || err.message);
       alert("Failed to update profile");
@@ -71,8 +74,13 @@ export default function ProfileForm({ isDarkMode, onBack }) {
       setDob(null);
       return;
     }
-    const newDate = new Date(val + "T00:00:00");
-    if (!isNaN(newDate)) setDob(newDate);
+
+    // ✅ Construct the date manually in local time (no timezone shift)
+    const [year, month, day] = val.split("-");
+    const newDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+
+    // ✅ Adjust for your local timezone so it shows exactly the same date picked
+    setDob(new Date(newDate.getTime() + newDate.getTimezoneOffset() * 60000));
   };
 
   if (!user) return <Text style={{ color: isDarkMode ? "#fff" : "#000", textAlign: "center" }}>Loading...</Text>;
@@ -190,6 +198,31 @@ export default function ProfileForm({ isDarkMode, onBack }) {
     <TouchableOpacity style={styles.cancelButton} onPress={onBack}>
       <Text style={styles.cancelButtonText}>↩ Back</Text>
     </TouchableOpacity>
+
+    {/* 🟢 Success Modal */}
+    <Modal
+      transparent
+      animationType="fade"
+      visible={modalVisible}
+      onRequestClose={() => setModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#1e1e1e" : "#fff" }]}>
+          <Text style={[styles.modalMessage, { color: isDarkMode ? "#fff" : "#000" }]}>
+            {modalMessage}
+          </Text>
+          <TouchableOpacity
+            style={styles.modalButton}
+            onPress={() => {
+              setModalVisible(false);
+              onBack(); // Return after confirming
+            }}
+          >
+            <Text style={styles.modalButtonText}>OK</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   </View>
 );
 }
@@ -266,5 +299,35 @@ const styles = StyleSheet.create({
     color: "#999",
     fontSize: 15,
     textDecorationLine: "underline",
+  },
+  /* 🟢 Modal Styles */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBox: {
+    width: "30%",
+    padding: 25,
+    borderRadius: 12,
+    alignItems: "center",
+    elevation: 10,
+  },
+  modalMessage: {
+    fontSize: 17,
+    textAlign: "center",
+    marginBottom: 18,
+  },
+  modalButton: {
+    backgroundColor: "#2563eb",
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

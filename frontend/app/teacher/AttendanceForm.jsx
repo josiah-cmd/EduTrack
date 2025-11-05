@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import api from "../lib/axios";
 
 export default function AttendanceForm({ room, isDarkMode }) {
@@ -10,6 +10,8 @@ export default function AttendanceForm({ room, isDarkMode }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [modalVisible, setModalVisible] = useState(false);
 
   // ✅ Fetch students in this class/room
   useEffect(() => {
@@ -17,11 +19,15 @@ export default function AttendanceForm({ room, isDarkMode }) {
     const fetchStudents = async () => {
       try {
         const res = await api.get(`/rooms/${room.id}/students`);
-        setStudents(res.data || []);
+        const fetchedStudents = res.data || [];
+
+        // ✅ Safely map LRN from nested `student` relation if available
+        setStudents(fetchedStudents);
         setRecords(
-          res.data.map((s) => ({
+          fetchedStudents.map((s) => ({
             student_id: s.id,
             name: s.name,
+            lrn: s.lrn || s.student?.lrn || "N/A", // ✅ Fix: support nested structure
             status: "present",
             notes: "",
           }))
@@ -33,43 +39,50 @@ export default function AttendanceForm({ room, isDarkMode }) {
     fetchStudents();
   }, [room]);
 
-  // ✅ Handle status change per student
   const updateStatus = (id, value) => {
     setRecords((prev) =>
       prev.map((r) => (r.student_id === id ? { ...r, status: value } : r))
     );
   };
 
-  // ✅ Handle notes change
   const updateNotes = (id, text) => {
     setRecords((prev) =>
       prev.map((r) => (r.student_id === id ? { ...r, notes: text } : r))
     );
   };
 
-  // ✅ Save Attendance
-    const saveAttendance = async () => {
-  try {
-    setLoading(true);
+  const markAll = (status) => {
+    setRecords((prev) => prev.map((r) => ({ ...r, status })));
+  };
 
-    for (const record of records) {
-      await api.post("/attendance", {
-        student_id: record.student_id,
-        subject_id: room.subject_id, // or adjust based on your data
-        date: selectedDate,
-        status: record.status,
-        notes: record.notes,
-      });
+  const saveAttendance = async () => {
+    try {
+      setLoading(true);
+      for (const record of records) {
+        await api.post("/attendance", {
+          student_id: record.student_id,
+          subject_id: room.subject_id,
+          date: selectedDate,
+          status: record.status,
+          notes: record.notes,
+        });
+      }
+      setSuccessMsg("✅ Attendance saved successfully!");
+      setModalVisible(true);
+    } catch (error) {
+      console.error("Error saving attendance:", error.response?.data || error);
+      setSuccessMsg("❌ Failed to save attendance.");
+      setModalVisible(true);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setSuccessMsg("✅ Attendance saved successfully!");
-  } catch (error) {
-    console.error("Error saving attendance:", error.response?.data || error);
-    setSuccessMsg("❌ Failed to save attendance.");
-  } finally {
-    setLoading(false);
-  }
-};
+  const filteredRecords = records.filter(
+    (r) =>
+      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.lrn.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <View style={[styles.container, isDarkMode && { backgroundColor: "#121212", borderColor: "#333" }]}>
@@ -77,28 +90,55 @@ export default function AttendanceForm({ room, isDarkMode }) {
         Record Attendance
       </Text>
 
-      <div style={{ marginBottom: 15 }}>
-        <DatePicker
-          selected={selectedDate}
-          onChange={(date) => setSelectedDate(date)}
-          dateFormat="yyyy-MM-dd"
-          className="custom-datepicker"
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10, justifyContent: "space-between", gap: 10 }}>
+        {/* ✅ Wrap DatePicker in a relative div with high zIndex */}
+        <div style={{ position: "relative", zIndex: 9999 }}>
+          <DatePicker
+            selected={selectedDate}
+            onChange={(date) => setSelectedDate(date)}
+            dateFormat="yyyy-MM-dd"
+            className="custom-datepicker"
+            popperPlacement="bottom-start"
+            popperClassName="datepicker-popper-fix"
+            portalId="root-portal"
+          />
+        </div>
+
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="🔍 Search by LRN or Name"
+          style={[
+            styles.searchInput,
+            isDarkMode && { backgroundColor: "#333", color: "#fff" },
+          ]}
         />
-      </div>
+      </View>
 
       <ScrollView horizontal style={styles.tableContainer}>
-        <View>
+        <View style={{ width: 820 }}>
           <View style={[styles.tableHeader, isDarkMode && { backgroundColor: "#333" }]}>
+            <Text style={[styles.th, { flex: 1, color: "#FFD700" }]}>#</Text>
+            <Text style={[styles.th, { flex: 1.3, color: "#FFD700" }]}>LRN</Text>
             <Text style={[styles.th, { flex: 2, color: "#FFD700" }]}>Student Name</Text>
             <Text style={[styles.th, { flex: 1, color: "#FFD700" }]}>Status</Text>
             <Text style={[styles.th, { flex: 2, color: "#FFD700" }]}>Notes</Text>
           </View>
 
-          {records.map((record) => (
+          {filteredRecords.map((record, index) => (
             <View
               key={record.student_id}
               style={[styles.row, isDarkMode && { backgroundColor: "#1e1e1e" }]}
             >
+              <Text style={[styles.td, { flex: 1, color: isDarkMode ? "#fff" : "#000" }]}>
+                {index + 1}
+              </Text>
+
+              {/* ✅ Fixed LRN display */}
+              <Text style={[styles.td, { flex: 1.3, color: isDarkMode ? "#fff" : "#000" }]}>
+                {record.lrn}
+              </Text>
+
               <Text style={[styles.td, { flex: 2, color: isDarkMode ? "#fff" : "#000" }]}>
                 {record.name}
               </Text>
@@ -113,6 +153,7 @@ export default function AttendanceForm({ room, isDarkMode }) {
                   border: "1px solid #ccc",
                   background: isDarkMode ? "#333" : "#fff",
                   color: isDarkMode ? "#fff" : "#000",
+                  textAlign: "center",
                 }}
               >
                 <option value="present">Present</option>
@@ -135,17 +176,17 @@ export default function AttendanceForm({ room, isDarkMode }) {
         </View>
       </ScrollView>
 
-      {successMsg !== "" && (
-        <Text
-          style={{
-            textAlign: "center",
-            color: successMsg.includes("✅") ? "#00FF7F" : "#FF6347",
-            marginTop: 10,
-          }}
-        >
-          {successMsg}
-        </Text>
-      )}
+      <View style={{ flexDirection: "row", justifyContent: "center", gap: 10, marginBottom: 10 }}>
+        <TouchableOpacity style={[styles.batchBtn, { backgroundColor: "#32CD32" }]} onPress={() => markAll("present")}>
+          <Text style={styles.batchText}>Mark All Present</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.batchBtn, { backgroundColor: "#FF6347" }]} onPress={() => markAll("absent")}>
+          <Text style={styles.batchText}>Mark All Absent</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.batchBtn, { backgroundColor: "#FFA500" }]} onPress={() => markAll("late")}>
+          <Text style={styles.batchText}>Mark All Late</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity
         onPress={saveAttendance}
@@ -160,7 +201,28 @@ export default function AttendanceForm({ room, isDarkMode }) {
         </Text>
       </TouchableOpacity>
 
-      {/* ✅ Match DatePicker style */}
+      <Modal transparent visible={modalVisible} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDarkMode && { backgroundColor: "#222" }]}>
+            <Text
+              style={{
+                fontSize: 16,
+                textAlign: "center",
+                color: successMsg.includes("✅") ? "#00FF7F" : "#FF6347",
+              }}
+            >
+              {successMsg}
+            </Text>
+            <TouchableOpacity
+              style={[styles.modalBtn, { backgroundColor: "#FFD700" }]}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={{ color: "#000", fontWeight: "600" }}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <style jsx global>{`
         .custom-datepicker {
           width: 200px;
@@ -169,6 +231,21 @@ export default function AttendanceForm({ room, isDarkMode }) {
           border: 1px solid #ccc;
           background-color: ${isDarkMode ? "#333" : "#fff"};
           color: ${isDarkMode ? "#fff" : "#000"};
+          position: relative;
+          z-index: 9999;
+        }
+
+        /* ✅ Forces calendar popup above all elements */
+        .react-datepicker {
+          z-index: 9999 !important;
+        }
+
+        .react-datepicker-popper {
+          z-index: 9999 !important;
+        }
+
+        .datepicker-popper-fix {
+          z-index: 9999 !important;
         }
       `}</style>
     </View>
@@ -221,6 +298,45 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     paddingVertical: 10,
     paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: "#888",
+    borderRadius: 8,
+    padding: 6,
+    backgroundColor: "#fff",
+    width: 220,
+    maxWidth: 250,
+    alignSelf: "flex-end",
+  },
+  batchBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  batchText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: 280,
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    width: "30%",
+  },
+  modalBtn: {
+    marginTop: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 25,
     borderRadius: 8,
   },
 });
