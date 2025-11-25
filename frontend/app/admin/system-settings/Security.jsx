@@ -32,7 +32,7 @@ export default function Security({ isDarkMode }) {
   if (activeSection) {
     const selected = sections.find((s) => s.id === activeSection);
     return (
-      <ScrollView>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <TouchableOpacity
           onPress={() => setActiveSection(null)}
           style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}

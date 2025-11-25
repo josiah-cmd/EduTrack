@@ -397,6 +397,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     marginTop: 12,
+    alignSelf: "flex-end",
+    width: "20%",
   },
   buttonText: {
     color: "#fff",

@@ -10,7 +10,7 @@ return new class extends Migration {
             $table->id();
             $table->string('name');
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // link to users
-            $table->foreignId('subject_id')->constrained()->onDelete('cascade');
+            $table->foreignId('subject_id')->nullable()->constrained()->onDelete('cascade');
             $table->string('department')->nullable();
             $table->timestamps();
         });

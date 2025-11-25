@@ -148,17 +148,6 @@ export default function UserForm({ isDarkMode }) {
     return matchesSearch && matchesRole;
   });
 
-  // 🆕 sample department options
-  const departmentOptions = [
-    "Mathematics",
-    "Science",
-    "English",
-    "Computer Studies",
-    "Social Studies",
-    "Filipino",
-    "Physical Education",
-  ];
-
   // 🆕 sample grade levels
   const gradeLevels = [
     "Grade 7",
@@ -171,163 +160,164 @@ export default function UserForm({ isDarkMode }) {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+      {/* CREATE USER CARD */}
       <View style={[styles.card, { backgroundColor: cardBg }]}>
         <Text style={[styles.title, { color: textColor }]}>Create User</Text>
 
-        {/* --- FORM --- */}
-        <TextInput
-          style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
-          placeholder="First Name"
-          placeholderTextColor={subTextColor}
-          value={firstName}
-          onChangeText={setFirstName}
-        />
-        <TextInput
-          style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
-          placeholder="Middle Initial (Optional)"
-          placeholderTextColor={subTextColor}
-          value={middleInitial}
-          onChangeText={setMiddleInitial}
-        />
-        <TextInput
-          style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
-          placeholder="Last Name"
-          placeholderTextColor={subTextColor}
-          value={lastName}
-          onChangeText={setLastName}
-        />
-        <TextInput
-          style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
-          placeholder="Email"
-          placeholderTextColor={subTextColor}
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
+        {/* new layout: fields on left, role+create on right */}
+        <View style={styles.createRow}>
+          {/* LEFT: form fields */}
+          <View style={styles.createLeft}>
+            <TextInput
+              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
+              placeholder="First Name"
+              placeholderTextColor={subTextColor}
+              value={firstName}
+              onChangeText={setFirstName}
+            />
+            <TextInput
+              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
+              placeholder="Middle Initial (Optional)"
+              placeholderTextColor={subTextColor}
+              value={middleInitial}
+              onChangeText={setMiddleInitial}
+            />
+            <TextInput
+              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
+              placeholder="Last Name"
+              placeholderTextColor={subTextColor}
+              value={lastName}
+              onChangeText={setLastName}
+            />
+            <TextInput
+              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
+              placeholder="Email"
+              placeholderTextColor={subTextColor}
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
 
-        <Text style={[styles.label, { color: textColor }]}>Select Role</Text>
-        <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
-          <Picker
-            selectedValue={role}
-            onValueChange={(value) => setRole(value)}
-            style={{ color: textColor, backgroundColor: inputBg }}
-            dropdownIconColor={textColor}
-          >
-            <Picker.Item label="Select Role" value="" />
-            <Picker.Item label="Student" value="student" />
-            <Picker.Item label="Teacher" value="teacher" />
-            <Picker.Item label="Admin" value="admin" />
-            <Picker.Item label="Staff" value="staff" />
-          </Picker>
+          {/* RIGHT: role selection + conditional pickers + create button */}
+          <View style={styles.createRight}>
+            <Text style={[styles.label, { color: textColor }]}>Select Role</Text>
+            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
+              <Picker
+                selectedValue={role}
+                onValueChange={(value) => setRole(value)}
+                style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: '100%', height: '100%'  }}
+                itemStyle={{ fontSize: 18, height: 56 }}
+                dropdownIconColor={textColor}
+              >
+                <Picker.Item label="Select Role" value="" />
+                <Picker.Item label="Student" value="student" />
+                <Picker.Item label="Teacher" value="teacher" />
+                <Picker.Item label="Admin" value="admin" />
+                <Picker.Item label="Staff" value="staff" />
+              </Picker>
+            </View>
+
+            {/* conditional fields shown in right column to keep role-related inputs together */}
+            {role === "teacher" && (
+              <>
+                <Text style={[styles.label, { color: textColor }]}>Select Subject</Text>
+                <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
+                  <Picker
+                    selectedValue={subjectId}
+                    onValueChange={(value) => setSubjectId(value)}
+                    style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: '100%', height: '100%' }}
+                    dropdownIconColor={textColor}
+                  >
+                    <Picker.Item label="Select Subject" value="" />
+                    {subjects.map((subj) => (
+                      <Picker.Item key={subj.id} label={subj.name} value={subj.id} />
+                    ))}
+                  </Picker>
+                </View>
+              </>
+            )}
+
+            {role === "student" && (
+              <>
+                <Text style={[styles.label, { color: textColor }]}>Select Grade</Text>
+                <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
+                  <Picker
+                    selectedValue={gradeLevel}
+                    onValueChange={(value) => setGradeLevel(value)}
+                    style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: '100%', height: '100%' }}
+                    dropdownIconColor={textColor}
+                  >
+                    <Picker.Item label="Select Grade" value="" />
+                    {gradeLevels.map((grade, index) => (
+                      <Picker.Item key={index} label={grade} value={grade} />
+                    ))}
+                  </Picker>
+                </View>
+
+                <Text style={[styles.label, { color: textColor }]}>Select Section</Text>
+                <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
+                  <Picker
+                    selectedValue={section}
+                    onValueChange={(value) => setSection(value)}
+                    style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: '100%', height: '100%' }}
+                    dropdownIconColor={textColor}
+                  >
+                    <Picker.Item label="Select Section" value="" />
+                    {sections.map((sec) => (
+                      <Picker.Item key={sec.id} label={sec.name} value={sec.id} />
+                    ))}
+                  </Picker>
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity style={[styles.button, { backgroundColor: buttonBg, marginTop: 10 }]} onPress={handleSubmit}>
+              <Text style={[styles.buttonText, { color: buttonText }]}>Create User</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* 🆕 Show only when Teacher is selected */}
-        {role === "teacher" && (
-          <>
-            <Text style={[styles.label, { color: textColor }]}>Select Department</Text>
-            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
-              <Picker
-                selectedValue={department}
-                onValueChange={(value) => setDepartment(value)}
-                style={{ color: textColor, backgroundColor: inputBg }}
-                dropdownIconColor={textColor}
-              >
-                <Picker.Item label="Select Department" value="" />
-                {departmentOptions.map((dept, index) => (
-                  <Picker.Item key={index} label={dept} value={dept} />
-                ))}
-              </Picker>
-            </View>
-
-            <Text style={[styles.label, { color: textColor }]}>Select Subject</Text>
-            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
-              <Picker
-                selectedValue={subjectId}
-                onValueChange={(value) => setSubjectId(value)}
-                style={{ color: textColor, backgroundColor: inputBg }}
-                dropdownIconColor={textColor}
-              >
-                <Picker.Item label="Select Subject" value="" />
-                {subjects.map((subj) => (
-                  <Picker.Item key={subj.id} label={subj.name} value={subj.id} />
-                ))}
-              </Picker>
-            </View>
-          </>
-        )}
-
-        {/* 🆕 Show only when Student is selected */}
-        {role === "student" && (
-          <>
-            <Text style={[styles.label, { color: textColor }]}>Select Grade</Text>
-            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
-              <Picker
-                selectedValue={gradeLevel}
-                onValueChange={(value) => setGradeLevel(value)}
-                style={{ color: textColor, backgroundColor: inputBg }}
-                dropdownIconColor={textColor}
-              >
-                <Picker.Item label="Select Grade" value="" />
-                {gradeLevels.map((grade, index) => (
-                  <Picker.Item key={index} label={grade} value={grade} />
-                ))}
-              </Picker>
-            </View>
-
-            <Text style={[styles.label, { color: textColor }]}>Select Section</Text>
-            <View style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor }]}>
-              <Picker
-                selectedValue={section}
-                onValueChange={(value) => setSection(value)}
-                style={{ color: textColor, backgroundColor: inputBg }}
-                dropdownIconColor={textColor}
-              >
-                <Picker.Item label="Select Section" value="" />
-                {sections.map((sec) => (
-                  <Picker.Item key={sec.id} label={sec.name} value={sec.id} />
-                ))}
-              </Picker>
-            </View>
-          </>
-        )}
-
-        <TouchableOpacity style={[styles.button, { backgroundColor: buttonBg }]} onPress={handleSubmit}>
-          <Text style={[styles.buttonText, { color: buttonText }]}>Create User</Text>
-        </TouchableOpacity>
       </View>
 
       {/* --- USER LIST --- */}
       <View style={[styles.card, { backgroundColor: cardBg, marginTop: 25 }]}>
-        <Text style={[styles.title, { marginBottom: 15, color: textColor }]}>User List</Text>
+        <View style={styles.userListHeader}>
+          <Text style={[styles.title, { marginBottom: 15, color: textColor }]}>User List</Text>
 
-        {/* --- SEARCH --- */}
-        <TextInput
-          style={[
-            styles.input,
-            { color: textColor, backgroundColor: inputBg, borderColor, marginBottom: 10 },
-          ]}
-          placeholder="Search by name or email"
-          placeholderTextColor={subTextColor}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+          {/* --- Filters on the right --- */}
+          <View style={styles.filterRow}>
+            <TextInput
+              style={[
+                styles.smallInput,
+                { color: textColor, backgroundColor: inputBg, borderColor },
+              ]}
+              placeholder="Search user..."
+              placeholderTextColor={subTextColor}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
 
-        {/* --- FILTER BY ROLE --- */}
-        <View
-          style={[styles.pickerWrapper, { backgroundColor: inputBg, borderColor, marginBottom: 15 }]}
-        >
-          <Picker
-            selectedValue={filterRole}
-            onValueChange={(value) => setFilterRole(value)}
-            style={{ color: textColor, backgroundColor: inputBg }}
-            dropdownIconColor={textColor}
-          >
-            <Picker.Item label="Filter by Role" value="" />
-            <Picker.Item label="Student" value="student" />
-            <Picker.Item label="Teacher" value="teacher" />
-            <Picker.Item label="Admin" value="admin" />
-            <Picker.Item label="Staff" value="staff" />
-          </Picker>
+            <View
+              style={[
+                styles.smallPickerWrapper,
+                { backgroundColor: inputBg, borderColor },
+              ]}
+            >
+              <Picker
+                selectedValue={filterRole}
+                onValueChange={(value) => setFilterRole(value)}
+                style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: '100%', height: '100%'  }}
+                itemStyle={{ fontSize: 18, height: 56 }}
+                dropdownIconColor={textColor}
+              >
+                <Picker.Item label="Filter Role" value="" />
+                <Picker.Item label="Student" value="student" />
+                <Picker.Item label="Teacher" value="teacher" />
+                <Picker.Item label="Admin" value="admin" />
+                <Picker.Item label="Staff" value="staff" />
+              </Picker>
+            </View>
+          </View>
         </View>
 
         <View style={[styles.tableHeader, { borderBottomColor: headerBorder }]}>
@@ -402,6 +392,24 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: "center",
   },
+
+  /* create row layout */
+  createRow: {
+    flexDirection: "row",
+    gap: 20,
+    alignItems: "flex-start",
+  },
+  createLeft: {
+    flex: 1,
+    minWidth: "60%",
+    paddingRight: 10,
+  },
+  createRight: {
+    width: 320,
+    minWidth: 260,
+    paddingLeft: 10,
+  },
+
   input: {
     borderWidth: 1,
     borderRadius: 8,
@@ -409,29 +417,70 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 16,
   },
+  inputSmall: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    fontSize: 14,
+  },
+  smallInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 8,
+    fontSize: 14,
+    width: "190%",
+    marginRight: 8,
+  },
   label: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "500",
     marginBottom: 5,
   },
   pickerWrapper: {
     borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 15,
+    borderRadius: 10,
+    marginBottom: 12,
+    height: 38,
+    justifyContent: "center",
+    overflow: "hidden",
   },
   picker: {
-    height: 50,
+    height: 56,
     width: "100%",
+    fontSize: 18,
+    paddingHorizontal: 8,
+  },
+  smallPickerWrapper: {
+    borderWidth: 1,
+    borderRadius: 8,
+    width: 160,
+    height: 38,
+    justifyContent: "center",
+    overflow: "hidden",
   },
   button: {
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
     marginTop: 5,
+    alignSelf: "flex-end",
+    width: "30%",
   },
   buttonText: {
     fontSize: 16,
     fontWeight: "bold",
+  },
+  userListHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: 10,
+  },
+  filterRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   tableHeader: {
     flexDirection: "row",

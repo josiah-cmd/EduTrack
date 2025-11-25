@@ -62,25 +62,41 @@ export default function AdminDashboard() {
   // ✅ 🔹 Added new state for logout confirmation modal
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
-  // ✅ fetch counts
+  // ✅ FIXED: Combined stats + user fetch with better handling
   useEffect(() => {
     const fetchStatsAndUser = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
-        if (!token) return;
+        if (!token) {
+          console.warn("No token found");
+          return;
+        }
 
-        const res = await axios.get("http://localhost:8000/api/stats", {
+        // ✅ Base API URL — ensures proper endpoint
+        const API_BASE = "http://localhost:8000/api";
+
+        // ✅ Fetch dashboard stats
+        const statsRes = await axios.get(`${API_BASE}/stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setTotalUsers(statsRes.data.totalUsers);
+        setTotalTeachers(statsRes.data.totalTeachers);
+        setTotalStudents(statsRes.data.totalStudents);
+
+        // ✅ Fetch logged-in user info
+        const userRes = await axios.get(`${API_BASE}/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        setTotalUsers(res.data.totalUsers);
-        setTotalTeachers(res.data.totalTeachers);
-        setTotalStudents(res.data.totalStudents);
-
-        const userRes = await axios.get("http://localhost:8000/api/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setUserName(userRes.data.name);
+        // ✅ FIX: Safely check and assign user name
+        if (userRes?.data?.name) {
+          setUserName(userRes.data.name);
+        } else if (userRes?.data?.user?.name) {
+          // In case backend nests it under "user"
+          setUserName(userRes.data.user.name);
+        } else {
+          console.warn("User name not found in response:", userRes.data);
+        }
       } catch (err) {
         console.error("Error fetching stats/user:", err.response?.data || err.message);
       }
@@ -135,8 +151,15 @@ export default function AdminDashboard() {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   // ✅ Updated logout to close modal and then logout
-  const logout = () => {
+  const logout = async () => {
     setLogoutModalVisible(false);
+
+    try {
+      await AsyncStorage.removeItem("token"); // ✅ FIXED: clear token on logout
+    } catch (e) {
+      console.warn("Failed to remove token:", e);
+    }
+
     router.replace('/');
   };
 
@@ -178,7 +201,7 @@ export default function AdminDashboard() {
     }
     setDropdownVisible(false); // close dropdown after click
   };
-
+  
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
@@ -262,6 +285,7 @@ export default function AdminDashboard() {
             data={notifications}
             keyExtractor={(item, index) => index.toString()}
             style={{ maxHeight: 300 }}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <TouchableOpacity onPress={() => handleNotificationClick(item)}>
                 <View style={styles.notificationItem}>
@@ -749,7 +773,7 @@ const styles = StyleSheet.create({
 
   // ✅ user info
   userContainer: {
-    marginTop: 70,
+    marginTop: 120,
     marginHorizontal: 12,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -860,7 +884,6 @@ modalBox: {
   shadowRadius: 8,
   elevation: 10,
   borderWidth: 1,
-  borderColor: "#FFD700", // ✅ gold accent border
 },
   modalTitle: {
     fontSize: 18,

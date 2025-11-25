@@ -224,12 +224,12 @@ export default function AttendanceForm({ room, isDarkMode }) {
       </Modal>
 
       <style jsx global>{`
-        .custom-datepicker {
+        .custom-datepicker input {
           width: 200px;
           padding: 6px 10px;
           border-radius: 8px;
           border: 1px solid #ccc;
-          background-color: ${isDarkMode ? "#333" : "#fff"};
+          background-color: ${isDarkMode ? "#2a2a2a" : "#f8f8f8"};
           color: ${isDarkMode ? "#fff" : "#000"};
           position: relative;
           z-index: 9999;

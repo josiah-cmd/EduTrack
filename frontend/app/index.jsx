@@ -16,7 +16,7 @@ export default function Index() {
   const login = async () => {
     setLoading(true);
     setErrorMessage("");
-    try {
+    try { 
       const res = await api.post("/login", { email, password });
       console.log("Login response:", res.data);
 

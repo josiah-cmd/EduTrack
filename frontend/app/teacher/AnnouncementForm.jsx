@@ -166,7 +166,7 @@ export default function AnnouncementForm({ isDarkMode }) {
 
   return (
     <View style={{ padding: 16}}>
-      <Text style={[styles.header, { color: isDarkMode ? "#178a4c" : "#178a4c" }]}>
+      <Text style={[styles.header, { color: isDarkMode ? "#FFFFFF" : "#178a4c" }]}>
         📢 Announcements
       </Text>
 

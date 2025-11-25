@@ -66,7 +66,7 @@ export default function AccountLockUnlock({ isDarkMode, onBack }) {
   );
 
   return (
-    <ScrollView>
+    <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={[styles.title, textColor]}>Account Lock/Unlock</Text>
       <Text style={[styles.desc, { color: isDarkMode ? "#aaa" : "#555" }]}>
         Manage user access by locking or unlocking accounts manually.

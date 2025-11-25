@@ -13,8 +13,8 @@ export default function RoomForm({ isDarkMode }) {
   const [subjectId, setSubjectId] = useState("");
   const [teacherId, setTeacherId] = useState("");
   const [sectionId, setSectionId] = useState("");
-  const [day, setDay] = useState([]); // ✅ array for multiple days
-  const [time, setTime] = useState([]); // ✅ array for multiple times (adjusted)
+  const [day, setDay] = useState([]); 
+  const [time, setTime] = useState([]); 
   const [token, setToken] = useState(null);
 
   const [popupVisible, setPopupVisible] = useState(false);
@@ -38,7 +38,6 @@ export default function RoomForm({ isDarkMode }) {
 
   const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-  // Fetch rooms
   const fetchRooms = async () => {
     try {
       const res = await api.get("/rooms");
@@ -93,7 +92,7 @@ export default function RoomForm({ isDarkMode }) {
       (r) =>
         r.id !== roomToCheck.id &&
         JSON.stringify(r.day) === JSON.stringify(roomToCheck.day) &&
-        JSON.stringify(r.time) === JSON.stringify(roomToCheck.time) && // ✅ compare array of times
+        JSON.stringify(r.time) === JSON.stringify(roomToCheck.time) &&
         (r.teacher_id === roomToCheck.teacher_id || r.section_id === roomToCheck.section_id)
     );
   };
@@ -131,8 +130,8 @@ export default function RoomForm({ isDarkMode }) {
       subject_id: Number(subjectId),
       teacher_id: Number(teacherId),
       section_id: Number(sectionId),
-      day, // array
-      time, // array
+      day,
+      time,
     };
 
     if (isScheduleConflict({ ...roomData, id: editingRoomId })) {
@@ -190,103 +189,108 @@ export default function RoomForm({ isDarkMode }) {
   return (
     <View style={[styles.container]}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
-        {/* Create Room Section */}
         <View style={[styles.card, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff" }]}>
           <Text style={[styles.title, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>
             {editingRoomId ? "Edit Room" : "Create Room"}
           </Text>
 
-          {/* Subject */}
-          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Subject</Text>
-          <View style={[styles.pickerWrapper, { backgroundColor: isDarkMode ? "#065f46" : "#ffffff", borderColor: isDarkMode ? "#ffd700" : "#10b981" }]}>
-            <Picker selectedValue={subjectId} onValueChange={(val) => setSubjectId(val)} dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"} style={styles.picker(isDarkMode)}>
-              <Picker.Item label="Select Subject" value="" color={isDarkMode ? "#ffd700" : "#10b981"} />
-              {subjects.map((sub) => (
-                <Picker.Item key={sub.id} label={sub.name} value={sub.id} color={isDarkMode ? "#fff" : "#064e3b"} />
-              ))}
-            </Picker>
+          {/* SIDE-BY-SIDE FORM SECTIONS */}
+          <View style={styles.sideBySideContainer}>
+            {/* LEFT SIDE */}
+            <View style={styles.leftColumn}>
+              <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Subject</Text>
+              <View style={[styles.pickerWrapper, { backgroundColor: isDarkMode ? "#065f46" : "#ffffff", borderColor: isDarkMode ? "#ffd700" : "#10b981" }]}>
+                <Picker selectedValue={subjectId} onValueChange={(val) => setSubjectId(val)} dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"} style={styles.picker(isDarkMode)}>
+                  <Picker.Item label="Select Subject" value="" color={isDarkMode ? "#ffd700" : "#10b981"} />
+                  {subjects.map((sub) => (
+                    <Picker.Item key={sub.id} label={sub.name} value={sub.id} color={isDarkMode ? "#fff" : "#064e3b"} />
+                  ))}
+                </Picker>
+              </View>
+
+              <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Teacher</Text>
+              <View style={[styles.pickerWrapper, { backgroundColor: isDarkMode ? "#065f46" : "#ffffff", borderColor: isDarkMode ? "#ffd700" : "#10b981" }]}>
+                <Picker selectedValue={teacherId} onValueChange={(val) => setTeacherId(val)} dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"} style={styles.picker(isDarkMode)}>
+                  <Picker.Item label="Select Teacher" value="" color={isDarkMode ? "#ffd700" : "#10b981"} />
+                  {teachers.map((t) => (
+                    <Picker.Item key={t.id} label={t.user?.name || t.name || "Unnamed"} value={t.id} color={isDarkMode ? "#fff" : "#064e3b"} />
+                  ))}
+                </Picker>
+              </View>
+
+              <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Section</Text>
+              <View style={[styles.pickerWrapper, { backgroundColor: isDarkMode ? "#065f46" : "#ffffff", borderColor: isDarkMode ? "#ffd700" : "#10b981" }]}>
+                <Picker selectedValue={sectionId} onValueChange={(val) => setSectionId(val)} dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"} style={styles.picker(isDarkMode)}>
+                  <Picker.Item label="Select Section" value="" color={isDarkMode ? "#ffd700" : "#10b981"} />
+                  {sections.map((sec) => (
+                    <Picker.Item key={sec.id} label={sec.name} value={sec.id} color={isDarkMode ? "#fff" : "#064e3b"} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* RIGHT SIDE */}
+            <View style={styles.rightColumn}>
+              <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Days</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
+                {daysOfWeek.map((d) => (
+                  <TouchableOpacity
+                    key={d}
+                    onPress={() => handleToggleDay(d)}
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      margin: 4,
+                      borderWidth: 1,
+                      borderColor: day.includes(d) ? "#10b981" : "#aaa",
+                      borderRadius: 8,
+                      backgroundColor: day.includes(d) ? (isDarkMode ? "#064e3b" : "#10b981") : "transparent",
+                    }}
+                  >
+                    <Text style={{ color: day.includes(d) ? "#fff" : isDarkMode ? "#ffd700" : "#064e3b" }}>{d}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Time Slots</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
+                {timeSlots.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => handleAddTime(t)}
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      margin: 4,
+                      borderWidth: 1,
+                      borderColor: time.includes(t) ? "#10b981" : "#aaa",
+                      borderRadius: 8,
+                      backgroundColor: time.includes(t) ? (isDarkMode ? "#064e3b" : "#10b981") : "transparent",
+                    }}
+                  >
+                    <Text style={{ color: time.includes(t) ? "#fff" : isDarkMode ? "#ffd700" : "#064e3b" }}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </View>
 
-          {/* Teacher */}
-          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Teacher</Text>
-          <View style={[styles.pickerWrapper, { backgroundColor: isDarkMode ? "#065f46" : "#ffffff", borderColor: isDarkMode ? "#ffd700" : "#10b981" }]}>
-            <Picker selectedValue={teacherId} onValueChange={(val) => setTeacherId(val)} dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"} style={styles.picker(isDarkMode)}>
-              <Picker.Item label="Select Teacher" value="" color={isDarkMode ? "#ffd700" : "#10b981"} />
-              {teachers.map((t) => (
-                <Picker.Item key={t.id} label={t.user?.name || t.name || "Unnamed"} value={t.id} color={isDarkMode ? "#fff" : "#064e3b"} />
-              ))}
-            </Picker>
-          </View>
-
-          {/* Section */}
-          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Section</Text>
-          <View style={[styles.pickerWrapper, { backgroundColor: isDarkMode ? "#065f46" : "#ffffff", borderColor: isDarkMode ? "#ffd700" : "#10b981" }]}>
-            <Picker selectedValue={sectionId} onValueChange={(val) => setSectionId(val)} dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"} style={styles.picker(isDarkMode)}>
-              <Picker.Item label="Select Section" value="" color={isDarkMode ? "#ffd700" : "#10b981"} />
-              {sections.map((sec) => (
-                <Picker.Item key={sec.id} label={sec.name} value={sec.id} color={isDarkMode ? "#fff" : "#064e3b"} />
-              ))}
-            </Picker>
-          </View>
-
-          {/* Multi-Day Selection */}
-          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Days</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
-            {daysOfWeek.map((d) => (
-              <TouchableOpacity
-                key={d}
-                onPress={() => handleToggleDay(d)}
-                style={{
-                  paddingVertical: 8,
-                  paddingHorizontal: 12,
-                  margin: 4,
-                  borderWidth: 1,
-                  borderColor: day.includes(d) ? "#10b981" : "#aaa",
-                  borderRadius: 8,
-                  backgroundColor: day.includes(d) ? (isDarkMode ? "#064e3b" : "#10b981") : "transparent",
-                }}
-              >
-                <Text style={{ color: day.includes(d) ? "#fff" : isDarkMode ? "#ffd700" : "#064e3b" }}>{d}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Multi-Time Selection */}
-          <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Time Slots</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
-            {timeSlots.map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => handleAddTime(t)}
-                style={{
-                  paddingVertical: 8,
-                  paddingHorizontal: 12,
-                  margin: 4,
-                  borderWidth: 1,
-                  borderColor: time.includes(t) ? "#10b981" : "#aaa",
-                  borderRadius: 8,
-                  backgroundColor: time.includes(t) ? (isDarkMode ? "#064e3b" : "#10b981") : "transparent",
-                }}
-              >
-                <Text style={{ color: time.includes(t) ? "#fff" : isDarkMode ? "#ffd700" : "#064e3b" }}>{t}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Submit */}
           <TouchableOpacity style={[styles.btn, { backgroundColor: "#10b981" }]} onPress={handleSubmit}>
             <Text style={styles.btnText}>{editingRoomId ? "Update Room" : "Create Room"}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Rooms List */}
-        <View style={[styles.card, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff" }]}>
+        {/* ROOMS LIST */}
+        <View style={[styles.card, styles.roomsListCard, { backgroundColor: isDarkMode ? "#1a1a1a" : "#ffffff" }]}>
           <Text style={[styles.title, { color: isDarkMode ? "#ffd700" : "#064e3b", marginBottom: 15 }]}>Rooms List</Text>
           <FlatList
             data={rooms}
             keyExtractor={(item) => item.id.toString()}
+            numColumns={2} // ✅ show 2 cards per row
+            columnWrapperStyle={{ justifyContent: "space-between" }}
+            contentContainerStyle={{paddingHorizontal: 8,}}
             renderItem={({ item }) => (
-              <View style={[styles.roomCard, { backgroundColor: isDarkMode ? "#065f46" : "#f9f9f9", borderColor: isDarkMode ? "#ffd700" : "#10b981" }]}>
+              <View style={[styles.roomCard, { backgroundColor: isDarkMode ? "#065f46" : "#f9f9f9", borderColor: isDarkMode ? "#ffd700" : "#10b981", width: "48%", marginBottom: 15, }]}>
                 <Text style={{ color: isDarkMode ? "#ffd700" : "#064e3b", fontWeight: "600", fontSize: 16 }}>
                   {item.subject?.name || "No Subject"}
                 </Text>
@@ -304,6 +308,8 @@ export default function RoomForm({ isDarkMode }) {
                     paddingVertical: 6,
                     borderRadius: 8,
                     alignItems: "center",
+                    alignSelf: "flex-end",
+                    width: "15%",
                   }}
                   onPress={() => handleEditRoom(item)}
                 >
@@ -314,7 +320,7 @@ export default function RoomForm({ isDarkMode }) {
           />
         </View>
 
-        {/* Popup Modal */}
+        {/* MODAL */}
         <Modal animationType="fade" transparent={true} visible={popupVisible} onRequestClose={() => setPopupVisible(false)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#065f46" : "#ffffff", borderColor: isDarkMode ? "#ffd700" : "#10b981", borderWidth: 1 }]}>
@@ -381,6 +387,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 3,
+    alignSelf: "flex-end",
+    width: "15%",
   },
   btnText: { 
     color: "#fff", 
@@ -396,7 +404,7 @@ const styles = StyleSheet.create({
   modalBox: { 
     padding: 20, 
     borderRadius: 15, 
-    width: "80%", 
+    width: "30%", 
     alignItems: "center" 
   },
   modalBtn: { 
@@ -414,6 +422,43 @@ const styles = StyleSheet.create({
     padding: 15, 
     borderRadius: 12, 
     marginBottom: 12, 
-    borderWidth: 1 
+    borderWidth: 1 ,
+    width: "50%"
+  },
+  sideBySideContainer: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    flexWrap: "wrap" 
+  },
+  leftColumn: { 
+    flex: 1, 
+    minWidth: "45%", 
+    paddingRight: 10 
+  },
+    rightColumn: {
+    flex: 1,
+    minWidth: "45%",
+    paddingLeft: 10,
+  },
+  gridRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+  },
+  gridItem: {
+    width: "48%",
+  },
+  shadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#10b981",
+    marginVertical: 10,
+    opacity: 0.3,
   },
 });

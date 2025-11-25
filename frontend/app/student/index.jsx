@@ -364,6 +364,7 @@ export default function StudentDashboard() {
             data={notifications}
             keyExtractor={(item, index) => index.toString()}
             style={{ maxHeight: 300 }}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <TouchableOpacity
                 onPress={() => handleNotificationClick(item)}

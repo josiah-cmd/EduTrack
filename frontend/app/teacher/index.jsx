@@ -254,6 +254,7 @@ export default function TeacherDashboard() {
             data={notifications}
             keyExtractor={(item, index) => index.toString()}
             style={{ maxHeight: 300 }}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <TouchableOpacity onPress={() => handleNotificationClick(item)}>
                 <View style={styles.notificationItem}>
@@ -384,6 +385,9 @@ export default function TeacherDashboard() {
                 rooms.map((room, index) => (
                   <View key={index} style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : '#ccc' }}>
                     <Text style={[{ fontSize: 18, fontWeight: '600' }, textColor]}>{room.subject?.name}</Text>
+                    <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#333" }]}>
+                    {room.section?.name}
+                    </Text>
                     {/* ✅ adjusted to show multiple days and times */}
                     <Text style={{ color: isDarkMode ? '#ccc' : '#555' }}>
                       {formatDays(room.day)} {formatTimes(room.time)}
@@ -399,7 +403,7 @@ export default function TeacherDashboard() {
 
           {/* Subject Detail */}
           {currentView === "detail" && selectedRoom && (
-            <ScrollView contentContainerStyle={styles.detailContainer}>
+            <ScrollView contentContainerStyle={styles.detailContainer} showsVerticalScrollIndicator={false}>
               <View style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#12352E" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", }]}>
                 <Image source={{ uri: selectedRoom.teacher?.user?.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", }} style={styles.profileImage} />
                 <Text style={[styles.instructorName, { color: isDarkMode ? "#FFD700" : "#006400" }]}>

@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     pickBtn: {
         flex: 1,
         marginRight: 5,
-        backgroundColor: "#6c757d",
+        backgroundColor: "#006400",
         paddingVertical: 10,
         borderRadius: 6,
     },
@@ -348,13 +348,13 @@ const styles = StyleSheet.create({
     uploadBtn: {
         flex: 1,
         marginLeft: 5,
-        backgroundColor: "#007bff",
+        backgroundColor: "#FFD700",
         paddingVertical: 10,
         borderRadius: 6,
     },
     uploadBtnText: {
         textAlign: "center",
-        color: "#fff",
+        color: "#000",
         fontWeight: "600"
     },
 

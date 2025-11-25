@@ -94,6 +94,14 @@ export default function GradeList({ isDarkMode }) {
             style={[
               styles.quarterButton,
               selectedQuarter === quarterName && styles.activeQuarterButton,
+              // 🔥 ADDED VISIBILITY FIX
+              {
+                borderWidth: 1,
+                borderColor: isDarkMode ? "#475569" : "#cbd5e1",
+                shadowColor: "#000",
+                shadowOpacity: selectedQuarter === quarterName ? 0.2 : 0,
+                shadowRadius: 3,
+              },
             ]}
           >
             <Text
@@ -104,8 +112,11 @@ export default function GradeList({ isDarkMode }) {
                     selectedQuarter === quarterName
                       ? "#fff"
                       : isDarkMode
-                      ? "#cbd5e1"
+                      ? "#334155"
                       : "#1e293b",
+
+                  fontSize: 15, // 🔥 Improved readability
+                  fontWeight: "600",
                 },
               ]}
             >
@@ -232,7 +243,7 @@ export default function GradeList({ isDarkMode }) {
       )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {

@@ -78,7 +78,11 @@ class MaterialController extends Controller
     public function index(Request $request)
     {
         $type = $request->query('type');
-        $materials = Material::when($type, fn($q) => $q->where('type', $type))
+        $roomId = $request->query('room_id');
+
+        $materials = Material::query()
+            ->when($type, fn($q) => $q->where('type', $type))
+            ->when($roomId, fn($q) => $q->where('room_id', $roomId))
             ->with('teacher:id,name')
             ->orderBy('created_at', 'desc')
             ->get();

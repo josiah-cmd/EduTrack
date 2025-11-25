@@ -1,43 +1,100 @@
 import { Picker } from "@react-native-picker/picker";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { BarChart } from "react-native-chart-kit";
-import api from "../lib/axios"; // ✅ use centralized axios with token
+import api from "../lib/axios";
 
 export default function Reports({ isDarkMode }) {
+  // Loading & data
   const [loading, setLoading] = useState(true);
   const [performance, setPerformance] = useState([]);
   const [attendance, setAttendance] = useState([]);
-  const [subjectFilter, setSubjectFilter] = useState("All"); // ✅ added filter
+  const [completionRates, setCompletionRates] = useState([]);
 
-  // ✅ NEW STATES
-  const [completionRates, setCompletionRates] = useState([]); // for subject completion data
-  const [verifications, setVerifications] = useState({}); // for verified/unverified grades
+  // Filters & options
+  const [subjectFilter, setSubjectFilter] = useState("All");
+  const [sectionFilter, setSectionFilter] = useState("All");
+  const [teacherFilter, setTeacherFilter] = useState("All");
+  const [quarterFilter, setQuarterFilter] = useState("All");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const textColor = isDarkMode ? "#ffffff" : "#000000";
-  const subTextColor = isDarkMode ? "#cccccc" : "#555555";
-  const cardBg = isDarkMode ? "#1e1e1e" : "#f2f2f2";
-  const borderColor = isDarkMode ? "#333333" : "#dddddd";
+  const [subjectsOptions, setSubjectsOptions] = useState([]);
+  const [sectionsOptions, setSectionsOptions] = useState([]);
+  const [teachersOptions, setTeachersOptions] = useState([]);
+
+  // UI controls
+  const [filterOpen, setFilterOpen] = useState(true);
+  const [perfColumns, setPerfColumns] = useState({
+    student: true,
+    subject: true,
+    average: true,
+    grade: true,
+    verified: true,
+  });
+  const [attColumns, setAttColumns] = useState({
+    student: true,
+    subject: true,
+    present: true,
+    absent: true,
+  });
+  const [compColumns, setCompColumns] = useState({
+    subject: true,
+    total_students: true,
+    completed_students: true,
+    completion_rate: true,
+  });
+
+  // verification mapping
+  const [verifications, setVerifications] = useState({});
+
+  // anchors / scroll
+  const scrollRef = useRef(null);
+  const perfY = useRef(0);
+  const attendY = useRef(0);
+  const completionY = useRef(0);
+  const gradeAnalyticsY = useRef(0);
+
+  // color palette following RoomForm pattern
+  const textColor = isDarkMode ? "#ffffff" : "#064e3b";
+  const subTextColor = isDarkMode ? "#ffd700" : "#555555";
+  const cardBg = isDarkMode ? "#1a1a1a" : "#f2f2f2";
+  const borderColor = isDarkMode ? "#ffd700" : "#10b981";
+  const pickerBg = isDarkMode ? "#065f46" : "#ffffff";
+  const inputBg = isDarkMode ? "#065f46" : "#ffffff";
+  const primaryBtnBg = "#10b981";
+  const verifiedColor = "#4CAF50";
+  const unverifiedColor = "#F44336";
 
   useEffect(() => {
-    const fetchReports = async () => {
+    const fetchReports = async (params = {}) => {
       try {
         setLoading(true);
-        // ✅ UPDATED: Added call to completion rates endpoint
-        const [perfRes, attendRes, completionRes] = await Promise.all([
-          api.get("/reports/performance"),
-          api.get("/reports/attendance"),
-          api.get("/reports/completion-rates"), // ✅ new API call
+        const [perfRes, attendRes, compRes] = await Promise.all([
+          api.get("/reports/performance", { params }),
+          api.get("/reports/attendance", { params }),
+          api.get("/reports/completion-rates", { params }),
         ]);
 
         setPerformance(perfRes.data?.data || []);
         setAttendance(attendRes.data?.data?.records || []);
-        setCompletionRates(completionRes.data?.data || []); // ✅ store completion rates
+        setCompletionRates(compRes.data?.data || []);
 
-        // ✅ Extract verification info if available from backend (assuming added to /reports/performance)
+        // build verifications map if backend provides is_verified per item
         const verifData = {};
         (perfRes.data?.data || []).forEach((item) => {
-          verifData[item.id] = item.is_verified;
+          verifData[item.id] = !!item.is_verified;
         });
         setVerifications(verifData);
       } catch (err) {
@@ -47,19 +104,102 @@ export default function Reports({ isDarkMode }) {
       }
     };
 
+    const fetchFilterOptions = async () => {
+      try {
+        const [sRes, secRes, tRes] = await Promise.all([
+          api.get("/subjects"),
+          api.get("/sections"),
+          api.get("/teachers"),
+        ]);
+        setSubjectsOptions(sRes.data?.data || sRes.data || []);
+        setSectionsOptions(secRes.data?.data || secRes.data || []);
+        setTeachersOptions(tRes.data?.data || tRes.data || []);
+      } catch (e) {
+        console.warn("Could not load filter options:", e.message || e);
+      }
+    };
+
     fetchReports();
+    fetchFilterOptions();
   }, []);
+
+  const applyFilters = async () => {
+    const params = {};
+    if (subjectFilter && subjectFilter !== "All") params.subject = subjectFilter;
+    if (sectionFilter && sectionFilter !== "All") params.section = sectionFilter;
+    if (teacherFilter && teacherFilter !== "All") params.teacher = teacherFilter;
+    if (quarterFilter && quarterFilter !== "All") params.quarter = quarterFilter;
+    if (dateFrom) params.date_from = dateFrom;
+    if (dateTo) params.date_to = dateTo;
+    if (searchTerm) params.search = searchTerm;
+
+    try {
+      setLoading(true);
+      const [perfRes, attendRes, compRes] = await Promise.all([
+        api.get("/reports/performance", { params }),
+        api.get("/reports/attendance", { params }),
+        api.get("/reports/completion-rates", { params }),
+      ]);
+
+      setPerformance(perfRes.data?.data || []);
+      setAttendance(attendRes.data?.data?.records || []);
+      setCompletionRates(compRes.data?.data || []);
+
+      const verifData = {};
+      (perfRes.data?.data || []).forEach((item) => {
+        verifData[item.id] = !!item.is_verified;
+      });
+      setVerifications(verifData);
+    } catch (err) {
+      console.error("Error applying filters:", err.response?.data || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetFilters = async () => {
+    setSubjectFilter("All");
+    setSectionFilter("All");
+    setTeacherFilter("All");
+    setQuarterFilter("All");
+    setDateFrom("");
+    setDateTo("");
+    setSearchTerm("");
+
+    try {
+      setLoading(true);
+      const [perfRes, attendRes, compRes] = await Promise.all([
+        api.get("/reports/performance"),
+        api.get("/reports/attendance"),
+        api.get("/reports/completion-rates"),
+      ]);
+
+      setPerformance(perfRes.data?.data || []);
+      setAttendance(attendRes.data?.data?.records || []);
+      setCompletionRates(compRes.data?.data || []);
+
+      const verifData = {};
+      (perfRes.data?.data || []).forEach((item) => {
+        verifData[item.id] = !!item.is_verified;
+      });
+      setVerifications(verifData);
+    } catch (err) {
+      console.error("Error resetting filters:", err.response?.data || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
-      <View style={[styles.center, { flex: 1, backgroundColor: isDarkMode ? "#121212" : "#fff" }]}>
-        <ActivityIndicator size="large" color={isDarkMode ? "#4CAF50" : "#2e7d32"} />
+      <View style={[styles.center, { flex: 1, backgroundColor: isDarkMode ? "#121212" : "#ffffff" }]}>
+        <ActivityIndicator size="large" color={primaryBtnBg} />
         <Text style={{ color: textColor, marginTop: 10 }}>Loading reports...</Text>
       </View>
     );
   }
 
-  // ✅ Compute summary stats
+  // Summary stats
   const totalStudents = [...new Set(performance.map((p) => p.student_name))].length;
   const avgGrade =
     performance.length > 0
@@ -74,281 +214,486 @@ export default function Reports({ isDarkMode }) {
         ).toFixed(1)
       : 0;
 
-  // ✅ Filtered data
-  const filteredPerformance =
-    subjectFilter === "All"
-      ? performance
-      : performance.filter((item) => item.subject_name === subjectFilter);
+  // Filtered lists
+  const filteredPerformance = performance
+    .filter((item) => (subjectFilter === "All" ? true : item.subject_name === subjectFilter))
+    .filter((item) => {
+      if (!searchTerm) return true;
+      const q = searchTerm.trim().toLowerCase();
+      const name = (item.student_name || "").toLowerCase();
+      const lrn = (item.lrn || "").toLowerCase();
+      return name.includes(q) || lrn.includes(q);
+    })
+    .filter((item) => (sectionFilter === "All" ? true : (item.section_name || "") === sectionFilter))
+    .filter((item) => (teacherFilter === "All" ? true : (item.teacher_name || "") === teacherFilter));
 
-  // ✅ For chart visualization
-  const subjects = [...new Set(performance.map((p) => p.subject_name))];
+  const filteredAttendance = attendance
+    .filter((item) => (subjectFilter === "All" ? true : item.subject_name === subjectFilter))
+    .filter((item) => {
+      if (!searchTerm) return true;
+      const q = searchTerm.trim().toLowerCase();
+      const name = (item.student_name || "").toLowerCase();
+      const lrn = (item.lrn || "").toLowerCase();
+      return name.includes(q) || lrn.includes(q);
+    })
+    .filter((item) => (sectionFilter === "All" ? true : (item.section_name || "") === sectionFilter))
+    .filter((item) => (teacherFilter === "All" ? true : (item.teacher_name || "") === teacherFilter));
+
+  // Chart data (avg per subject)
+  const subjects = [...new Set(performance.map((p) => p.subject_name || "Unknown"))];
   const avgPerSubject = subjects.map((sub) => {
     const subData = performance.filter((p) => p.subject_name === sub);
-    return (
-      subData.reduce((sum, p) => sum + parseFloat(p.grade || 0), 0) / subData.length
-    ).toFixed(2);
+    const avg = subData.length
+      ? subData.reduce((sum, p) => sum + parseFloat(p.grade || 0), 0) / subData.length
+      : 0;
+    return parseFloat(avg.toFixed(2));
   });
 
+  const scrollTo = (y) => {
+    if (!scrollRef.current) return;
+    try {
+      scrollRef.current.scrollTo({ y, animated: true });
+    } catch (e) {
+      // fallback
+      scrollRef.current.scrollTo({ x: 0, y });
+    }
+  };
+
   return (
-    <ScrollView>
-      <Text style={[styles.title, { color: textColor }]}>Reports</Text>
-      <Text style={[styles.subtitle, { color: subTextColor }]}>
-        Academic and performance overview
-      </Text>
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
+      <View style={{ padding: 15 }}>
+        <Text style={[styles.title, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Reports</Text>
+        <Text style={[styles.subtitle, { color: isDarkMode ? "#fff" : "#555555" }]}>Academic and performance overview</Text>
 
-      {/* ✅ Summary Cards */}
-      <View style={styles.summaryContainer}>
-        <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.summaryLabel, { color: subTextColor }]}>Total Students</Text>
-          <Text style={[styles.summaryValue, { color: textColor }]}>{totalStudents}</Text>
+        {/* Tabs */}
+        <View style={[styles.tabsContainer]}>
+          <TouchableOpacity style={[styles.tabBtn]} onPress={() => scrollTo(perfY.current)}>
+            <Text style={styles.tabText}>Performance</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabBtn]} onPress={() => scrollTo(attendY.current)}>
+            <Text style={styles.tabText}>Attendance</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabBtn]} onPress={() => scrollTo(completionY.current)}>
+            <Text style={styles.tabText}>Completion Rates</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabBtn]} onPress={() => scrollTo(gradeAnalyticsY.current)}>
+            <Text style={styles.tabText}>Grade Analytics</Text>
+          </TouchableOpacity>
         </View>
-        <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.summaryLabel, { color: subTextColor }]}>Avg Grade</Text>
-          <Text style={[styles.summaryValue, { color: textColor }]}>{avgGrade}%</Text>
-        </View>
-        <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.summaryLabel, { color: subTextColor }]}>Avg Attendance</Text>
-          <Text style={[styles.summaryValue, { color: textColor }]}>{avgAttendance}%</Text>
-        </View>
-      </View>
 
-      {/* ✅ Subject Filter */}
-      <View style={{ marginHorizontal: 15, marginBottom: 15 }}>
-        <Text style={{ color: textColor, marginBottom: 5 }}>Filter by Subject:</Text>
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor,
-            borderRadius: 10,
-            overflow: "hidden",
-          }}
-        >
-          <Picker
-            selectedValue={subjectFilter}
-            onValueChange={(itemValue) => setSubjectFilter(itemValue)}
-            style={{ color: textColor, backgroundColor: cardBg }}
-          >
-            <Picker.Item label="All" value="All" />
-            {subjects.map((sub, i) => (
-              <Picker.Item key={i} label={sub} value={sub} />
-            ))}
-          </Picker>
-        </View>
-      </View>
+        {/* Filters */}
+        <View style={[styles.filterCard, { backgroundColor: cardBg, borderColor: borderColor }]}>
+          <TouchableOpacity onPress={() => setFilterOpen((s) => !s)} style={styles.filterHeader}>
+            <Text style={[{ fontWeight: "700", fontSize: 16 }, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>
+              Filters {filterOpen ? "▾" : "▸"}
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TouchableOpacity onPress={resetFilters} style={styles.resetBtn}>
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={applyFilters} style={styles.applyBtn}>
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
 
-      {/* Student Performance Report */}
-      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-        <Text style={[styles.sectionTitle, { color: textColor }]}>
-          Student Performance Report
-        </Text>
-        <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Student</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Average</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Grade</Text>
-          {/* ✅ NEW HEADER */}
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Verified</Text>
+          {filterOpen && (
+            <View style={{ paddingTop: 12 }}>
+              <View style={styles.filterRow}>
+                <View style={styles.filterCol}>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Subject</Text>
+                  <View style={[styles.pickerWrap, { backgroundColor: pickerBg, borderColor }]}>
+                    <Picker
+                      selectedValue={subjectFilter}
+                      onValueChange={(v) => setSubjectFilter(v)}
+                      style={styles.picker(isDarkMode)}
+                      dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"}
+                    >
+                      <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#10b981"} />
+                      {subjectsOptions.map((s) => (
+                        <Picker.Item key={s.id || s.name} label={s.name || s.title || s.subject_name} value={s.name || s.title || s.subject_name} color={isDarkMode ? "#fff" : "#064e3b"} />
+                      ))}
+                      {subjects.map((sub, i) => (
+                        <Picker.Item key={`auto-${i}`} label={sub} value={sub} color={isDarkMode ? "#fff" : "#064e3b"} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                <View style={styles.filterCol}>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Section</Text>
+                  <View style={[styles.pickerWrap, { backgroundColor: pickerBg, borderColor }]}>
+                    <Picker
+                      selectedValue={sectionFilter}
+                      onValueChange={(v) => setSectionFilter(v)}
+                      style={styles.picker(isDarkMode)}
+                      dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"}
+                    >
+                      <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#10b981"} />
+                      {sectionsOptions.map((s) => (
+                        <Picker.Item key={s.id || s.name} label={s.name || s.title} value={s.name || s.title} color={isDarkMode ? "#fff" : "#064e3b"} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                <View style={styles.filterCol}>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Teacher</Text>
+                  <View style={[styles.pickerWrap, { backgroundColor: pickerBg, borderColor }]}>
+                    <Picker
+                      selectedValue={teacherFilter}
+                      onValueChange={(v) => setTeacherFilter(v)}
+                      style={styles.picker(isDarkMode)}
+                      dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"}
+                    >
+                      <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#10b981"} />
+                      {teachersOptions.map((t) => (
+                        <Picker.Item key={t.id} label={t.user?.name || t.name} value={t.user?.name || t.name} color={isDarkMode ? "#fff" : "#064e3b"} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                <View style={styles.filterCol}>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Quarter</Text>
+                  <View style={[styles.pickerWrap, { backgroundColor: pickerBg, borderColor }]}>
+                    <Picker
+                      selectedValue={quarterFilter}
+                      onValueChange={(v) => setQuarterFilter(v)}
+                      style={styles.picker(isDarkMode)}
+                      dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"}
+                    >
+                      <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#10b981"} />
+                      <Picker.Item label="Q1" value="Q1" color={isDarkMode ? "#fff" : "#064e3b"} />
+                      <Picker.Item label="Q2" value="Q2" color={isDarkMode ? "#fff" : "#064e3b"} />
+                      <Picker.Item label="Q3" value="Q3" color={isDarkMode ? "#fff" : "#064e3b"} />
+                      <Picker.Item label="Q4" value="Q4" color={isDarkMode ? "#fff" : "#064e3b"} />
+                    </Picker>
+                  </View>
+                </View>
+              </View>
+
+              <View style={[styles.filterRow, { marginTop: 12 }]}>
+                <View style={[styles.filterCol, { flex: 1.5 }]}>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Date From</Text>
+                  <TextInput
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={isDarkMode ? "#ffd700" : "#999"}
+                    value={dateFrom}
+                    onChangeText={setDateFrom}
+                    style={[styles.inputSmall, { color: textColor, backgroundColor: inputBg, borderColor }]}
+                  />
+                </View>
+
+                <View style={[styles.filterCol, { flex: 1.5 }]}>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Date To</Text>
+                  <TextInput
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={isDarkMode ? "#ffd700" : "#999"}
+                    value={dateTo}
+                    onChangeText={setDateTo}
+                    style={[styles.inputSmall, { color: textColor, backgroundColor: inputBg, borderColor }]}
+                  />
+                </View>
+
+                <View style={[styles.filterCol, { flex: 2 }]}>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Search (Name or LRN)</Text>
+                  <TextInput
+                    placeholder="Search by student name or LRN..."
+                    placeholderTextColor={isDarkMode ? "#ffd700" : "#999"}
+                    value={searchTerm}
+                    onChangeText={setSearchTerm}
+                    style={[styles.input, { color: textColor, backgroundColor: isDarkMode ? "#fff" : "#fff" }]}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
         </View>
-        {filteredPerformance.length === 0 ? (
-          <Text style={[styles.emptyText, { color: subTextColor }]}>
-            No performance data available.
-          </Text>
-        ) : (
-          filteredPerformance.map((item, index) => (
-            <View
-              key={index}
-              style={[
-                styles.tableRow,
-                { borderBottomColor: borderColor },
-              ]}
-            >
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.student_name}
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.subject_name}
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.average_score}%
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.grade}
-              </Text>
-              {/* ✅ NEW COLUMN */}
-              <Text
+
+        {/* Summary Cards */}
+        <View style={styles.summaryContainer}>
+          <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
+            <Text style={[styles.summaryLabel, { color: subTextColor }]}>Total Students</Text>
+            <Text style={[styles.summaryValue, { color: textColor }]}>{totalStudents}</Text>
+          </View>
+          <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
+            <Text style={[styles.summaryLabel, { color: subTextColor }]}>Avg Grade</Text>
+            <Text style={[styles.summaryValue, { color: textColor }]}>{avgGrade}%</Text>
+          </View>
+          <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
+            <Text style={[styles.summaryLabel, { color: subTextColor }]}>Avg Attendance</Text>
+            <Text style={[styles.summaryValue, { color: textColor }]}>{avgAttendance}%</Text>
+          </View>
+        </View>
+
+        {/* Performance Section */}
+        <View onLayout={(e) => { perfY.current = e.nativeEvent.layout.y; }} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Student Performance Report</Text>
+
+          <View style={styles.columnToggleRow}>
+            <Text style={{ color: isDarkMode ? "#fff" : "#555", marginRight: 8 }}>Columns:</Text>
+            {Object.keys(perfColumns).map((k) => (
+              <TouchableOpacity
+                key={k}
+                onPress={() => setPerfColumns((s) => ({ ...s, [k]: !s[k] }))}
                 style={[
-                  styles.td,
-                  {
-                    color: verifications[item.id]
-                      ? "#4CAF50"
-                      : "#F44336",
-                    flex: 1,
-                  },
+                  styles.colToggle,
+                  { backgroundColor: perfColumns[k] ? primaryBtnBg : (isDarkMode ? "#2b2b2b" : "#eee") },
                 ]}
               >
-                {verifications[item.id] ? "Verified" : "Unverified"}
-              </Text>
-            </View>
-          ))
-        )}
-      </View>
+                <Text style={{ color: perfColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#555"), fontSize: 12 }}>
+                  {k.charAt(0).toUpperCase() + k.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-      {/* Attendance Records */}
-      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-        <Text style={[styles.sectionTitle, { color: textColor }]}>
-          Attendance Records
-        </Text>
-        <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Student</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Present</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Absent</Text>
-        </View>
-        {attendance.length === 0 ? (
-          <Text style={[styles.emptyText, { color: subTextColor }]}>
-            No attendance data available.
-          </Text>
-        ) : (
-          attendance.map((item, index) => (
-            <View
-              key={index}
-              style={[
-                styles.tableRow,
-                { borderBottomColor: borderColor },
-              ]}
-            >
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.student_name}
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.subject_name}
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.present_days}
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.absent_days}
-              </Text>
-            </View>
-          ))
-        )}
-      </View>
+          <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
+            {perfColumns.student && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Student</Text>}
+            {perfColumns.subject && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>}
+            {perfColumns.average && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Average</Text>}
+            {perfColumns.grade && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Grade</Text>}
+            {perfColumns.verified && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Verified</Text>}
+          </View>
 
-      {/* ✅ Grade Distribution Chart */}
-      {subjects.length > 0 && (
-        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Grade Distribution</Text>
-          <BarChart
-            data={{
-              labels: subjects,
-              datasets: [{ data: avgPerSubject.map((n) => parseFloat(n)) }],
-            }}
-            width={Dimensions.get("window").width - 30}
-            height={220}
-            yAxisSuffix="%"
-            chartConfig={{
-              backgroundColor: cardBg,
-              backgroundGradientFrom: cardBg,
-              backgroundGradientTo: cardBg,
-              decimalPlaces: 1,
-              color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
-              labelColor: () => textColor,
-            }}
-            style={{ borderRadius: 16 }}
-          />
+          {filteredPerformance.length === 0 ? (
+            <Text style={[styles.emptyText, { color: subTextColor }]}>No performance data available.</Text>
+          ) : (
+            filteredPerformance.map((item, index) => (
+              <View key={index} style={[styles.tableRow, { borderBottomColor: borderColor }]}>
+                {perfColumns.student && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.student_name}</Text>}
+                {perfColumns.subject && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.subject_name}</Text>}
+                {perfColumns.average && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.average_score}%</Text>}
+                {perfColumns.grade && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.grade}</Text>}
+                {perfColumns.verified && (
+                  <Text style={[styles.td, { color: verifications[item.id] ? verifiedColor : unverifiedColor, flex: 1 }]}>
+                    {verifications[item.id] ? "Verified" : "Unverified"}
+                  </Text>
+                )}
+              </View>
+            ))
+          )}
         </View>
-      )}
 
-      {/* ✅ NEW SECTION: Subject Completion Rates */}
-      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-        <Text style={[styles.sectionTitle, { color: textColor }]}>Subject Completion Rates</Text>
-        <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Total Students</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Completed</Text>
-          <Text style={[styles.th, { color: textColor, flex: 1 }]}>Completion %</Text>
+        {/* Attendance Section */}
+        <View onLayout={(e) => { attendY.current = e.nativeEvent.layout.y; }} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Attendance Records</Text>
+
+          <View style={styles.columnToggleRow}>
+            <Text style={{ color: isDarkMode ? "#fff" : "#555", marginRight: 8 }}>Columns:</Text>
+            {Object.keys(attColumns).map((k) => (
+              <TouchableOpacity
+                key={k}
+                onPress={() => setAttColumns((s) => ({ ...s, [k]: !s[k] }))}
+                style={[
+                  styles.colToggle,
+                  { backgroundColor: attColumns[k] ? primaryBtnBg : (isDarkMode ? "#2b2b2b" : "#eee") },
+                ]}
+              >
+                <Text style={{ color: attColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#555"), fontSize: 12 }}>
+                  {k.charAt(0).toUpperCase() + k.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
+            {attColumns.student && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Student</Text>}
+            {attColumns.subject && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>}
+            {attColumns.present && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Present</Text>}
+            {attColumns.absent && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Absent</Text>}
+          </View>
+
+          {filteredAttendance.length === 0 ? (
+            <Text style={[styles.emptyText, { color: subTextColor }]}>No attendance data available.</Text>
+          ) : (
+            filteredAttendance.map((item, index) => (
+              <View key={index} style={[styles.tableRow, { borderBottomColor: borderColor }]}>
+                {attColumns.student && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.student_name}</Text>}
+                {attColumns.subject && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.subject_name}</Text>}
+                {attColumns.present && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.present_days}</Text>}
+                {attColumns.absent && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.absent_days}</Text>}
+              </View>
+            ))
+          )}
         </View>
-        {completionRates.length === 0 ? (
-          <Text style={[styles.emptyText, { color: subTextColor }]}>
-            No completion data available.
-          </Text>
-        ) : (
-          completionRates.map((item, index) => (
-            <View
-              key={index}
-              style={[styles.tableRow, { borderBottomColor: borderColor }]}
-            >
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.subject_name}
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.total_students}
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.completed_students}
-              </Text>
-              <Text style={[styles.td, { color: textColor, flex: 1 }]}>
-                {item.completion_rate}%
-              </Text>
-            </View>
-          ))
-        )}
+
+        {/* Grade Distribution Chart */}
+        <View onLayout={(e) => { gradeAnalyticsY.current = e.nativeEvent.layout.y; }} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Grade Distribution</Text>
+          {subjects.length > 0 ? (
+            <BarChart
+              data={{
+                labels: subjects,
+                datasets: [{ data: avgPerSubject }],
+              }}
+              width={Dimensions.get("window").width - 30}
+              height={220}
+              yAxisSuffix="%"
+              fromZero
+              chartConfig={{
+                backgroundColor: cardBg,
+                backgroundGradientFrom: cardBg,
+                backgroundGradientTo: cardBg,
+                decimalPlaces: 1,
+                color: (opacity = 1) => `rgba(16,185,129, ${opacity})`, // primary green, matches RoomForm btn
+                labelColor: () => (isDarkMode ? "#ffd700" : "#064e3b"),
+              }}
+              style={{ borderRadius: 16 }}
+            />
+          ) : (
+            <Text style={[styles.emptyText, { color: subTextColor }]}>No grade data available.</Text>
+          )}
+        </View>
+
+        {/* Completion Rates */}
+        <View onLayout={(e) => { completionY.current = e.nativeEvent.layout.y; }} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Subject Completion Rates</Text>
+
+          <View style={styles.columnToggleRow}>
+            <Text style={{ color: isDarkMode ? "#fff" : "#555", marginRight: 8 }}>Columns:</Text>
+            {Object.keys(compColumns).map((k) => (
+              <TouchableOpacity
+                key={k}
+                onPress={() => setCompColumns((s) => ({ ...s, [k]: !s[k] }))}
+                style={[
+                  styles.colToggle,
+                  { backgroundColor: compColumns[k] ? primaryBtnBg : (isDarkMode ? "#2b2b2b" : "#eee") },
+                ]}
+              >
+                <Text style={{ color: compColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#555"), fontSize: 12 }}>
+                  {k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
+            {compColumns.subject && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Subject</Text>}
+            {compColumns.total_students && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Total Students</Text>}
+            {compColumns.completed_students && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Completed</Text>}
+            {compColumns.completion_rate && <Text style={[styles.th, { color: textColor, flex: 1 }]}>Completion %</Text>}
+          </View>
+
+          {completionRates.length === 0 ? (
+            <Text style={[styles.emptyText, { color: subTextColor }]}>No completion data available.</Text>
+          ) : (
+            completionRates.map((item, index) => (
+              <View key={index} style={[styles.tableRow, { borderBottomColor: borderColor }]}>
+                {compColumns.subject && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.subject_name}</Text>}
+                {compColumns.total_students && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.total_students}</Text>}
+                {compColumns.completed_students && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.completed_students}</Text>}
+                {compColumns.completion_rate && <Text style={[styles.td, { color: textColor, flex: 1 }]}>{item.completion_rate}%</Text>}
+              </View>
+            ))
+          )}
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginLeft: 15,
-    marginTop: 10,
-  },
-  subtitle: {
-    fontSize: 14,
-    marginBottom: 20,
-    marginLeft: 15,
-  },
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    marginHorizontal: 10,
-    marginBottom: 20,
-    padding: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  tableHeader: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    paddingBottom: 8,
-    marginBottom: 5,
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 0.5,
-    paddingVertical: 6,
-  },
-  th: {
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  td: {
-    fontSize: 14,
-  },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 10,
-    fontSize: 14,
-  },
   center: {
     justifyContent: "center",
     alignItems: "center",
   },
+
+  title: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginBottom: 14,
+  },
+
+  tabsContainer: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  tabBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#006400",
+    marginRight: 8,
+  },
+  tabText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+
+  filterCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 16,
+  },
+  filterHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  resetBtn: {
+    marginLeft: 8,
+    backgroundColor: "#888",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  applyBtn: {
+    marginLeft: 8,
+    backgroundColor: "#10b981",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+
+  filterRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 6,
+  },
+  filterCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  filterLabel: {
+    marginBottom: 6,
+    fontWeight: "600",
+  },
+
+  pickerWrap: {
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  picker: (isDarkMode) => ({
+    color: isDarkMode ? "#ffd700" : "#064e3b",
+    backgroundColor: isDarkMode ? "#065f46" : "#ffffff",
+    fontSize: 15,
+    height: 55,
+    paddingHorizontal: 10,
+  }),
+
+  inputSmall: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === "web" ? 8 : 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: Platform.OS === "web" ? 10 : 8,
+    backgroundColor: "#fff",
+  },
+
   summaryContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -368,4 +713,56 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-}); 
+
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+    padding: 15,
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+
+  tableHeader: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    paddingBottom: 8,
+    marginBottom: 5,
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    paddingVertical: 6,
+  },
+  th: {
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  td: {
+    fontSize: 14,
+  },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 10,
+    fontSize: 14,
+  },
+
+  /* column toggles */
+  columnToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    flexWrap: "wrap",
+  },
+  colToggle: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+});
