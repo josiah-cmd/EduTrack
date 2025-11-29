@@ -2,10 +2,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-export const API_URL = "http://192.168.0.102:8000/api";
+// Use the Vercel environment variable + append /api
+export const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 const api = axios.create({
-  baseURL: "http://192.168.0.102:8000/api", // ✅ your backend
+  baseURL: API_URL, // now uses your Render backend in production
 });
 
 // Attach token automatically
