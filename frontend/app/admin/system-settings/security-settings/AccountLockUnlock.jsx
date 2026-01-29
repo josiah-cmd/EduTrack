@@ -68,13 +68,13 @@ export default function AccountLockUnlock({ isDarkMode, onBack }) {
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={[styles.title, textColor]}>Account Lock/Unlock</Text>
-      <Text style={[styles.desc, { color: isDarkMode ? "#aaa" : "#555" }]}>
+      <Text style={[styles.desc, { color: isDarkMode ? "#aaa" : "#000000" }]}>
         Manage user access by locking or unlocking accounts manually.
       </Text>
 
       <TextInput
         placeholder="Search by name, email, or role..."
-        placeholderTextColor={isDarkMode ? "#777" : "#aaa"}
+        placeholderTextColor={isDarkMode ? "#F7F7F7" : "#000000"}
         value={search}
         onChangeText={setSearch}
         style={[
@@ -129,7 +129,7 @@ export default function AccountLockUnlock({ isDarkMode, onBack }) {
             <Text style={[styles.modalTitle, textColor]}>
               {actionType === "lock" ? "Lock Account" : "Unlock Account"}
             </Text>
-            <Text style={[styles.modalMessage, { color: isDarkMode ? "#ccc" : "#444" }]}>
+            <Text style={[styles.modalMessage, { color: isDarkMode ? "#ccc" : "#000000" }]}>
               {actionType === "lock"
                 ? `Are you sure you want to lock ${selectedUser?.name}'s account? They won't be able to log in until unlocked.`
                 : `Are you sure you want to unlock ${selectedUser?.name}'s account? They will regain access to the system.`}

@@ -22,7 +22,13 @@ class SystemMaintenanceController extends Controller
                 return [
                     'id' => $log->id,
                     'action' => $log->action,
+
+                    // ✅ raw timestamp for frontend relative time
+                    'created_at' => $log->created_at->toISOString(),
+
+                    // 🔹 optional legacy field (can be removed later)
                     'time' => $log->created_at->format('Y-m-d h:i A'),
+
                     'user' => $log->user->name ?? 'System',
                     'ip_address' => $log->ip_address,
                 ];

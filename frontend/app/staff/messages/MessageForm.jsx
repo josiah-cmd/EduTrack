@@ -88,34 +88,34 @@ export default function MessageForm({ onSent, isDarkMode }) {
   return (
     <View style={styles.form}>
       {/* Recipient */}
-      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Recipient</Text>
+      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#F7F7F7" }]}>Recipient</Text>
       <TextInput
         placeholder="Enter recipient email"
-        placeholderTextColor={isDarkMode ? "#aaa" : "#888"}
+        placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
         value={selectedRecipient}
         onChangeText={setSelectedRecipient}
         style={[
           styles.input,
-          { color: isDarkMode ? "#fff" : "#000", borderColor: isDarkMode ? "#555" : "#ccc" },
+          { color: isDarkMode ? "#fff" : "#F7F7F7", borderColor: isDarkMode ? "#000000" : "#000000" },
         ]}
       />
 
       {/* Subject */}
-      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Subject</Text>
+      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#F7F7F7" }]}>Subject</Text>
       <TextInput
         style={[
           styles.input,
-          { color: isDarkMode ? "#fff" : "#000", borderColor: isDarkMode ? "#555" : "#ccc" },
+          { color: isDarkMode ? "#fff" : "#F7F7F7", borderColor: isDarkMode ? "#000000" : "#000000" },
         ]}
         placeholder="Enter subject"
-        placeholderTextColor={isDarkMode ? "#aaa" : "#888"}
+        placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
         value={subject}
         onChangeText={setSubject}
       />
 
       {/* Message */}
-      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#000" }]}>Message</Text>
-      <View style={[styles.editorContainer, { borderColor: isDarkMode ? "#555" : "#ccc" }]}>
+      <Text style={[styles.label, { color: isDarkMode ? "#fff" : "#F7F7F7" }]}>Message</Text>
+      <View style={[styles.editorContainer, { borderColor: isDarkMode ? "#000000" : "#ccc" }]}>
         {editorModules && editorModules.CKEditor && editorModules.ClassicEditor ? (
           <editorModules.CKEditor
             editor={editorModules.ClassicEditor}
@@ -151,7 +151,7 @@ export default function MessageForm({ onSent, isDarkMode }) {
           <TextInput
             style={[styles.input, { height: 120, textAlignVertical: "top" }]}
             placeholder="Write your message..."
-            placeholderTextColor={isDarkMode ? "#aaa" : "#888"}
+            placeholderTextColor={isDarkMode ? "#aaa" : "#000000"}
             value={content}
             onChangeText={setContent}
             multiline
@@ -200,6 +200,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 4,
+    backgroundColor: "#808080",
   },
   label: {
     fontSize: 16,
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   sendButton: {
-    backgroundColor: "#28a745",
+    backgroundColor: "#0E5149",
     padding: 14,
     borderRadius: 10,
     alignItems: "center",

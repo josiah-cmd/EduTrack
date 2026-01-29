@@ -14,9 +14,20 @@ use App\Models\Room;
 
 class QuizController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $quizzes = Quiz::with('questions')->orderBy('created_at', 'desc')->get();
+        $query = Quiz::with('questions');
+
+        // ✅ Only classroom quizzes
+        $query->where('is_test_bank', false);
+
+        // ✅ Filter by room if provided
+        if ($request->has('room_id')) {
+            $query->where('room_id', $request->room_id);
+        }
+
+        $quizzes = $query->orderBy('created_at', 'desc')->get();
+
         return response()->json($quizzes);
     }
 
@@ -25,25 +36,32 @@ class QuizController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'instructions' => 'nullable|string',
-            'start_time' => 'required|date',
-            'end_time' => 'required|date|after:start_time',
+            'start_time' => 'nullable|date',
+            'end_time' => 'nullable|date|after:start_time',
             'duration' => 'required|integer|min:1',
             'passing_score' => 'nullable|numeric|min:0',
             'total_points' => 'nullable|numeric|min:0',
-            'room_id' => 'required|exists:rooms,id',
+            'room_id' => 'nullable|exists:rooms,id',
+            'is_test_bank' => 'sometimes|boolean',
         ]);
 
         $quiz = Quiz::create([
             'teacher_id' => auth()->user()->teacher->id,
-            'room_id' => $validated['room_id'],
+            'room_id' => $validated['room_id'] ?? null,
             'title' => $validated['title'],
             'instructions' => $validated['instructions'] ?? null,
-            'start_time' => $validated['start_time'],
-            'end_time' => $validated['end_time'],
+            'start_time' => $validated['start_time'] ?? null,
+            'end_time' => $validated['end_time'] ?? null,
             'duration' => $validated['duration'],
             'passing_score' => $validated['passing_score'] ?? 0,
             'total_points' => $validated['total_points'] ?? 0,
-            'status' => 'draft',
+
+            // ✅ AUTO-PUBLISH if assigned to a room and NOT test bank
+            'status' => (!empty($validated['room_id']) && empty($validated['is_test_bank']))
+                ? 'published'
+                : 'draft',
+
+            'is_test_bank' => $validated['is_test_bank'] ?? false,
         ]);
 
         return response()->json($quiz, 201);
@@ -73,6 +91,7 @@ class QuizController extends Controller
                     'type' => $q['type'],
                     'points' => $q['points'],
                     'correct_answer' => $q['correct_answer'],
+                    'is_test_bank' => false,
                 ]);
 
                 if (isset($q['options']) && is_array($q['options']) && count($q['options']) > 0) {
@@ -126,13 +145,10 @@ class QuizController extends Controller
                 $recipients = $quiz->room->students->pluck('id')->filter()->toArray();
 
                 if (!empty($recipients)) {
-                    $title = "[QUIZ] " . $quiz->title;
-                    $body = "A new quiz has been published by {$teacher->name}.";
-
                     NotificationService::notify(
                         'quiz',
-                        $title,
-                        $body,
+                        "[QUIZ] {$quiz->title}",
+                        "A new quiz has been published by {$teacher->name}.",
                         $teacher->id,
                         $recipients,
                         $quiz->room->section_id
@@ -155,6 +171,13 @@ class QuizController extends Controller
     public function toggleStatus($id)
     {
         $quiz = Quiz::findOrFail($id);
+
+        if ($quiz->status === 'draft' && $quiz->questions()->count() === 0) {
+                return response()->json([
+                    'error' => 'Cannot publish a quiz with no questions.'
+                ], 422);
+            }
+
         $quiz->status = $quiz->status === 'published' ? 'draft' : 'published';
         $quiz->save();
 
@@ -176,13 +199,11 @@ class QuizController extends Controller
                 'type' => $q->type,
                 'points' => $q->points,
                 'correct_answer' => $q->correct_answer,
-                'options' => $q->options->map(function ($o) {
-                    return [
-                        'label' => $o->label,
-                        'text' => $o->text,
-                        'id' => $o->id,
-                    ];
-                }),
+                'options' => $q->options->map(fn ($o) => [
+                    'id' => $o->id,
+                    'label' => $o->label,
+                    'text' => $o->text,
+                ]),
             ];
         });
 
@@ -197,55 +218,152 @@ class QuizController extends Controller
         ]);
     }
 
-    public function publish($id)
+    /* ========================= TEST BANK LOGIC ========================= */
+
+    public function saveToTestBank($id)
     {
-        $quiz = Quiz::with('room.students')->findOrFail($id);
-        $quiz->status = 'published';
-        $quiz->save();
+        $quiz = Quiz::with('questions.options')->findOrFail($id);
 
-        $teacher = Auth::user();
+        DB::beginTransaction();
+        try {
+            $bankQuiz = Quiz::create([
+                'teacher_id' => $quiz->teacher_id,
+                'room_id' => null,
+                'start_time' => null,
+                'end_time' => null,
+                'title' => $quiz->title,
+                'instructions' => $quiz->instructions,
+                'duration' => $quiz->duration,
+                'passing_score' => $quiz->passing_score,
+                'total_points' => $quiz->total_points,
+                'status' => 'draft',
+                'is_test_bank' => true,
+            ]);
 
-        if ($quiz->room && $quiz->room->students->count() > 0) {
-            $recipients = $quiz->room->students->pluck('id')->filter()->toArray();
+            foreach ($quiz->questions as $q) {
+                $newQuestion = Question::create([
+                    'quiz_id' => $bankQuiz->id,
+                    'teacher_id' => $quiz->teacher_id,
+                    'question_text' => $q->question_text,
+                    'type' => $q->type,
+                    'correct_answer' => $q->correct_answer,
+                    'points' => $q->points,
+                    'is_test_bank' => true,
+                ]);
 
-            if (!empty($recipients)) {
-                $title = "[QUIZ] " . $quiz->title;
-                $body = "A new quiz has been published by {$teacher->name}.";
+                foreach ($q->options as $opt) {
+                    Option::create([
+                        'question_id' => $newQuestion->id,
+                        'label' => $opt->label,
+                        'text' => $opt->text,
+                    ]);
+                }
+            }
 
-                NotificationService::notify(
-                    'quiz',
-                    $title,
-                    $body,
-                    $teacher->id,
-                    $recipients,
-                    $quiz->room->section_id
-                );
+            DB::commit();
+            return response()->json(['message' => 'Quiz saved to test bank']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function attachTestBankQuiz(Request $request)
+    {
+        $validated = $request->validate([
+            'quiz_id' => 'required|exists:quizzes,id',
+            'room_id' => 'required|exists:rooms,id',
+        ]);
+
+        $bankQuiz = Quiz::with('questions.options')
+            ->where('is_test_bank', true)
+            ->findOrFail($validated['quiz_id']);
+
+        $sourceQuiz = $bankQuiz;
+
+        if ($bankQuiz->questions->count() === 0) {
+            $fallback = Quiz::with('questions.options')
+                ->where('is_test_bank', true)
+                ->where('teacher_id', $bankQuiz->teacher_id)
+                ->where('title', $bankQuiz->title)
+                ->where('id', '<>', $bankQuiz->id)
+                ->whereHas('questions')
+                ->first();
+
+            if ($fallback) {
+                $sourceQuiz = $fallback;
+            } else {
+                $fallback = Quiz::with('questions.options')
+                    ->where('is_test_bank', false)
+                    ->where('teacher_id', $bankQuiz->teacher_id)
+                    ->where('title', $bankQuiz->title)
+                    ->whereHas('questions')
+                    ->first();
+
+                if ($fallback && $fallback->questions->isNotEmpty()) {
+                    $sourceQuiz = $fallback;
+                } else {
+                    return response()->json([
+                        'error' => 'Test bank quiz has no questions and cannot be attached.'
+                    ], 422);
+                }
             }
         }
 
-        return response()->json([
-            'message' => 'Quiz published successfully and notifications sent!',
-            'quiz' => $quiz
-        ]);
-    }
+        DB::beginTransaction();
+        try {
+            $newQuiz = Quiz::create([
+                'teacher_id' => auth()->user()->teacher->id,
+                'room_id' => $validated['room_id'],
+                'title' => $sourceQuiz->title,
+                'instructions' => $sourceQuiz->instructions,
+                'duration' => $sourceQuiz->duration,
+                'passing_score' => $sourceQuiz->passing_score,
+                'total_points' => $sourceQuiz->total_points,
+                'status' => 'published',
+                'source_quiz_id' => $sourceQuiz->id,
+                'is_test_bank' => false,
+            ]);
 
-    public function attemptsByQuiz($id)
-    {
-        $attempts = QuizAttempt::with('student:id,name,email')
-            ->where('quiz_id', $id)
-            ->get()
-            ->map(function ($attempt) {
-                return [
-                    'id' => $attempt->id,
-                    'student_name' => $attempt->student->name ?? 'Unknown',
-                    'student_email' => $attempt->student->email ?? 'N/A',
-                    'score' => $attempt->score,
-                    'total_points' => $attempt->total_points,
-                    'status' => $attempt->status,
-                    'submitted_at' => $attempt->updated_at,
-                ];
-            });
+            foreach ($sourceQuiz->questions as $q) {
+                $newQuestion = Question::create([
+                    'quiz_id' => $newQuiz->id,
+                    'teacher_id' => auth()->user()->teacher->id,
+                    'question_text' => $q->question_text,
+                    'type' => $q->type,
+                    'correct_answer' => $q->correct_answer,
+                    'points' => $q->points,
+                    'is_test_bank' => false,
+                ]);
 
-        return response()->json($attempts);
+                foreach ($q->options as $opt) {
+                    Option::create([
+                        'question_id' => $newQuestion->id,
+                        'label' => $opt->label,
+                        'text' => $opt->text,
+                    ]);
+                }
+            }
+
+            $newQuiz->load('room.students');
+            $teacher = Auth::user();
+
+            if ($newQuiz->room && $newQuiz->room->students->count() > 0) {
+                NotificationService::notify(
+                    'quiz',
+                    "[QUIZ] {$newQuiz->title}",
+                    "A new quiz has been published by {$teacher->name}.",
+                    $teacher->id,
+                    $newQuiz->room->students->pluck('id')->toArray(),
+                    $newQuiz->room->section_id
+                );
+            }
+
+            DB::commit();
+            return response()->json(['message' => 'Quiz attached to room and published']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }

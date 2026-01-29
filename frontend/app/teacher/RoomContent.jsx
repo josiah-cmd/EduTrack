@@ -27,6 +27,20 @@ export default function RoomContent({ room }) {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showQuizCreate, setShowQuizCreate] = useState(false);
 
+  // --- NEW STATE: editId, delete modal ---
+  const [editId, setEditId] = useState(null); // if set -> edit mode
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // 🔹 TEST BANK STATES (ADDED)
+  const [isTestBankMode, setIsTestBankMode] = useState(false);
+  const [testBankMaterials, setTestBankMaterials] = useState([]);
+  const [showTestBankModal, setShowTestBankModal] = useState(false);
+  const [saveToTestBank, setSaveToTestBank] = useState(false);
+
+  const [showModulesFolder, setShowModulesFolder] = useState(true);
+  const [showAssignmentsFolder, setShowAssignmentsFolder] = useState(false);
+
   // ✅ FIX ADDED HERE — define updateDeadline
   const updateDeadline = (date) => {
     if (!date) return;
@@ -53,6 +67,16 @@ export default function RoomContent({ room }) {
       setMaterials(res.data);
     } catch (err) {
       console.error("❌ Error fetching materials:", err.response?.data || err.message);
+    }
+  };
+
+  // 🔹 Fetch Test Bank Materials
+  const fetchTestBankMaterials = async () => {
+    try {
+      const res = await api.get("/materials/test-bank");
+      setTestBankMaterials(res.data);
+    } catch (err) {
+      console.error("❌ Error fetching test bank:", err.response?.data || err.message);
     }
   };
 
@@ -111,48 +135,129 @@ export default function RoomContent({ room }) {
     return await response.blob();
   };
 
-  // ✅ Upload (fixed version)
+  // --- NEW: startEdit - prefill form with material data and switch to edit mode
+  const startEdit = (material) => {
+    setTitle(material.title || "");
+    setDesc(material.description || "");
+    if (material.deadline) {
+      try {
+        const parsed = new Date(material.deadline);
+        if (!isNaN(parsed)) {
+          setSelectedDate(parsed);
+          updateDeadline(parsed);
+        }
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      setSelectedDate(new Date());
+      setDeadline("");
+    }
+
+    // We do not auto-set the file object (teacher can pick new file if they want).
+    setFile(null);
+
+    // Set edit mode
+    setEditId(material.id);
+
+    // Ensure tab is modules/assignments depending on type
+    if (material.type === "assignment") {
+      setActiveTab("assignments");
+    } else if (material.type === "module") {
+      setActiveTab("modules");
+    }
+    // Scroll/view handled by parent UI if needed; form is visible already.
+  };
+
+  // --- NEW: cancel editing
+  const cancelEdit = () => {
+    setEditId(null);
+    setTitle("");
+    setDesc("");
+    setDeadline("");
+    setSelectedDate(new Date());
+    setFile(null);
+  };
+
+  // ✅ Upload (fixed version) - UPDATED to support edit mode + Test Bank
   const uploadFile = async () => {
-    if (!file) return alert("Pick a file first");
+    if (!title?.trim()) return alert("Title is required");
+    // if creating new, require file
+    if (!editId && !file) return alert("Pick a file first");
 
     const formData = new FormData();
-    formData.append("room_id", room.id);
+
+    // 🔹 Attach room_id ONLY if saving to classroom
+    if (!saveToTestBank) {
+      formData.append("room_id", room.id);
+    }
+
     formData.append("type", activeTab === "modules" ? "module" : "assignment");
     formData.append("title", title);
     formData.append("description", desc);
-    if (activeTab === "assignments") formData.append("deadline", deadline);
 
-    // ✅ Ensure it has name + type before upload
-    let fileData;
-    try {
-      const blob = await uriToBlob(file.uri);
-      fileData = new File([blob], file.name, { type: file.mimeType });
-    } catch (error) {
-      // fallback for mobile (RN File object)
-      fileData = {
-        uri: file.uri,
-        type: file.mimeType || "application/octet-stream",
-        name: file.name || "uploadfile.txt",
-      };
+    // 🔹 Explicit Test Bank flag
+    if (saveToTestBank) {
+      formData.append("is_test_bank", "1");
     }
 
-    formData.append("file", fileData);
+    if (activeTab === "assignments") formData.append("deadline", deadline);
+
+    // If there's a picked file, attach it (optional on edit)
+    if (file) {
+      // ✅ Ensure it has name + type before upload
+      let fileData;
+      try {
+        const blob = await uriToBlob(file.uri);
+        fileData = new File([blob], file.name, { type: file.mimeType });
+      } catch (error) {
+        // fallback for mobile (RN File object)
+        fileData = {
+          uri: file.uri,
+          type: file.mimeType || "application/octet-stream",
+          name: file.name || "uploadfile.txt",
+        };
+      }
+
+      formData.append("file", fileData);
+    }
 
     try {
-      const res = await api.post("/materials", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      if (editId) {
+        // UPDATE existing material — your backend expects POST /materials/{id}
+        const res = await api.post(`/materials/${editId}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
 
-      // ✅ Use returned URL with proper filename
-      console.log("Uploaded material:", res.data);
-      setMaterials((prev) => [res.data.material, ...prev]);
+        console.log("Updated material:", res.data);
 
-      setTitle("");
-      setDesc("");
-      setDeadline("");
-      setFile(null);
-      fetchMaterials();
-      setShowSuccessModal(true);
+        // Replace in materials list
+        setMaterials((prev) =>
+          prev.map((m) => (m.id === res.data.material.id ? res.data.material : m))
+        );
+
+        setShowSuccessModal(true);
+        // exit edit mode (but keep form cleared)
+        cancelEdit();
+        fetchMaterials();
+      } else {
+        // CREATE new material
+        const res = await api.post("/materials", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        // ✅ Use returned URL with proper filename
+        console.log("Uploaded material:", res.data);
+        setMaterials((prev) => [res.data.material, ...prev]);
+
+        setTitle("");
+        setDesc("");
+        setDeadline("");
+        setFile(null);
+        fetchMaterials();
+        setShowSuccessModal(true);
+        setSaveToTestBank(false);
+      }
     } catch (err) {
       console.error("❌ Upload failed:", err.response?.data || err.message);
       alert("Upload failed");
@@ -185,6 +290,30 @@ export default function RoomContent({ room }) {
     return "📁 File";
   };
 
+  // --- NEW: confirmDelete opens modal
+  const confirmDelete = (material) => {
+    setDeleteTarget(material);
+    setShowDeleteModal(true);
+  };
+
+  // --- NEW: perform delete
+  const deleteFile = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.delete(`/materials/${deleteTarget.id}`);
+      // remove from list
+      setMaterials((prev) => prev.filter((m) => m.id !== deleteTarget.id));
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
+
+      // If we were editing the same item, cancel edit mode
+      if (editId === deleteTarget.id) cancelEdit();
+    } catch (err) {
+      console.error("❌ Delete failed:", err.response?.data || err.message);
+      alert("Delete failed");
+    }
+  };
+
   // ✅ Render detail
   if (selectedMaterial) {
     return (
@@ -206,7 +335,7 @@ export default function RoomContent({ room }) {
             style={[
               styles.tab,
               activeTab === tab && styles.activeTab,
-              activeTab === tab && { backgroundColor: "#006400" },
+              activeTab === tab && { backgroundColor: "#808080" },
             ]}
           >
             <Text
@@ -214,7 +343,7 @@ export default function RoomContent({ room }) {
                 styles.tabText,
                 activeTab === tab && styles.activeTabText,
                 activeTab === tab && { color: "#FFD700" },
-                isDarkMode && { color: "#fff" },
+                isDarkMode && { color: "#000000" },
               ]}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -246,17 +375,95 @@ export default function RoomContent({ room }) {
       )}
 
       {/* Upload form */}
-      {activeTab !== "quizzes" && activeTab !== "people" && activeTab !== "attendance" &&(
-        <View style={[styles.formCard, isDarkMode && { backgroundColor: "#1e1e1e" }]}>
-          <Text style={[styles.formTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
-            📤 Upload {activeTab.slice(0, -1)}
-          </Text>
+      {activeTab !== "quizzes" && activeTab !== "people" && activeTab !== "attendance" && (
+        <View style={[styles.formCard, isDarkMode && { backgroundColor: "#808080" }]}>
+
+          {/* 🔹 Test Bank Toggle */}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+            <TouchableOpacity
+              onPress={() => setIsTestBankMode(false)}
+              style={{
+                padding: 8,
+                backgroundColor: !isTestBankMode ? "#0E5149" : "#555",
+                borderRadius: 6,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600" }}>Classroom</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setIsTestBankMode(true);
+                fetchTestBankMaterials();
+              }}
+              style={{
+                padding: 8,
+                backgroundColor: isTestBankMode ? "#0E5149" : "#555",
+                borderRadius: 6,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600" }}>Learning Materials Bank</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 🔹 Upload title + Save to Test Bank aligned */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginVertical: 10,
+            }}
+          >
+            <Text style={[styles.formTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
+              📤 Upload {activeTab.slice(0, -1)}
+            </Text>
+
+            {/* 🔹 Save to Test Bank Toggle */}
+            <View
+              style={{
+                paddingVertical: 6,
+                paddingHorizontal: 10,
+                backgroundColor: "#444",
+                borderRadius: 6,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={{ color: "#fff", fontWeight: "600", marginRight: 8 }}>
+                  Save to Learning Materials Bank
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => setSaveToTestBank((prev) => !prev)}
+                  style={{
+                    width: 42,
+                    height: 22,
+                    borderRadius: 11,
+                    backgroundColor: saveToTestBank ? "#0E5149" : "#999",
+                    justifyContent: "center",
+                    padding: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      backgroundColor: "#fff",
+                      alignSelf: saveToTestBank ? "flex-end" : "flex-start",
+                    }}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>     
+
           <TextInput
             placeholder="Title"
             value={title}
             onChangeText={setTitle}
             style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
-            placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
+            placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
           />
           <TextInput
             placeholder="Description"
@@ -269,7 +476,7 @@ export default function RoomContent({ room }) {
               { textAlignVertical: "top", height: 100 },
               isDarkMode && { backgroundColor: "#333", color: "#fff" },
             ]}
-            placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
+            placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
           />
 
           {activeTab === "assignments" && (
@@ -292,22 +499,45 @@ export default function RoomContent({ room }) {
           )}
 
           <View style={styles.fileRow}>
-            <TouchableOpacity style={[styles.pickFileBtn, { backgroundColor: "#006400" }]} onPress={pickFile}>
+            <TouchableOpacity style={[styles.pickFileBtn, { backgroundColor: "#0E5149" }]} onPress={pickFile}>
               <Text style={[styles.pickFileText, { color: "#fff" }]}>📂 Pick File</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: "#FFD700" }]} onPress={uploadFile}>
-              <Text style={[styles.uploadText, { color: "#000", fontWeight: "bold" }]}>⬆ Upload</Text>
+            <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: "#0E5149" }]} onPress={uploadFile}>
+              <Text style={[styles.uploadText, { color: "#F7F7F7", fontWeight: "bold" }]}>{editId ? "💾 Save Changes" : "⬆ Upload"}</Text>
             </TouchableOpacity>
           </View>
 
+          {isTestBankMode && (
+            <TouchableOpacity
+              style={{ marginTop: 10, padding: 10, backgroundColor: "#444", borderRadius: 6 }}
+              onPress={() => {
+                fetchTestBankMaterials();
+                setShowTestBankModal(true);
+              }}
+            >
+              <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+                📚 View Learning Materials Bank
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Cancel edit button shown only in edit mode */}
+          {editId && (
+            <View style={{ marginTop: 8 }}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={cancelEdit}>
+                <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>✖ Cancel Edit</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {file && (
             <View style={styles.filePreview}>
-              <Text style={[styles.filePreviewText, { color: isDarkMode ? "#fff" : "#333" }]}>
+              <Text style={[styles.filePreviewText, { color: isDarkMode ? "#000000" : "#333" }]}>
                 {getFileIcon(file.name)} {file.name}
               </Text>
               {file.size && (
-                <Text style={[styles.filePreviewSize, { color: isDarkMode ? "#bbb" : "#666" }]} >
+                <Text style={[styles.filePreviewSize, { color: isDarkMode ? "#000000" : "#666" }]} >
                   Size: {Math.round(file.size / 1024)} KB
                 </Text>
               )}
@@ -322,7 +552,7 @@ export default function RoomContent({ room }) {
       {/* Uploaded Files */}
       {activeTab !== "people" && activeTab !== "quizzes" && activeTab !== "attendance" &&(
         <View style={styles.uploadedSection}>
-          <Text style={[styles.uploadedHeader, { color: isDarkMode ? "#FFD700" : "#222" }]}>
+          <Text style={[styles.uploadedHeader, { color: isDarkMode ? "#F7F7F7" : "#222" }]}>
             Uploaded Files
           </Text>
 
@@ -332,19 +562,48 @@ export default function RoomContent({ room }) {
             renderItem={({ item }) => (
               // ✅ MAKE FILE CLICKABLE (ADDED ONLY THIS WRAPPER)
               <TouchableOpacity onPress={() => setSelectedMaterial(item)}>
-                <View style={[styles.fileCard, isDarkMode && { backgroundColor: "#222", borderColor: "#444" }]}>
+                <View style={[styles.fileCard, isDarkMode && { backgroundColor: "#808080", borderColor: "#444" }]}>
                   <Text style={[styles.fileTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
                     {getFileIcon(item.original_name || item.file_path)} {item.title}
                   </Text>
-                  <Text style={[styles.fileDesc, { color: isDarkMode ? "#bbb" : "#555" }]}>
+                  <Text style={[styles.fileDesc, { color: isDarkMode ? "#F7F7F7" : "#555" }]}>
                     {item.description}
                   </Text>
 
                   {item.deadline && (
-                    <Text style={[styles.deadline, { color: "#FF6347" }]}>
+                    <Text style={[styles.deadline, { color: "#000000" }]}>
                       Deadline: {format(new Date(item.deadline), "yyyy-MM-dd h:mm a")}
                     </Text>
                   )}
+
+                  {/* --- NEW: Edit & Delete buttons (Option A) --- */}
+                  <View style={styles.actionRow}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "flex-end",
+                      }}
+                    ></View>
+                    <TouchableOpacity
+                      style={styles.editBtn}
+                      onPress={() => {
+                        // Prevent parent TouchableOpacity from taking this press:
+                        // (in RN nesting, inner touchables get events)
+                        startEdit(item);
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: "700" }}>Edit</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => {
+                        confirmDelete(item);
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: "700" }}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </TouchableOpacity>
             )}
@@ -359,11 +618,11 @@ export default function RoomContent({ room }) {
           data={people}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
-            <View style={[styles.personCard, isDarkMode && { backgroundColor: "#222", borderColor: "#444" }]}>
+            <View style={[styles.personCard, isDarkMode && { backgroundColor: "#808080", borderColor: "#444", fontWeight: "400" }]}>
               <Text style={[styles.personName, { color: isDarkMode ? "#fff" : "#333" }]}>
                 {item.name} {item.role === "teacher" ? "(Instructor)" : ""}
               </Text>
-              <Text style={[styles.personEmail, { color: isDarkMode ? "#bbb" : "#555" }]}>{item.email}</Text>
+              <Text style={[styles.personEmail, { color: isDarkMode ? "#000000" : "#F7F7F7", fontWeight: "400" }]}>{item.email}</Text>
             </View>
           )}
         />
@@ -377,16 +636,179 @@ export default function RoomContent({ room }) {
         onRequestClose={() => setShowSuccessModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Text style={[styles.modalTitle, { color: isDarkMode ? "#FFD700" : "#007bff" }]}>✅ Uploaded</Text>
+          <Text style={[styles.modalTitle, { color: isDarkMode ? "#F7F7F7" : "#007bff" }]}>✅ Uploaded</Text>
           <Text style={[styles.modalText, { color: isDarkMode ? "#fff" : "#444" }]}>
             Your {activeTab.slice(0, -1)} has been uploaded successfully!
           </Text>
           <TouchableOpacity
-            style={[styles.modalButton, { backgroundColor: "#006400" }]}
+            style={[styles.modalButton, { backgroundColor: "#0E5149" }]}
             onPress={() => setShowSuccessModal(false)}
           >
-            <Text style={[styles.modalButtonText, { color: "#FFD700" }]}>OK</Text>
+            <Text style={[styles.modalButtonText, { color: "#F7F7F7" }]}>OK</Text>
           </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* --- NEW: Delete Confirmation Modal --- */}
+      <Modal
+        transparent
+        visible={showDeleteModal}
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Text style={[styles.modalTitle, { color: isDarkMode ? "#F7F7F7" : "#007bff" }]}>Confirm Delete</Text>
+          <Text style={[styles.modalText, { color: isDarkMode ? "#fff" : "#444", marginBottom: 10 }]}>
+            Are you sure you want to delete this file?
+          </Text>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: "#ff4444", marginRight: 8 }]}
+              onPress={deleteFile}
+            >
+              <Text style={[styles.modalButtonText, { color: "#fff" }]}>Yes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: "#0E5149" }]}
+              onPress={() => {
+                setShowDeleteModal(false);
+                setDeleteTarget(null);
+              }}
+            >
+              <Text style={[styles.modalButtonText, { color: "#F7F7F7" }]}>No</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔹 TEST BANK MODAL */}
+      <Modal
+        transparent
+        visible={showTestBankModal}
+        animationType="slide"
+        onRequestClose={() => setShowTestBankModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+
+            <Text
+              style={[
+                styles.modalTitle,
+                {
+                  textAlign: "left",
+                  alignSelf: "flex-start",
+                  color: isDarkMode ? "#000000" : "#007bff",
+                },
+              ]}
+            >
+              📚 Learning Materials Bank
+            </Text>
+
+            {/* 📁 MODULES FOLDER */}
+            <TouchableOpacity
+              style={styles.folderHeader}
+              onPress={() => setShowModulesFolder((prev) => !prev)}
+            >
+              <Text style={styles.folderTitle}>
+                {showModulesFolder ? "📂" : "📁"} Modules
+              </Text>
+            </TouchableOpacity>
+
+            {showModulesFolder &&
+              testBankMaterials
+                .filter((item) => item.type === "module")
+                .map((item) => (
+                  <View key={item.id} style={[styles.fileCard, { marginBottom: 10 }]}>
+                    <Text style={styles.fileTitle}>{item.title}</Text>
+                    <Text style={styles.fileDesc}>{item.description}</Text>
+
+                    <TouchableOpacity
+                      style={[styles.uploadBtn, { marginTop: 6 }]}
+                      onPress={async () => {
+                        try {
+                          await api.post("/materials/attach-test-bank", {
+                            material_id: item.id,
+                            room_id: room.id,
+                          });
+
+                          alert("Added to room successfully!");
+                          setShowTestBankModal(false);
+                          fetchMaterials();
+                        } catch (err) {
+                          console.error(err.response?.data || err.message);
+                          alert("Failed to add material");
+                        }
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: isDarkMode ? "#000000" : "#007bff",
+                          fontWeight: "600",
+                        }}
+                      >
+                        ➕ Add to This Room
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+            {/* 📁 ASSIGNMENTS FOLDER */}
+            <TouchableOpacity
+              style={styles.folderHeader}
+              onPress={() => setShowAssignmentsFolder((prev) => !prev)}
+            >
+              <Text style={styles.folderTitle}>
+                {showAssignmentsFolder ? "📂" : "📁"} Assignments
+              </Text>
+            </TouchableOpacity>
+
+            {showAssignmentsFolder &&
+              testBankMaterials
+                .filter((item) => item.type === "assignment")
+                .map((item) => (
+                  <View key={item.id} style={[styles.fileCard, { marginBottom: 10 }]}>
+                    <Text style={styles.fileTitle}>{item.title}</Text>
+                    <Text style={styles.fileDesc}>{item.description}</Text>
+
+                    <TouchableOpacity
+                      style={[styles.uploadBtn, { marginTop: 6 }]}
+                      onPress={async () => {
+                        try {
+                          await api.post("/materials/attach-test-bank", {
+                            material_id: item.id,
+                            room_id: room.id,
+                          });
+
+                          alert("Added to room successfully!");
+                          setShowTestBankModal(false);
+                          fetchMaterials();
+                        } catch (err) {
+                          console.error(err.response?.data || err.message);
+                          alert("Failed to add material");
+                        }
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: isDarkMode ? "#000000" : "#007bff",
+                          fontWeight: "600",
+                        }}
+                      >
+                        ➕ Add to This Room
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: "#F7F7F7" }]}
+              onPress={() => setShowTestBankModal(false)}
+            >
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+
+          </View>
         </View>
       </Modal>
 
@@ -413,7 +835,7 @@ export default function RoomContent({ room }) {
           overflow: hidden;
         }
         .react-datepicker__header {
-          background-color: #006400;
+          background-color: #0E5149;
           color: #fff;
           border-bottom: none;
         }
@@ -423,8 +845,8 @@ export default function RoomContent({ room }) {
         }
         .react-datepicker__day--selected,
         .react-datepicker__day--keyboard-selected {
-          background-color: #FFD700;
-          color: #000;
+          background-color: #0E5149;
+          color: #F7F7F7;
         }
       `}</style>
     </View>
@@ -580,7 +1002,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    marginBottom: 10,
+    marginBottom: 10, 
   },
   modalText: {
     fontSize: 15,
@@ -624,5 +1046,59 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     fontWeight: "600",
+  },
+  /* NEW: Action row & buttons */
+  actionRow: {
+    marginTop: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 5,
+    alignItems: "center",
+  },
+  editBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "#0E5149",
+    borderRadius: 6,
+  },
+  deleteBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "#b91c1c",
+    borderRadius: 6,
+  },
+  /* Cancel edit button */
+  cancelBtn: {
+    backgroundColor: "#8b0000",
+    padding: 8,
+    borderRadius: 6,
+  },
+  folderHeader: {
+    width: "100%",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#eaeaea",
+    borderRadius: 8,
+    marginBottom: 6,
+    fontWeight: "600",
+  },
+  folderTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#333",
+  },
+  fileCard: {
+    width: "100%",
+    backgroundColor: "#f9f9f9",
+    padding: 12,
+    borderRadius: 10,
+    marginLeft: 10, // visual folder indentation
+  },
+  modalContainer: {
+    backgroundColor: "#ffffff",
+    width: "50%",
+    maxHeight: "90%",
+    borderRadius: 14,
+    padding: 16,
   },
 });

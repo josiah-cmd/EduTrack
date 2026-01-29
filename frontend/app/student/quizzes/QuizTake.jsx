@@ -8,7 +8,8 @@ import api from "../../lib/axios";
 import { queueRequest } from "../../lib/OfflineSyncManager";
 
 export default function QuizTake() {
-  const { quizId } = useLocalSearchParams();
+  const { quizId: quizIdCamel, quizid } = useLocalSearchParams();
+  const quizId = quizIdCamel ?? quizid;
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -72,39 +73,61 @@ export default function QuizTake() {
   // ---------------------------
   const fetchQuiz = async () => {
     try {
+      console.log("🔍 QuizTake quizId from params:", quizId);
+
       const token = await AsyncStorage.getItem("token");
-      const res = await api.get(`/student/quizzes/${quizId}`, {
+
+      // 1️⃣ Start (or resume) the attempt
+      const startRes = await api.post(
+        `/student/quizzes/${quizId}/start`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("✅ startRes.data:", startRes.data);
+
+      const newAttemptId =
+        startRes.data?.id ||
+        startRes.data?.attempt?.id ||
+        startRes.data?.data?.id;
+
+      if (!newAttemptId) {
+        throw new Error("No attempt ID returned");
+      }
+
+      setAttemptId(newAttemptId);
+
+      // 2️⃣ Fetch quiz content
+      const quizRes = await api.get(`/student/quizzes/${quizId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setQuiz(res.data);
+      console.log("✅ quizRes.data:", quizRes.data);
 
-      const duration = res.data.duration
-        ? res.data.duration * 60
+      setQuiz(quizRes.data);
+
+      console.log(
+        "🧪 quizRes.data.questions:",
+        quizRes.data.questions?.length,
+        quizRes.data.questions
+      );
+
+      const duration = quizRes.data.duration
+        ? quizRes.data.duration * 60
         : 600;
-      setTimeLeft(duration);
 
-      if (!attemptId) {
-        const startRes = await api.post(
-          `/student/quizzes/${quizId}/start`,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const newAttemptId =
-          startRes.data?.id ||
-          startRes.data?.attempt?.id ||
-          startRes.data?.data?.id;
-        if (!newAttemptId) console.warn("⚠️ No attempt ID returned");
-        setAttemptId(newAttemptId);
-      }
+      setTimeLeft(duration);
     } catch (err) {
-      console.log("❌ Fetch Quiz Error:", err.response?.status, err.response?.data || err);
+      console.log(
+        "❌ Fetch Quiz Error:",
+        err.response?.status,
+        err.response?.data || err
+      );
     }
   };
 
   // ---------------------------
   // ⏱ Timer
   // ---------------------------
-  useEffect(() => {
+  useEffect(() => { 
     if (!timeLeft) return;
     if (timeLeft <= 0) {
       handleAutoSubmit();
@@ -257,7 +280,14 @@ export default function QuizTake() {
     );
   }
 
-  const question = quiz.questions[currentIndex];
+  const questions = quiz.questions || [];
+  const safeIndex =
+    currentIndex >= 0 && currentIndex < questions.length
+      ? currentIndex
+      : 0;
+
+  const question = questions[safeIndex];
+
   const formatTime = (secs) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -288,11 +318,11 @@ export default function QuizTake() {
 
         <View style={styles.questionCard}>
           <Text style={styles.questionText}>
-            {currentIndex + 1}. {question.question_text}
+            {question ? `${safeIndex + 1}. ${question.question_text}` : "Loading question..."}
           </Text>
 
           <ScrollView style={styles.optionsContainer}>
-            {(question.options || question.choices || []).length > 0 ? (
+            {question && (question.options || question.choices)?.length > 0 ? (
               (question.options || question.choices).map((opt) => (
                 <TouchableOpacity
                   key={opt.id}
@@ -309,7 +339,9 @@ export default function QuizTake() {
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={styles.noOptionsText}>No options available for this question.</Text>
+              <Text style={styles.noOptionsText}>
+                {question ? "No options available for this question." : "Loading options..."}
+              </Text>
             )}
           </ScrollView>
         </View>
@@ -323,9 +355,9 @@ export default function QuizTake() {
               <Text style={styles.navText}>Previous</Text>
             </TouchableOpacity>
           )}
-          {currentIndex < quiz.questions.length - 1 ? (
+          {safeIndex < questions.length - 1 ? (
             <TouchableOpacity
-              onPress={() => setCurrentIndex(currentIndex + 1)}
+              onPress={() => setCurrentIndex(safeIndex + 1)}
               style={[styles.navButton, styles.primaryButton]}
             >
               <Text style={styles.navText}>Next</Text>

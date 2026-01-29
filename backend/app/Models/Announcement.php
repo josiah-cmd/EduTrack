@@ -9,7 +9,7 @@ class Announcement extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['content', 'created_by', 'target_role'];
+    protected $fillable = ['content', 'created_by', 'target_role', 'image',];
 
     public function user()
     {

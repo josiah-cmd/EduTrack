@@ -63,7 +63,7 @@ export default function AnnouncementList({ token }) {
       )}
       ListEmptyComponent={
         <View style={styles.center}>
-          <Text style={{ color: "gray" }}>No Announcements</Text>
+          <Text style={{ color: "#F7F7F7", fontWeight: "500" }}>No Announcements</Text>
         </View>
       }
       contentContainerStyle={{ paddingBottom: 30 }} // ✅ prevents last card from being cut off
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#808080",
     padding: 15,
     marginVertical: 6,
     borderRadius: 10,
@@ -90,9 +90,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "white",
     marginBottom: 5,
+    fontWeight: "500"
   },
   meta: {
     fontSize: 12,
-    color: "gray",
+    color: "black",
+    fontWeight: "500"
   },
 });

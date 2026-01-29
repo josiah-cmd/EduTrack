@@ -40,7 +40,7 @@ export default function GradeList({ isDarkMode, onSelectRoom }) {
     <View style={[styles.container]}>
       {/* Header */}
       <View style={styles.headerContainer}>
-        <View style={[styles.headerAccent,{ backgroundColor: isDarkMode ? "#41ab5d" : "#41ab5d" }]}/>
+        <View style={[styles.headerAccent,{ backgroundColor: isDarkMode ? "#41ab5d" : "#41ab5d", fontWeight: "500" }]}/>
         <Text style={[styles.header, { color: isDarkMode ? "#fff" : "#111827" }]}>
           Grade Records
         </Text>
@@ -75,19 +75,19 @@ export default function GradeList({ isDarkMode, onSelectRoom }) {
                 activeOpacity={0.8}
                 onPress={() => onSelectRoom(item)}
               >
-                <View style={[styles.card,{ backgroundColor: isDarkMode ? "#2a2a2a" : "#fff" },]}>
+                <View style={[styles.card,{ backgroundColor: isDarkMode ? "#808080" : "#fff" },]}>
                   <View style={styles.subjectInfo}>
                     <Ionicons
                       name={subjectIcons[subjectName] || "school-outline"}
                       size={24}
-                      color={subjectColors[subjectName] || "#41ab5d"}
+                      color={subjectColors[subjectName] || "#000000"}
                       style={styles.icon}
                     />
                     <View>
                       <Text style={[styles.subject,{ color: isDarkMode ? "#f3f4f6" : "#111827" },]}>
                         {subjectName}
                       </Text>
-                      <Text style={[styles.section, { color: isDarkMode ? "#9ca3af" : "#6b7280" },]}>
+                      <Text style={[styles.section, { color: isDarkMode ? "#F7F7F7" : "#6b7280", fontWeight: "500" },]}>
                         Section: {sectionName}
                       </Text>
                     </View>

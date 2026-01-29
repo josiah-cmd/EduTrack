@@ -11,15 +11,17 @@ class Quiz extends Model
 
     protected $fillable = [
         'teacher_id',
-        'room_id',           // ✅ changed from section_id (to match migration)
+        'room_id',
         'title',
         'instructions',
         'start_time',
         'end_time',
-        'duration',          // ✅ changed from time_limit (to match migration)
+        'duration',
         'passing_score',
         'total_points',
         'status',
+        'is_test_bank',
+        'source_quiz_id',
     ];
 
     public function questions()

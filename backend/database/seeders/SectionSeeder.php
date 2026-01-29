@@ -11,24 +11,72 @@ class SectionSeeder extends Seeder
     {
         $sections = [
             // 🏫 Junior High School (JHS)
-            'JHS Department',
-            'Grade 7 - Our Lady of Lourdes',
-            'Grade 8 - St. Joseph of Calasanz',
-            'Grade 9 - St. Peter Damian',
-            'Grade 10 - St. Gregory the Great',
+            [
+                'name' => 'Grade 7 - Our Lady of Lourdes',
+                'department' => 'JHS',
+                'grade_level' => 'Grade 7',
+                'strand' => null
+            ],
+            [
+                'name' => 'Grade 8 - St. Joseph of Calasanz',
+                'department' => 'JHS',
+                'grade_level' => 'Grade 8',
+                'strand' => null
+            ],
+            [
+                'name' => 'Grade 9 - St. Peter Damian',
+                'department' => 'JHS',
+                'grade_level' => 'Grade 9',
+                'strand' => null
+            ],
+            [
+                'name' => 'Grade 10 - St. Gregory the Great',
+                'department' => 'JHS',
+                'grade_level' => 'Grade 10',
+                'strand' => null
+            ],
 
             // 🎓 Senior High School (SHS)
-            'SHS Department',
-            'Grade 11 - St. Josef Freinademetz (ABM)',
-            'Grade 11 - St. Josef Freinademetz (HUMSS)',
-            'Grade 11 - St. Josef Freinademetz (STEM)',
-            'Grade 12 - St. Dominic De Guzman (ABM)',
-            'Grade 12 - St. Dominic De Guzman (HUMSS)',
-            'Grade 12 - St. Dominic De Guzman (STEM)',
+            [
+                'name' => 'Grade 11 - St. Josef Freinademetz',
+                'department' => 'SHS',
+                'grade_level' => 'Grade 11',
+                'strand' => 'ABM'
+            ],
+            [
+                'name' => 'Grade 11 - St. Josef Freinademetz',
+                'department' => 'SHS',
+                'grade_level' => 'Grade 11',
+                'strand' => 'HUMSS'
+            ],
+            [
+                'name' => 'Grade 11 - St. Josef Freinademetz',
+                'department' => 'SHS',
+                'grade_level' => 'Grade 11',
+                'strand' => 'STEM'
+            ],
+            [
+                'name' => 'Grade 12 - St. Dominic De Guzman',
+                'department' => 'SHS',
+                'grade_level' => 'Grade 12',
+                'strand' => 'ABM'
+            ],
+            [
+                'name' => 'Grade 12 - St. Dominic De Guzman',
+                'department' => 'SHS',
+                'grade_level' => 'Grade 12',
+                'strand' => 'HUMSS'
+            ],
+            [
+                'name' => 'Grade 12 - St. Dominic De Guzman',
+                'department' => 'SHS',
+                'grade_level' => 'Grade 12',
+                'strand' => 'STEM'
+            ],
         ];
 
         foreach ($sections as $sec) {
-            Section::create(['name' => $sec]);
+            Section::create($sec);
         }
     }
 }

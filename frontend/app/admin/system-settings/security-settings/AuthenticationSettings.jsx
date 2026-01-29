@@ -6,6 +6,10 @@ export default function AuthenticationSettings({ isDarkMode, onBack }) {
   const [minLength, setMinLength] = useState("8");
   const [maxAttempts, setMaxAttempts] = useState("5");
   const [timeout, setTimeout] = useState("30");
+
+  // 🟢 ADDED: Lockout timer (minutes)
+  const [lockoutMinutes, setLockoutMinutes] = useState("15");
+
   const [loading, setLoading] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false); // 🟢 Added for modal
 
@@ -15,31 +19,64 @@ export default function AuthenticationSettings({ isDarkMode, onBack }) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await api.get("/security/settings");
+        // ✅ NEW ROUTE (preferred)
+        const res = await api.get("/security/authentication-settings");
+
         if (res.data) {
           setMinLength(res.data.password_min_length?.toString() || "8");
           setMaxAttempts(res.data.max_login_attempts?.toString() || "5");
           setTimeout(res.data.session_timeout?.toString() || "30");
+          setLockoutMinutes(res.data.lockout_minutes?.toString() || "15");
         }
       } catch (error) {
-        console.error("Error fetching settings:", error);
+        console.warn("New endpoint failed, trying fallback...", error);
+
+        // 🟡 FALLBACK (DO NOT REMOVE — legacy support)
+        try {
+          const res = await api.get("/security/settings");
+          if (res.data) {
+            setMinLength(res.data.password_min_length?.toString() || "8");
+            setMaxAttempts(res.data.max_login_attempts?.toString() || "5");
+            setTimeout(res.data.session_timeout?.toString() || "30");
+          }
+        } catch (err) {
+          console.error("Error fetching settings:", err);
+        }
       }
     };
+
     fetchSettings();
   }, []);
 
   const handleSave = async () => {
     try {
       setLoading(true);
-      await api.post("/security/settings", {
+
+      // ✅ NEW ROUTE (preferred)
+      await api.put("/security/authentication-settings", {
         password_min_length: parseInt(minLength),
         max_login_attempts: parseInt(maxAttempts),
+        lockout_minutes: parseInt(lockoutMinutes),
         session_timeout: parseInt(timeout),
       });
+
       Alert.alert("Success", "Authentication settings saved!");
     } catch (error) {
-      console.error("Error saving settings:", error);
-      Alert.alert("Error", "Failed to save settings.");
+      console.warn("New endpoint failed, trying fallback...", error);
+
+      // 🟡 FALLBACK (legacy compatibility)
+      try {
+        await api.post("/security/settings", {
+          password_min_length: parseInt(minLength),
+          max_login_attempts: parseInt(maxAttempts),
+          session_timeout: parseInt(timeout),
+        });
+
+        Alert.alert("Success", "Authentication settings saved!");
+      } catch (err) {
+        console.error("Error saving settings:", err);
+        Alert.alert("Error", "Failed to save settings.");
+      }
     } finally {
       setLoading(false);
     }
@@ -75,7 +112,20 @@ export default function AuthenticationSettings({ isDarkMode, onBack }) {
           style={[styles.input, isDarkMode ? styles.inputDark : styles.inputLight]}
         />
 
-        <Text style={[styles.label, textColor]}>Session Timeout (minutes)</Text>
+        {/* 🟢 ADDED */}
+        <Text style={[styles.label, textColor]}>
+          Lockout Duration (minutes)
+        </Text>
+        <TextInput
+          value={lockoutMinutes}
+          onChangeText={setLockoutMinutes}
+          keyboardType="numeric"
+          style={[styles.input, isDarkMode ? styles.inputDark : styles.inputLight]}
+        />
+
+        <Text style={[styles.label, textColor]}>
+          Session Timeout (minutes)
+        </Text>
         <TextInput
           value={timeout}
           onChangeText={setTimeout}
@@ -89,7 +139,9 @@ export default function AuthenticationSettings({ isDarkMode, onBack }) {
           onPress={() => setConfirmVisible(true)}
           disabled={loading}
         >
-          <Text style={styles.saveText}>{loading ? "Saving..." : "Save Settings"}</Text>
+          <Text style={styles.saveText}>
+            {loading ? "Saving..." : "Save Settings"}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -116,7 +168,8 @@ export default function AuthenticationSettings({ isDarkMode, onBack }) {
                 { color: isDarkMode ? "#ccc" : "#555" },
               ]}
             >
-              Are you sure you want to save these authentication settings?{"\n"}
+              Are you sure you want to save these authentication settings?
+              {"\n"}
               This will apply to all users in the system.
             </Text>
 

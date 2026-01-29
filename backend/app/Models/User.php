@@ -24,7 +24,8 @@ class User extends Authenticatable
         'grade_level', 
         'section_id', 
         'is_locked',
-        'locked_at', 
+        'locked_at',
+        'lrn', // ✅ ADDED (CRITICAL)
     ];
 
     protected $hidden = [
@@ -60,9 +61,7 @@ class User extends Authenticatable
 
     public function rooms() 
     {
-
         return $this->belongsToMany(Room::class, 'room_user', 'user_id', 'room_id');
-
     }
 
     public function announcements()
@@ -89,5 +88,11 @@ class User extends Authenticatable
     public function section() 
     {
         return $this->belongsTo(Section::class);
+    }
+
+    // 🔹 Optional helper
+    public function isStudent(): bool
+    {
+        return $this->role === 'student';
     }
 }

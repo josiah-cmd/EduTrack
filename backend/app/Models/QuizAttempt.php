@@ -15,7 +15,14 @@ class QuizAttempt extends Model
         'student_id',
         'score',
         'total_points',
-        'status'
+        'status',
+        'question_order',
+        'option_order',
+    ];
+
+    protected $casts = [
+        'question_order' => 'array',
+        'option_order' => 'array',
     ];
 
     public function quiz() {

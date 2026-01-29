@@ -1,11 +1,12 @@
 /* eslint-disable */
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { addDays, endOfMonth, endOfWeek, format, isSameMonth, isToday, startOfMonth, startOfWeek } from "date-fns";
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, FlatList, Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, FlatList, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import api from "../lib/axios";
 import AnnouncementForm from './AnnouncementForm';
 import AnnouncementList from './AnnouncementList';
@@ -17,6 +18,8 @@ import ChangePasswordForm from "./profile/ChangePasswordForm";
 import ProfileForm from "./profile/ProfileForm";
 import ProfileHeader from "./profile/ProfileHeader";
 import RoomContent from "./RoomContent";
+
+const ACADEMIC_YEAR_STORAGE_KEY = "selected_academic_year_id";
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -36,6 +39,15 @@ export default function TeacherDashboard() {
 
   const [materials, setMaterials] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState('All');
+  const [selectedSection, setSelectedSection] = useState('All');
+
+  // 🔵 Academic Year selector state
+  const [academicYears, setAcademicYears] = useState([]);
+  const [currentYearIndex, setCurrentYearIndex] = useState(0);
+  const selectedAcademicYear = academicYears[currentYearIndex];
 
   // ✅ logout modal state (added)
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -59,6 +71,79 @@ export default function TeacherDashboard() {
     day = addDays(day, 7);
   }
 
+  // 🔵 ADDED: Teacher dashboard stats (admin-style)
+  const [stats, setStats] = useState({
+    rooms: 0,
+    sections: 0,
+    subjects: 0,
+    students: 0,
+  });
+
+  // 🔵 Fetch teacher dashboard stats (by academic year)
+  useEffect(() => {
+    if (!selectedAcademicYear?.id) return;
+
+    const fetchTeacherStats = async () => {
+      try {
+        const res = await api.get('/teacher/dashboard/stats', {
+          params: { academic_year_id: selectedAcademicYear.id },
+        });
+        setStats(res.data);
+      } catch (error) {
+        console.error('Failed to load teacher stats', error);
+      }
+    };
+
+    fetchTeacherStats();
+  }, [selectedAcademicYear?.id]);
+
+  // 🔵 Fetch academic years (admin-controlled)
+  useEffect(() => {
+    const fetchAcademicYears = async () => {
+      try {
+        const res = await api.get('/academic-years');
+        const years = res.data.sort(
+          (a, b) => new Date(b.start_date) - new Date(a.start_date)
+        );
+
+        setAcademicYears(years);
+
+        // ✅ NEW: restore previously selected year
+        const storedYearId = await AsyncStorage.getItem(
+          ACADEMIC_YEAR_STORAGE_KEY
+        );
+
+        if (storedYearId) {
+          const storedIndex = years.findIndex(
+            y => String(y.id) === String(storedYearId)
+          );
+
+          if (storedIndex !== -1) {
+            setCurrentYearIndex(storedIndex);
+            return;
+          }
+        }
+
+        // 🔵 fallback to active year
+        const activeIndex = years.findIndex(y => y.is_active);
+        if (activeIndex !== -1) {
+          setCurrentYearIndex(activeIndex);
+          await AsyncStorage.setItem(
+            ACADEMIC_YEAR_STORAGE_KEY,
+            String(years[activeIndex].id)
+          );
+        } else {
+          setCurrentYearIndex(0);
+        }
+
+      } catch (err) {
+        console.error('Failed to fetch academic years', err);
+      }
+    };
+
+    fetchAcademicYears();
+  }, []);
+
   useEffect(() => {
     const fetchDeadlines = async () => {
       try {
@@ -76,30 +161,35 @@ export default function TeacherDashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchRoomsAndUser = async () => {
+    const fetchUser = async () => {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) return;
+
+      const userRes = await api.get("/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUserName(userRes.data.name);
+    };
+
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedAcademicYear?.id) return;
+
+    const fetchRooms = async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
-        console.log("🔑 Token used for fetchRooms:", token);
-        if (!token) {
-          console.warn("⚠️ No auth token found in AsyncStorage");
-          return;
-        }
         const response = await api.get("/teacher/rooms", {
-          headers: { Authorization: `Bearer ${token}` },
+          params: { academic_year_id: selectedAcademicYear.id },
         });
-        console.log("✅ Teacher rooms fetched:", response.data);
         setRooms(response.data);
-        const userRes = await api.get("/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        console.log("👤 Logged-in user:", userRes.data);
-        setUserName(userRes.data.name);
       } catch (error) {
-        console.error("Error fetching teacher dashboard:", error.response?.data || error.message);
+        console.error("Error fetching rooms:", error);
       }
     };
-    fetchRoomsAndUser();
-  }, []);
+
+    fetchRooms();
+  }, [selectedAcademicYear?.id]);
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -153,7 +243,7 @@ export default function TeacherDashboard() {
   };
 
   const themeStyles = isDarkMode ? styles.dark : styles.light;
-  const textColor = { color: isDarkMode ? '#fff' : '#000' };
+  const textColor = { color: isDarkMode ? '#fff' : '#000', fontWeight: "500" };
   const textStyles = isDarkMode ? styles.textLight : styles.textDark;
 
   const handleRoomSelect = (room) => {
@@ -185,10 +275,71 @@ export default function TeacherDashboard() {
     }
   };
 
+  const handleOpenRoom = (room) => {
+    setSelectedRoom(room);
+    setCurrentView('detail');
+  };
+
+  const filteredRooms = useMemo(() => {
+    return rooms.filter(room => {
+      const matchesSearch =
+        room.subject?.name
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        room.section?.name
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase());
+
+      const matchesGrade =
+        selectedGrade === 'All' ||
+        room.section?.grade_level === selectedGrade;
+
+      const matchesSection =
+        selectedSection === 'All' ||
+        room.section?.name === selectedSection;
+
+      return matchesSearch && matchesGrade && matchesSection;
+    });
+  }, [rooms, searchQuery, selectedGrade, selectedSection]);
+
+  // 🔵 Academic year navigation
+  // newer year (up)
+  const goNextYear = () => {
+    setCurrentYearIndex(i => Math.max(i - 1, 0));
+  };
+
+  // older year (down)
+  const goPrevYear = () => {
+    setCurrentYearIndex(i =>
+      Math.min(i + 1, academicYears.length - 1)
+    );
+  };
+
+  useEffect(() => {
+    console.log("🧠 Selected Academic Year:", selectedAcademicYear);
+  }, [selectedAcademicYear]);
+
+  useEffect(() => {
+    if (selectedAcademicYear?.id) {
+      AsyncStorage.setItem(
+        ACADEMIC_YEAR_STORAGE_KEY,
+        String(selectedAcademicYear.id)
+      );
+    }
+  }, [selectedAcademicYear]);
+
+  useEffect(() => {
+    console.log(
+      "📤 Sending academic_year_id to API:",
+      selectedAcademicYear?.id,
+      selectedAcademicYear?.year_label
+    );
+  }, [selectedAcademicYear]);
+
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
-      <View style={[styles.navbar, { backgroundColor: isDarkMode ? '#12362D' : '#FFFFFF' }]}>
+      <View style={[styles.navbar, { backgroundColor: isDarkMode ? '#0E5149' : '#FFFFFF' }]}>
         <View style={styles.navLeft}>
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
             <Ionicons name="menu" size={28} color={textColor.color} />
@@ -224,13 +375,13 @@ export default function TeacherDashboard() {
         onRequestClose={() => setLogoutModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#12352E" : "#fff" }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
+          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#0E5149" : "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#000", fontWeight: "500" }]}>
               Are you sure you want to log out?
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#2E2E2E" : "#ccc" }]}
+                style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#808080" : "#ccc" }]}
                 onPress={() => setLogoutModalVisible(false)}
               >
                 <Text style={{ color: isDarkMode ? "#fff" : "#000" }}>Cancel</Text>
@@ -246,7 +397,7 @@ export default function TeacherDashboard() {
         </View>
       </Modal>
 
-      {/* Notifications Dropdown */}
+      {/* ✅ Notifications Dropdown */}
       {dropdownVisible && (
         <View style={[styles.dropdown, isDarkMode ? styles.dropdownDark : styles.dropdownLight]}>
           <Text style={[styles.dropdownHeader, textColor]}>Notifications</Text>
@@ -258,17 +409,14 @@ export default function TeacherDashboard() {
             renderItem={({ item }) => (
               <TouchableOpacity onPress={() => handleNotificationClick(item)}>
                 <View style={styles.notificationItem}>
+                  {/* ✅ show type + title */}
                   <Text style={[styles.notificationText, textColor]}>
                     [{item.type?.toUpperCase()}] {item.title}
                   </Text>
-                  <Text style={[{ fontSize: 12 }, textColor]}>
-                    {item.type === "message"
-                      ? `A new message from ${item.sender_name || "Unknown"}`
-                      : item.type === "announcement"
-                        ? `A new announcement from ${item.sender_name || "Unknown"}`
-                        : stripHtml(item.content) || "No content"}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: "gray" }}>
+                  {/* ✅ show message body */}
+                  <Text style={[{ fontSize: 12 }, textColor]}>{item.message}</Text>
+                  {/* ✅ show formatted created_at */}
+                  <Text style={{ fontSize: 12, color: "#F7F7F7" }}>
                     {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
                   </Text>
                 </View>
@@ -282,7 +430,7 @@ export default function TeacherDashboard() {
               setDropdownVisible(false);
             }}
           >
-            <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
+            <Text style={{ color: "#F7F7F7", fontWeight: "500" }}>View all</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -317,12 +465,12 @@ export default function TeacherDashboard() {
               <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.userContainer, { backgroundColor: isDarkMode ? "#202020" : "#f9f9f9" }]}
+              style={[styles.userContainer, { backgroundColor: isDarkMode ? "#808080" : "#f9f9f9" }]}
               onPress={() => setCurrentView("profileHeader")}>
-              <Text style={[styles.userLabel, { color: isDarkMode ? "#BFD9D2" : "#333" }]}>
+              <Text style={[styles.userLabel, { color: isDarkMode ? "#F7F7F7" : "#333", fontWeight: "500" }]}>
                 👤 Logged in as:
               </Text>
-              <Text style={[styles.userName, { color: isDarkMode ? "#FFD700" : "#000" }]}>
+              <Text style={[styles.userName, { color: isDarkMode ? "#000000" : "#000", fontWeight: "500" }]}>
                 {userName ? userName : "Loading..."}
               </Text>
             </TouchableOpacity>
@@ -334,38 +482,140 @@ export default function TeacherDashboard() {
           {/* Dashboard */}
           {currentView === 'dashboard' && !selectedRoom && (
             <>
-              <Text style={[styles.mainText, { color: isDarkMode ? "#FFD700" : "#000" }]}>Teacher Dashboard</Text>
+              {/* 🔵 HEADER ROW */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                }}
+              >
+                {/* Teacher Dashboard */}
+                <Text
+                  style={[
+                    styles.mainText,
+                    { color: isDarkMode ? "#F7F7F7" : "#000", fontWeight: "500" },
+                  ]}
+                >
+                  Teacher Dashboard
+                </Text>
+
+                {/* 🔵 Academic Year Selector */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  {/* Year Container */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: isDarkMode ? "#808080" : "#E5E5E5",
+                      borderRadius: 6,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      marginRight: 8,
+                    }}
+                  >
+                    {/* Active Year Box */}
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "500",
+                          color: isDarkMode ? "#F7F7F7" : "#000",
+                        }}
+                      >
+                        {selectedAcademicYear?.year_label || "Loading..."}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Up / Down Controls */}
+                  <View style={{ alignItems: "center" }}>
+                    <TouchableOpacity onPress={goNextYear}>
+                      <Ionicons
+                        name="chevron-up"
+                        size={20}
+                        color={isDarkMode ? "#F7F7F7" : "#000"}
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={goPrevYear}>
+                      <Ionicons
+                        name="chevron-down"
+                        size={20}
+                        color={isDarkMode ? "#F7F7F7" : "#000"}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* 🔵 ADDED: Teacher Stats (Admin-style cards) */}
+              <View style={styles.statsContainer}>
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{stats.rooms}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Rooms</Text>
+                </View>
+
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{stats.sections}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Sections</Text>
+                </View>
+
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{stats.subjects}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Subjects</Text>
+                </View>
+
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{stats.students}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Students</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.mainText, { color: isDarkMode ? "#F7F7F7" : "#000" }]}>Rooms</Text>
+
               <View style={styles.subjectsContainer}>
-                {rooms.map((room, index) => (
+                {filteredRooms.map((room, index) => (
                   <Animated.View
                     key={index}
                     style={[
                       styles.subjectCard,
                       {
-                        backgroundColor: isDarkMode ? "#202020" : "#ffffff",
-                        borderColor: isDarkMode ? "#215C49" : "#202020",
+                        backgroundColor: isDarkMode ? "#808080" : "#f1f1f1",
+                        borderColor: isDarkMode ? "#000000" : "#202020",
                         borderWidth: 1,
                         shadowColor: isDarkMode ? "#000000" : "#333",
                       },
                       hoveredIndex === index && Platform.OS === "web"
-                        ? [styles.subjectCardHover, { shadowColor: isDarkMode ? "#FFD700" : "#007b55", transform: [{ scale: 1.05 }] }]
+                        ? [
+                          styles.subjectCardHover,
+                          {
+                            shadowColor: isDarkMode ? "#FFD700" : "#007b55",
+                            transform: [{ scale: 1.05 }],
+                          },
+                        ]
                         : {},
                     ]}
                     onMouseEnter={() => setHoveredIndex(index)}
                     onMouseLeave={() => setHoveredIndex(null)}
                   >
                     <TouchableOpacity onPress={() => handleRoomSelect(room)}>
-                      <Text style={[styles.subjectTitle, { color: isDarkMode ? "#FFD700" : "#006400" }]}>
+                      <Text style={[styles.subjectTitle, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
                         {room.subject?.name}
                       </Text>
-                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#333" }]}>
+                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#000000", fontWeight: "500" }]}>
                         Section: {room.section?.name}
                       </Text>
-                      {/* ✅ adjusted to show multiple days and times */}
-                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#ddd" : "#444" }]}>
+                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
                         Schedule: {formatDays(room.day)} {formatTimes(room.time)}
                       </Text>
-                      <Text style={[styles.subjectDetails, { fontStyle: "italic", color: isDarkMode ? "#32CD32" : "#006400" }]}>
+                      <Text style={[styles.subjectDetails, { fontStyle: "italic", color: isDarkMode ? "#000000" : "#000000", fontWeight: "500" }]}>
                         Code: {room.token || "No Token"}
                       </Text>
                     </TouchableOpacity>
@@ -379,23 +629,113 @@ export default function TeacherDashboard() {
           {currentView === 'myClasses' && (
             <ScrollView style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>My Classes</Text>
-              {rooms.length === 0 ? (
-                <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>No classes assigned.</Text>
+
+              {/* 🔍 Search + Filter */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  marginVertical: 10,
+                }}
+              >
+                {/* 🔍 Search */}
+                <TextInput
+                  placeholder="Search subject or section..."
+                  placeholderTextColor={isDarkMode ? '#F7F7F7' : '#000000'}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  style={{
+                    width: 260,
+                    padding: 10,
+                    borderWidth: 1,
+                    borderColor: isDarkMode ? '#333' : '#ccc',
+                    borderRadius: 6,
+                    color: isDarkMode ? '#fff' : '#000',
+                    marginRight: 10,
+                    backgroundColor: isDarkMode ? '#2b2b2b' : '#f2f2f2',
+                  }}
+                />
+
+                {/* 📘 Section Dropdown */}
+                <View
+                  style={{
+                    width: 200,
+                    borderWidth: 1,
+                    borderColor: isDarkMode ? '#333' : '#ccc',
+                    borderRadius: 6,
+                    backgroundColor: isDarkMode ? '#2b2b2b' : '#f2f2f2',
+                  }}
+                >
+                  <Picker
+                    selectedValue={selectedSection}
+                    onValueChange={(value) => setSelectedSection(value)}
+                    dropdownIconColor={isDarkMode ? '#000000' : '#000'}
+                    style={{
+                      color: isDarkMode ? '#F7F7F7' : '#000',
+                      height: 45,
+                      backgroundColor: isDarkMode ? '#2b2b2b' : '#f2f2f2',
+                    }}
+                  >
+                    <Picker.Item label="All Sections" value="All" />
+                    {[...new Set(rooms.map(r => r.section?.name).filter(Boolean))].map(
+                      (section, index) => (
+                        <Picker.Item
+                          key={index}
+                          label={section}
+                          value={section}
+                        />
+                      )
+                    )}
+                  </Picker>
+                </View>
+              </View>
+
+              {filteredRooms.length === 0 ? (
+                <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>
+                  No classes found.
+                </Text>
               ) : (
-                rooms.map((room, index) => (
-                  <View key={index} style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : '#ccc' }}>
-                    <Text style={[{ fontSize: 18, fontWeight: '600' }, textColor]}>{room.subject?.name}</Text>
-                    <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#333" }]}>
-                    {room.section?.name}
-                    </Text>
-                    {/* ✅ adjusted to show multiple days and times */}
-                    <Text style={{ color: isDarkMode ? '#ccc' : '#555' }}>
-                      {formatDays(room.day)} {formatTimes(room.time)}
-                    </Text>
-                    <Text style={{ color: "#4ade80", fontStyle: "italic" }}>
-                      Code: {room.token || "No Token"}
-                    </Text>
-                  </View>
+                filteredRooms.map((room, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    activeOpacity={0.7}
+                    onPress={() => handleOpenRoom(room)}
+                  >
+                    <View
+                      style={{
+                        padding: 10,
+                        borderBottomWidth: 1,
+                        borderBottomColor: isDarkMode ? '#333' : '#ccc',
+                      }}
+                    >
+                      <Text
+                        style={[
+                          { fontSize: 18, fontWeight: '500' },
+                          textColor,
+                        ]}
+                      >
+                        {room.subject?.name}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.subjectDetails,
+                          { color: isDarkMode ? '#fff' : '#000000', fontWeight: "500" },
+                        ]}
+                      >
+                        {room.section?.name}
+                      </Text>
+
+                      <Text style={{ color: isDarkMode ? '#F7F7F7' : '#000000', fontWeight: "500" }}>
+                        {formatDays(room.day)} {formatTimes(room.time)}
+                      </Text>
+
+                      <Text style={{ color: '#000000', fontStyle: 'italic', fontWeight: "500"}}>
+                        Code: {room.token || 'No Token'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 ))
               )}
             </ScrollView>
@@ -404,19 +744,19 @@ export default function TeacherDashboard() {
           {/* Subject Detail */}
           {currentView === "detail" && selectedRoom && (
             <ScrollView contentContainerStyle={styles.detailContainer} showsVerticalScrollIndicator={false}>
-              <View style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#12352E" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", }]}>
+              <View style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#808080" : "#f1f1f1", borderColor: isDarkMode ? "#000000" : "#000000", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", }]}>
                 <Image source={{ uri: selectedRoom.teacher?.user?.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", }} style={styles.profileImage} />
-                <Text style={[styles.instructorName, { color: isDarkMode ? "#FFD700" : "#006400" }]}>
+                <Text style={[styles.instructorName, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
                   {selectedRoom.teacher?.user?.name || selectedRoom.teacher?.name || "No Name"}
                 </Text>
-                <Text style={[styles.instructorSection, { color: isDarkMode ? "#fff" : "#333" }]}>
+                <Text style={[styles.instructorSection, { color: isDarkMode ? "#fff" : "#000000", fontWeight: "500" }]}>
                   Section: {selectedRoom.section?.name || "No Section"}
                 </Text>
                 {/* ✅ adjusted to show multiple days and times */}
-                <Text style={[styles.instructorSchedule, { color: isDarkMode ? "#ddd" : "#444" }]}>
+                <Text style={[styles.instructorSchedule, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
                   Schedule: {formatDays(selectedRoom.day)} {formatTimes(selectedRoom.time)}
                 </Text>
-                <Text style={{ color: isDarkMode ? "#32CD32" : "#006400", fontStyle: "italic", marginTop: 4 }}>
+                <Text style={{ color: isDarkMode ? "#000000" : "#000000", fontStyle: "italic", marginTop: 4, fontWeight: "500" }}>
                   Code: {selectedRoom.token || "No Token"}
                 </Text>
               </View>
@@ -450,7 +790,7 @@ export default function TeacherDashboard() {
                   <TouchableOpacity onPress={() => setCurrentMonth(addDays(currentMonth, -30))}>
                     <Ionicons name="chevron-back" size={24} color={textColor.color} />
                   </TouchableOpacity>
-                  <Text style={[{ fontSize: 20, fontWeight: "bold" }, textColor]}>
+                  <Text style={[{ fontSize: 20, fontWeight: "bold", fontWeight: "500" }, textColor]}>
                     {format(currentMonth, "MMMM yyyy")}
                   </Text>
                   <TouchableOpacity onPress={() => setCurrentMonth(addDays(currentMonth, 30))}>
@@ -467,8 +807,9 @@ export default function TeacherDashboard() {
                         flex: 1,
                         textAlign: "center",
                         fontWeight: "bold",
-                        color: isDarkMode ? "#bbb" : "#2563eb",
+                        color: isDarkMode ? "#F7F7F7" : "#000000",
                         paddingVertical: 5,
+                        fontWeight: "500",
                       }}
                     >
                       {d}
@@ -493,7 +834,7 @@ export default function TeacherDashboard() {
                             borderColor: isDarkMode ? "#333" : "#ddd",
                             padding: 4,
                             backgroundColor: isToday(day)
-                              ? isDarkMode ? "#fdf5d4" : "#fffbe6"
+                              ? isDarkMode ? "#808080" : "#fffbe6"
                               : isSameMonth(day, currentMonth)
                                 ? (isDarkMode ? "#1a1a1a" : "#fff")
                                 : (isDarkMode ? "#111" : "#f9f9f9"),
@@ -507,6 +848,7 @@ export default function TeacherDashboard() {
                                 ? (isDarkMode ? "#fff" : "#000")
                                 : "#999",
                               marginBottom: 2,
+                              fontWeight: "500"
                             }}
                           >
                             {format(day, "d")}
@@ -522,6 +864,7 @@ export default function TeacherDashboard() {
                                 borderRadius: 4,
                                 paddingHorizontal: 2,
                                 marginTop: 2,
+                                fontWeight: "500"
                               }}
                             >
                               {m.title}
@@ -616,7 +959,7 @@ export default function TeacherDashboard() {
 
           {/* Add / Update Grades */}
           {currentView === 'gradeForm' && (
-            <View style={{ padding: 20 }}>
+            <View style={{ padding: 20, flex: 1 }}>
               <GradeForm
                 isDarkMode={isDarkMode}
                 room={selectedRoom}
@@ -657,8 +1000,8 @@ const styles = StyleSheet.create({
   },
   brandText: {
     fontSize: 25,
-    fontWeight: '700',
-    color: '#FFD700', // gold brand name to match admin
+    fontWeight: '500',
+    color: '#FFD700',   
   },
   sidebarToggle: {
     paddingRight: 4,
@@ -680,12 +1023,12 @@ const styles = StyleSheet.create({
   },
   // updated sidebar dark to DWAD tones
   sidebarDark: {
-    backgroundColor: '#0F2E25',
-    borderColor: '#215C49',
+    backgroundColor: '#0E5149',
+    borderColor: '#000000',
   },
   sidebarLight: {
     backgroundColor: '#f1f1f1',
-    borderColor: '#e0e0e0',
+    borderColor: '#000000',
   },
   sidebarItem: {
     flexDirection: 'row',
@@ -703,7 +1046,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   mainContentDark: {
-    backgroundColor: '#0B1F1A', // deep green background to match admin
+    backgroundColor: '#0E5149', // deep green background to match admin
   },
   mainContentLight: {
     backgroundColor: '#ffffff',
@@ -830,7 +1173,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: '#000000',
   },
   userLabel: {
     fontSize: 14,
@@ -879,7 +1222,7 @@ const styles = StyleSheet.create({
   dropdownDark: {
     backgroundColor: "#1e1e1e",
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#F7F7F7",
   },
   dropdownLight: {
     backgroundColor: "#fff",
@@ -961,5 +1304,40 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // 🔵 ADDED: Admin-style stats container
+  statsContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    marginTop: 10,
+  },
+
+  statCard: {
+    flex: 1,
+    backgroundColor: '#f1f1f1',
+    padding: 20,
+    marginHorizontal: 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+
+  statNumber: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    color: '#000000',
+    fontWeight: "500"
+  },
+
+  statLabel: {
+    fontSize: 16,
+    color: '#000000',
+    marginTop: 6,
+    fontWeight: '500',
   },
 });

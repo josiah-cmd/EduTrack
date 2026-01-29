@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, } from "react-native";
 import api from "../../lib/axios";
 
 export default function GradeList({ isDarkMode }) {
@@ -50,26 +43,18 @@ export default function GradeList({ isDarkMode }) {
       <Text
         style={[
           styles.header,
-          { color: isDarkMode ? "#fff" : "#000", fontWeight: "bold" },
+          { color: isDarkMode ? "#fff" : "#000", fontWeight: "bold", fontWeight: "500" },
         ]}
       >
         My Grades
       </Text>
 
       {/* Reminder Box */}
-      <View
-        style={[
-          styles.reminderBox,
-          {
-            backgroundColor: isDarkMode ? "#374151" : "#fef3c7",
-            borderLeftColor: isDarkMode ? "#facc15" : "#c9b037",
-          },
-        ]}
-      >
+      <View>
         <Text
           style={[
             styles.reminderText,
-            { color: isDarkMode ? "#fef9c3" : "#1a1a1a" },
+            { color: isDarkMode ? "#F7F7F7" : "#1a1a1a", marginBottom: 20, fontWeight: "500"},
           ]}
         >
           ⚠️ These grades are{" "}
@@ -77,6 +62,7 @@ export default function GradeList({ isDarkMode }) {
             style={{
               fontWeight: "bold",
               color: isDarkMode ? "#fff" : "#000",
+              fontWeight: "700"
             }}
           >
             not yet official
@@ -116,7 +102,7 @@ export default function GradeList({ isDarkMode }) {
                       : "#1e293b",
 
                   fontSize: 15, // 🔥 Improved readability
-                  fontWeight: "600",
+                  fontWeight: "500",
                 },
               ]}
             >
@@ -138,6 +124,7 @@ export default function GradeList({ isDarkMode }) {
             textAlign: "center",
             color: isDarkMode ? "#fff" : "#000",
             marginTop: 20,
+            fontWeight: "500"
           }}
         >
           No grades available.
@@ -152,10 +139,9 @@ export default function GradeList({ isDarkMode }) {
                 { backgroundColor: isDarkMode ? "#1d4ed8" : "#2563eb" },
               ]}
             >
-              <Text style={[styles.tableHeader, { width: 180 }]}>Subject</Text>
-              <Text style={[styles.tableHeader, { width: 120 }]}>Initial</Text>
-              <Text style={[styles.tableHeader, { width: 120 }]}>Final</Text>
-              <Text style={[styles.tableHeader, { width: 120 }]}>Remarks</Text>
+              <Text style={[styles.tableHeader, { width: 180, fontWeight: "500" }]}>Subject</Text>
+              <Text style={[styles.tableHeader, { width: 120, fontWeight: "500" }]}>Final</Text>
+              <Text style={[styles.tableHeader, { width: 120, fontWeight: "500" }]}>Remarks</Text>
             </View>
 
             {/* Table Rows */}
@@ -183,6 +169,7 @@ export default function GradeList({ isDarkMode }) {
                       width: 180,
                       textAlign: "left",
                       color: isDarkMode ? "#f3f4f6" : "#111827",
+                      fontWeight: "500"
                     },
                   ]}
                 >
@@ -195,21 +182,9 @@ export default function GradeList({ isDarkMode }) {
                     {
                       width: 120,
                       textAlign: "center",
-                      color: isDarkMode ? "#fff" : "#000",
-                    },
-                  ]}
-                >
-                  {grade.initial_grade ?? "-"}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.tableCell,
-                    {
-                      width: 120,
-                      textAlign: "center",
                       fontWeight: "600",
                       color: isDarkMode ? "#fff" : "#000",
+                      fontWeight: "500"
                     },
                   ]}
                 >
@@ -222,7 +197,7 @@ export default function GradeList({ isDarkMode }) {
                     {
                       width: 120,
                       textAlign: "center",
-                      fontWeight: "600",
+                      fontWeight: "500",
                       color:
                         grade.remarks === "Passed"
                           ? "#16a34a"

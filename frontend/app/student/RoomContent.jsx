@@ -145,9 +145,9 @@ export default function RoomContent({ room, openMaterial, onOpenConsumed, isDark
             }}
             style={[
               styles.tab,
-              { backgroundColor: isDarkMode ? "#333333" : "#ccc" },
+              { backgroundColor: isDarkMode ? "#808080" : "#ccc" },
               activeTab === tab && {
-                backgroundColor: isDarkMode ? "#228B22" : "#006400",
+                backgroundColor: isDarkMode ? "#808080" : "#808080",
               },
             ]}
           >
@@ -155,7 +155,7 @@ export default function RoomContent({ room, openMaterial, onOpenConsumed, isDark
               style={[
                 styles.tabText,
                 { color: isDarkMode ? "#f0f0f0" : "#333" },
-                activeTab === tab && { color: "#FFD700" },
+                activeTab === tab && { color: "#000000" },
               ]}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -236,57 +236,57 @@ export default function RoomContent({ room, openMaterial, onOpenConsumed, isDark
 }
 
 const styles = StyleSheet.create({
-container: {
-flex: 1,
-padding: 12
-},
+  container: {
+    flex: 1,
+    padding: 12
+  },
 
-tabContainer: {
-flexDirection: "row",
-marginBottom: 15
-},
-tab: {
-flex: 1,
-paddingVertical: 10,
-marginHorizontal: 5,
-borderRadius: 20,
-backgroundColor: "#ccc",
-},
-activeTab: {
-backgroundColor: "#007bff"
-},
-tabText: {
-textAlign: "center",
-fontWeight: "600",
-color: "#333"
-},
-activeTabText: {
-color: "#fff"
-},
+  tabContainer: {
+    flexDirection: "row",
+    marginBottom: 15
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    marginHorizontal: 5,
+    borderRadius: 20,
+    backgroundColor: "#ccc",
+  },
+  activeTab: {
+    backgroundColor: "#007bff"
+  },
+  tabText: {
+    textAlign: "center",
+    fontWeight: "600",
+    color: "#333"
+  },
+  activeTabText: {
+    color: "#fff"
+  },
 
-fileCard: {
-padding: 15,
-marginBottom: 10,
-borderRadius: 8,
-backgroundColor: "#fff",
-borderWidth: 1,
-borderColor: "#ddd",
-shadowColor: "#000",
-shadowOpacity: 0.05,
-shadowOffset: { width: 0, height: 2 },
-shadowRadius: 4,
-},
-fileTitle: {
-fontSize: 16,
-fontWeight: "bold",
-marginBottom: 3
-},
-fileDesc: {
-color: "#555"
-},
-deadline: {
-color: "red",
-fontWeight: "600",
-marginTop: 4
-},
+  fileCard: {
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  fileTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 3
+  },
+  fileDesc: {
+    color: "#555"
+  },
+  deadline: {
+    color: "red",
+    fontWeight: "600",
+    marginTop: 4
+  },
 });

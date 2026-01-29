@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import api from "../../lib/axios";
 
-export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { // 🔹 added onNextStep prop
+export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode}) { // 🔹 added onNextStep prop
   const [questionText, setQuestionText] = useState("");
   const [questionType, setQuestionType] = useState("multiple_choice");
   const [options, setOptions] = useState([
@@ -149,7 +149,7 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
         Question Type
       </Text>
       <View style={styles.typeRow}>
-        {["multiple_choice", "true_false", "identification"].map((type) => (
+        {["multiple_choice", "true_false", "identification", "essay"].map((type) => (
           <TouchableOpacity
             key={type}
             style={[
@@ -269,6 +269,19 @@ export default function QuizForm({ quizId, onBack, onNextStep, isDarkMode }) { /
             onChangeText={setCorrectAnswer}
             placeholder="Type the correct answer..."
             placeholderTextColor={isDarkMode ? "#aaa" : "#555"} // ✅ fixed
+          />
+        </View>
+      )}
+
+      {questionType === "essay" && (
+        <View>
+          <Text style={styles.label}>Reference Answer</Text>
+          <TextInput
+            multiline
+            value={correctAnswer}
+            onChangeText={setCorrectAnswer}
+            placeholder="Enter ideal answer (used for similarity checking)"
+            style={[styles.input, { height: 100 }]}
           />
         </View>
       )}

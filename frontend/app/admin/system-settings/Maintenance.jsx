@@ -86,14 +86,14 @@ export default function Maintenance({ isDarkMode }) {
           activeOpacity={0.7}
           onPress={() => setActiveSection(item.id)}
         >
-          <Ionicons name={item.icon} size={26} color={isDarkMode ? "#4caf50" : "#2563eb"} />
+          <Ionicons name={item.icon} size={26} color={isDarkMode ? "#F7F7F7" : "#000000"} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardTitle, textColor]}>{item.title}</Text>
-            <Text style={[styles.cardDesc, { color: isDarkMode ? "#aaa" : "#555" }]}>
+            <Text style={[styles.cardDesc, { color: isDarkMode ? "#F7F7F7" : "#555", fontWeight: "500" }]}>
               {item.desc}
             </Text>
           </View>
-          <Ionicons name="chevron-forward-outline" size={22} color={isDarkMode ? "#aaa" : "#555"} />
+          <Ionicons name="chevron-forward-outline" size={22} color={isDarkMode ? "#000000" : "#000000"} />
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -140,8 +140,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cardDark: {
-    backgroundColor: "#1a1a1a",
-    borderColor: "#333",
+    backgroundColor: "#808080",
+    borderColor: "#000000",
   },
   cardLight: {
     backgroundColor: "#f9f9f9",
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   cardDesc: {
     fontSize: 14,

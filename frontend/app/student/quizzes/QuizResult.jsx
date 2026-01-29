@@ -118,7 +118,7 @@ export default function QuizResult({  attemptId: propAttemptId,  quizId: propQui
           >
             <Text style={[styles.statText, { color: isDarkMode ? "#fff" : "#111" }]}>
               🧮 Score:{" "}
-              <Text style={{ color: "#00ff88" }}>
+              <Text style={{ color: "#000000" }}>
                 {result.score} / {result.total_points}
               </Text>
             </Text>
@@ -126,7 +126,7 @@ export default function QuizResult({  attemptId: propAttemptId,  quizId: propQui
               📊 Percentage:{" "}
               <Text
                 style={{
-                  color: percentageValue >= 50 ? "#00ff88" : "#ff5555",
+                  color: percentageValue >= 50 ? "#000000" : "#ff5555",
                 }}
               >
                 {percentageValue}%
@@ -134,7 +134,7 @@ export default function QuizResult({  attemptId: propAttemptId,  quizId: propQui
             </Text>
             <Text style={[styles.statText, { color: isDarkMode ? "#fff" : "#111" }]}>
               🏁 Status:{" "}
-              <Text style={{ color: "#FFD700" }}>{result.status}</Text>
+              <Text style={{ color: "#000000" }}>{result.status}</Text>
             </Text>
           </View>
         </View>
@@ -152,7 +152,7 @@ export default function QuizResult({  attemptId: propAttemptId,  quizId: propQui
                 style={[
                   styles.questionCard,
                   {
-                    borderColor: a.is_correct ? "#00ff88" : "#ff5555",
+                    borderColor: a.is_correct ? "#000000" : "#ff5555",
                     backgroundColor: isDarkMode ? "#222" : "#fff",
                   },
                 ]}
@@ -175,7 +175,7 @@ export default function QuizResult({  attemptId: propAttemptId,  quizId: propQui
                   Your Answer:{" "}
                   <Text
                     style={{
-                      color: a.is_correct ? "#00ff88" : "#ff5555",
+                      color: a.is_correct ? "#000000" : "#ff5555",
                       fontWeight: "bold",
                     }}
                   >
@@ -219,7 +219,7 @@ export default function QuizResult({  attemptId: propAttemptId,  quizId: propQui
           <Text
             style={[
               styles.backText,
-              { color: isDarkMode ? "#00ff88" : "#006400" },
+              { color: isDarkMode ? "#00ff88" : "#000000" },
             ]}
           >
             ⬅ Back to Quizzes

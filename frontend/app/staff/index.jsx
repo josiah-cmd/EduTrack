@@ -164,7 +164,7 @@ export default function AdminDashboard() {
   };
 
   const themeStyles = isDarkMode ? styles.dark : styles.light;
-  const textColor = { color: isDarkMode ? '#fff' : '#000' };
+  const textColor = { color: isDarkMode ? '#fff' : '#000', fontWeight: "500" };
   const textStyles = isDarkMode ? styles.textLight : styles.textDark;
 
   // ✅ build weeks for table layout
@@ -205,7 +205,7 @@ export default function AdminDashboard() {
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
-      <View style={[styles.navbar, { backgroundColor: isDarkMode ? '#12362D' : '#FFFFFF', },]}>
+      <View style={[styles.navbar, { backgroundColor: isDarkMode ? '#0E5149' : '#FFFFFF', },]}>
         <View style={styles.navLeft}>
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
             <Ionicons name="menu" size={28} color={textColor.color} />
@@ -255,13 +255,13 @@ export default function AdminDashboard() {
         onRequestClose={() => setLogoutModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#12352E" : "#fff" }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
+          <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#0E5149" : "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#000", fontWeight: "500" }]}>
               Are you sure you want to log out?
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#2E2E2E" : "#ccc" }]}
+                style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#808080" : "#ccc" }]}
                 onPress={() => setLogoutModalVisible(false)}
               >
                 <Text style={{ color: isDarkMode ? "#fff" : "#000" }}>Cancel</Text>
@@ -296,7 +296,7 @@ export default function AdminDashboard() {
                   {/* ✅ show message body */}
                   <Text style={[{ fontSize: 12 }, textColor]}>{item.message}</Text>
                   {/* ✅ show formatted created_at */}
-                  <Text style={{ fontSize: 12, color: "gray" }}>
+                  <Text style={{ fontSize: 12, color: "#F7F7F7" }}>
                     {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
                   </Text>
                 </View>
@@ -310,7 +310,7 @@ export default function AdminDashboard() {
               setDropdownVisible(false);
             }}
           >
-            <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
+            <Text style={{ color: "#F7F7F7", fontWeight: "500" }}>View all</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -384,12 +384,12 @@ export default function AdminDashboard() {
               )}
 
               <TouchableOpacity
-                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#12352E" : "#f9f9f9" }]}
-                onPress={() => setCurrentView("profileHeader")}>
-                <Text style={[styles.userLabel, { color: isDarkMode ? "#BFD9D2" : "#333" }]}>
+                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#808080" : "#f9f9f9" }]}
+                onPress={() => setCurrentView("profileHeader")}>      
+                <Text style={[styles.userLabel, { color: isDarkMode ? "#F7F7F7" : "#333", fontWeight: "500" }]}>
                   👤 Logged in as:
                 </Text>
-                <Text style={[styles.userName, { color: isDarkMode ? "#FFD700" : "#000" }]}>
+                <Text style={[styles.userName, { color: isDarkMode ? "#000000" : "#000", fontWeight: "500" }]}>
                   {userName ? userName : "Loading..."}
                 </Text>
               </TouchableOpacity>
@@ -405,17 +405,17 @@ export default function AdminDashboard() {
 
               {/* ✅ Stats container */}
               <View style={styles.statsContainer}>
-                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#12352E', borderColor: '#FFD700' }]}>
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
                   <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{totalUsers}</Text>
-                  <Text style={[styles.statLabel, isDarkMode && { color: '#FFD700' }]}>Users</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Users</Text>
                 </View>
-                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#12352E', borderColor: '#FFD700' }]}>
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
                   <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{totalTeachers}</Text>
-                  <Text style={[styles.statLabel, isDarkMode && { color: '#FFD700' }]}>Teachers</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Teachers</Text>
                 </View>
-                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#12352E', borderColor: '#FFD700' }]}>
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
                   <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{totalStudents}</Text>
-                  <Text style={[styles.statLabel, isDarkMode && { color: '#FFD700' }]}>Students</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Students</Text>
                 </View>
               </View>
 
@@ -442,6 +442,7 @@ export default function AdminDashboard() {
                   elevation: 3,
                   borderWidth: 1,
                   borderColor: isDarkMode ? '#333' : '#ccc',
+                  fontWeight: "500"
                 }}
               >
                 {/* ✅ Calendar Header */}
@@ -466,8 +467,9 @@ export default function AdminDashboard() {
                         flex: 1,
                         textAlign: "center",
                         fontWeight: "bold",
-                        color: isDarkMode ? "#bbb" : "#2563eb",
+                        color: isDarkMode ? "#F7F7F7" : "#000000",
                         paddingVertical: 5,
+                        fontWeight: "500"
                       }}
                     >
                       {d}
@@ -492,7 +494,7 @@ export default function AdminDashboard() {
                             borderColor: isDarkMode ? "#333" : "#ddd",
                             padding: 4,
                             backgroundColor: isToday(day)
-                              ? isDarkMode ? "#fdf5d4" : "#fffbe6"
+                              ? isDarkMode ? "#808080" : "#fffbe6"
                               : isSameMonth(day, currentMonth)
                                 ? (isDarkMode ? "#1a1a1a" : "#fff")
                                 : (isDarkMode ? "#111" : "#f9f9f9"),
@@ -506,6 +508,7 @@ export default function AdminDashboard() {
                                 ? (isDarkMode ? "#fff" : "#000")
                                 : "#999",
                               marginBottom: 2,
+                              fontWeight: "500"
                             }}
                           >
                             {format(day, "d")}
@@ -521,6 +524,7 @@ export default function AdminDashboard() {
                                 borderRadius: 4,
                                 paddingHorizontal: 2,
                                 marginTop: 2,
+                                fontWeight: "500"
                               }}
                             >
                               {m.title}
@@ -539,7 +543,7 @@ export default function AdminDashboard() {
           {currentView === 'announcements' && (
             <View style={{ flex: 20 }}>
               <Text style={[styles.mainText, textColor]}>Announcements</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>Create Announcements here.</Text>
+              <Text style={{ color: isDarkMode ? '#F7F7F7' : '#333' }}>Create Announcements here.</Text>
               <AnnouncementForm isDarkMode={isDarkMode} />
             </View>
           )}
@@ -556,7 +560,7 @@ export default function AdminDashboard() {
           {currentView === 'userManagement' && (
             <View style={{ flex: 20 }}>
               <Text style={[styles.mainText, textColor]}>User Management</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>Create and Manage users here.</Text>
+              <Text style={{ color: isDarkMode ? '#F7F7F7' : '#333' }}>Create and Manage users here.</Text>
               <UserForm isDarkMode={isDarkMode} />
             </View>
           )}
@@ -564,7 +568,7 @@ export default function AdminDashboard() {
           {currentView === 'roomManagement' && (
             <View style={{ flex: 1 }}>
               <Text style={[styles.mainText, textColor]}>Room Management</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>Create and Manage rooms here.</Text>
+              <Text style={{ color: isDarkMode ? '#F7F7F7' : '#333' }}>Create and Manage rooms here.</Text>
               <RoomForm isDarkMode={isDarkMode} />
             </View>
           )}
@@ -573,7 +577,6 @@ export default function AdminDashboard() {
           {currentView === 'reports' && (
             <View style={{ flex: 20 }}>
               <Text style={[styles.mainText, textColor]}>Reports</Text>
-              <Text style={{ color: isDarkMode ? '#aaa' : '#333' }}>Generate reports here.</Text>
               <Reports isDarkMode={isDarkMode} />
             </View>
           )}
@@ -663,7 +666,7 @@ const styles = StyleSheet.create({
   },
   brandText: {
     fontSize: 25,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#FFD700', // ✅ Gold brand name
   },
   sidebarToggle: {
@@ -685,12 +688,12 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
   },
   sidebarDark: {
-    backgroundColor: '#0F2E25',
-    borderColor: '#215C49',
+    backgroundColor: '#0E5149',
+    borderColor: '#000000',
   },
   sidebarLight: {
     backgroundColor: '#f1f1f1',
-    borderColor: '#e0e0e0',
+    borderColor: '#000000',
   },
   sidebarItem: {
     flexDirection: 'row',
@@ -702,7 +705,7 @@ const styles = StyleSheet.create({
   },
   sidebarText: {
     fontSize: 20,
-    color: '#ffffff', // ✅ readable white text
+    color: '#ffffff',
   },
   mainContent: {
     flex: 1,
@@ -710,7 +713,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   mainContentDark: {
-    backgroundColor: '#0B1F1A',
+    backgroundColor: '#0E5149',
   },
   mainContentLight: {
     backgroundColor: '#ffffff',
@@ -747,13 +750,12 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f1f1f1',
     padding: 20,
     marginHorizontal: 6,
     borderRadius: 16, // ✅ softer modern corners
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FFD700', // ✅ gold border highlight
     shadowColor: '#000',
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -762,11 +764,12 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 30,
     fontWeight: 'bold',
-    color: '#1DB954', // ✅ DWAD green
+    color: '#000000', 
+    fontWeight: "500"
   },
   statLabel: {
     fontSize: 16,
-    color: '#ffffff', // ✅ clear readable text
+    color: '#000000', 
     marginTop: 6,
     fontWeight: '500',
   },
@@ -782,7 +785,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FFD700', // ✅ gold outline
+    borderColor: '#F7F7F7', // ✅ gold outline
   },
   userLabel: {
     fontSize: 14,
@@ -832,7 +835,7 @@ const styles = StyleSheet.create({
   dropdownDark: {
     backgroundColor: "#1e1e1e",
     borderWidth: 1,
-    borderColor: "#FFD700", // ✅ gold accent border
+    borderColor: "#F7F7F7", // ✅ gold accent border
   },
   dropdownLight: {
     backgroundColor: "#fff",

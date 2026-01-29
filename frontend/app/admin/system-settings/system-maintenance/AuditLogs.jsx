@@ -7,6 +7,49 @@ export default function AuditLogs({ isDarkMode }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const parseLaravelDate = (dateString) => {
+    if (!dateString) return null;
+
+    // If already ISO (from backend fix), parse directly
+    if (dateString.includes("T")) {
+      const date = new Date(dateString);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Legacy Laravel format: "YYYY-MM-DD HH:mm:ss"
+    const isoString = dateString.replace(" ", "T") + "Z";
+    const date = new Date(isoString);
+
+    return isNaN(date.getTime()) ? null : date;
+  };
+
+  const getRelativeTime = (dateString) => {
+    const date = parseLaravelDate(dateString);
+    if (!date) return "";
+
+    const now = new Date();
+    const diffMs = now - date;
+
+    const seconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (seconds < 10) return "just now";
+    if (seconds < 60) return `${seconds} seconds ago`;
+    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+    if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+    if (days === 1) return "yesterday";
+    if (days < 7) return `${days} days ago`;
+
+    return date.toLocaleDateString("en-PH", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      timeZone: "Asia/Manila",
+    });
+  };
+
   useEffect(() => {
     // ✅ Fetch real logs from Laravel API
     const fetchLogs = async () => {
@@ -61,7 +104,9 @@ export default function AuditLogs({ isDarkMode }) {
                   {item.action || item.description || "No description"}
                 </Text>
                 <Text style={[styles.logTime, { color: isDarkMode ? "#aaa" : "#555" }]}>
-                  {item.time || item.created_at || ""}
+                  {item.created_at
+                    ? getRelativeTime(item.created_at)
+                    : item.time}
                 </Text>
               </View>
             </View>

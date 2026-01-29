@@ -6,6 +6,9 @@ use App\Models\Announcement;
 use Illuminate\Http\Request;
 use App\Services\NotificationService; // ✅ added
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class AnnouncementController extends Controller
 {
@@ -62,7 +65,7 @@ class AnnouncementController extends Controller
         NotificationService::notify(
             'announcement',
             'New Announcement',
-            $validated['content'],
+            Str::limit(strip_tags($validated['content']), 255),
             $user->id,
             $recipients
         );
@@ -106,5 +109,18 @@ class AnnouncementController extends Controller
         $announcement->delete();
 
         return response()->json(['message' => 'Announcement deleted']);
+    }
+
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'upload' => 'required|image|max:5120', // 5MB
+        ]);
+
+        $path = $request->file('upload')->store('announcements', 'public');
+
+        return response()->json([
+            'url' => asset('storage/' . $path),
+        ]);
     }
 }

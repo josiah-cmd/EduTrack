@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import api, { API_URL } from "../lib/axios"; // ✅ import api instance
 
-export default function AssignmentDetail({ material, onBack, room }) {
+export default function AssignmentDetail({ material, onBack, room, isDarkMode }) {
     const [file, setFile] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [submissions, setSubmissions] = useState([]); // ✅ Student’s uploaded files
@@ -168,9 +168,23 @@ export default function AssignmentDetail({ material, onBack, room }) {
 
     return (
         <View style={styles.wrapper}>
-            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-                <Text style={styles.backText}>⬅ Back</Text>
-            </TouchableOpacity>
+            <View
+                style={[
+                    styles.backContainer,
+                    isDarkMode ? styles.backDark : styles.backLight,
+                ]}
+            >
+                <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+                    <Text
+                        style={[
+                            styles.backText,
+                            isDarkMode ? styles.backTextDark : styles.backTextLight,
+                        ]}
+                    >
+                        ⬅ Back
+                    </Text>
+                </TouchableOpacity>
+            </View>
 
             <View style={styles.containerBox}>
                 <Text style={styles.title}>{material?.title || "No Title"}</Text>
@@ -309,13 +323,13 @@ const styles = StyleSheet.create({
     actionBtn: {
         fontSize: 16,
         fontWeight: "600",
-        color: "#007bff",
+        color: "#000000",
         marginRight: 20,
     },
 
     /* Form */
     formCard: {
-        backgroundColor: "#fff",
+        backgroundColor: "#f1f1f1",
         padding: 15,
         borderRadius: 10,
         marginBottom: 15,
@@ -336,7 +350,7 @@ const styles = StyleSheet.create({
     pickBtn: {
         flex: 1,
         marginRight: 5,
-        backgroundColor: "#006400",
+        backgroundColor: "#0E5149",
         paddingVertical: 10,
         borderRadius: 6,
     },
@@ -348,13 +362,13 @@ const styles = StyleSheet.create({
     uploadBtn: {
         flex: 1,
         marginLeft: 5,
-        backgroundColor: "#FFD700",
+        backgroundColor: "#0E5149",
         paddingVertical: 10,
         borderRadius: 6,
     },
     uploadBtnText: {
         textAlign: "center",
-        color: "#000",
+        color: "#F7F7F7",
         fontWeight: "600"
     },
 
@@ -444,5 +458,38 @@ const styles = StyleSheet.create({
     modalBtnText: {
         color: "#fff",
         fontWeight: "600"
+    },
+
+    backContainer: {
+        alignSelf: "flex-start",
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        marginBottom: 10,
+    },
+
+    backLight: {
+        backgroundColor: "#e5e7eb", // light gray
+    },
+
+    backDark: {
+        backgroundColor: "#1f2937", // dark gray
+    },
+
+    backBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+
+    backTextLight: {
+        color: "#111827",
+        fontSize: 14,
+        fontWeight: "500",
+    },
+
+    backTextDark: {
+        color: "#f9fafb",
+        fontSize: 14,
+        fontWeight: "500",
     },
 });

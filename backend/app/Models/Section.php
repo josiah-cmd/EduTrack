@@ -8,10 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 class Section extends Model {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = [
+        'name',
+
+        // ✅ ADDED
+        'department',
+        'grade_level',
+        'strand'
+    ];
 
     public function rooms() {
         return $this->hasMany(Room::class);
     }
 }
-

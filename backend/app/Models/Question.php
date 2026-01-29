@@ -11,10 +11,14 @@ class Question extends Model
 
     protected $fillable = [
         'quiz_id',
+        'teacher_id',
         'question_text',
         'type',
         'correct_answer',
         'points',
+        'is_test_bank',
+        'grade_level',
+        'difficulty',
     ];
 
     public function quiz()

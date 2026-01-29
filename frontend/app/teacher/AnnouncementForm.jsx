@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useRef, useState } from "react";
 import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
 import RenderHTML from "react-native-render-html";
+import { ScrollView } from "react-native-web";
 import api from "../lib/axios";
 
 /**
@@ -12,18 +13,15 @@ import api from "../lib/axios";
  */
 let initialEditor = null;
 if (typeof window !== "undefined") {
-  // do not throw if require fails; we'll just fallback
   try {
     const ck = require("@ckeditor/ckeditor5-react");
     const classic = require("@ckeditor/ckeditor5-build-classic");
-    // Robust extraction: module shape may vary
     const CKEditorLib = ck && (ck.CKEditor || ck.default?.CKEditor || ck.default);
     const ClassicEditorLib = classic && (classic.default || classic);
     if (CKEditorLib && ClassicEditorLib) {
       initialEditor = { CKEditor: CKEditorLib, ClassicEditor: ClassicEditorLib };
     }
   } catch (e) {
-    // Editor not available in this environment (safe fallback)
     console.warn("CKEditor not loaded (will use fallback input).", e.message);
   }
 }
@@ -37,15 +35,16 @@ export default function AnnouncementForm({ isDarkMode }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
-  // ✅ Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  // local editor container state (null if not available)
   const [editorModules, setEditorModules] = useState(initialEditor);
-
-  // ref to the editor (if CKEditor present)
   const editorRef = useRef(null);
+
+  // ✅ ABSOLUTE IMAGE UPLOAD URL (THIS WAS MISSING)
+  const imageUploadUrl = api?.defaults?.baseURL
+    ? `${api.defaults.baseURL}/announcements/upload-image`
+    : "/announcements/upload-image";
 
   const loadTokenAndData = async () => {
     try {
@@ -72,7 +71,6 @@ export default function AnnouncementForm({ isDarkMode }) {
   useEffect(() => {
     loadTokenAndData();
 
-    // If the initial attempt didn't load CKEditor (e.g. HMR), try again on mount (client-side)
     if (!editorModules && typeof window !== "undefined") {
       try {
         const ck = require("@ckeditor/ckeditor5-react");
@@ -83,11 +81,9 @@ export default function AnnouncementForm({ isDarkMode }) {
           setEditorModules({ CKEditor: CKEditorLib, ClassicEditor: ClassicEditorLib });
         }
       } catch (e) {
-        // still not available: that's fine, fallback remains
         console.warn("CKEditor still unavailable after mount:", e.message);
       }
     }
-     
   }, []);
 
   const fetchAnnouncements = async () => {
@@ -107,10 +103,9 @@ export default function AnnouncementForm({ isDarkMode }) {
 
     try {
       await api.post("/announcements", { content });
-
       setContent("");
       setSuccessMessage("✅ Announcement created successfully!");
-      setShowSuccessModal(true); // ✅ show modal
+      setShowSuccessModal(true);
       fetchAnnouncements();
     } catch (err) {
       console.error("❌ Create error:", err.response?.data || err.message);
@@ -126,11 +121,10 @@ export default function AnnouncementForm({ isDarkMode }) {
 
     try {
       await api.put(`/announcements/${editingId}`, { content });
-
       setContent("");
       setEditingId(null);
       setSuccessMessage("✅ Announcement updated successfully!");
-      setShowSuccessModal(true); // ✅ show modal
+      setShowSuccessModal(true);
       fetchAnnouncements();
     } catch (err) {
       console.error("❌ Update error:", err.response?.data || err.message);
@@ -152,25 +146,22 @@ export default function AnnouncementForm({ isDarkMode }) {
     }
   };
 
-  // helper: set editor HTML if CKEditor present (used when editing an existing announcement)
   const setEditorContentIfPresent = (html) => {
     setContent(html);
     if (editorModules && editorRef.current && typeof editorRef.current.setData === "function") {
       try {
         editorRef.current.setData(html);
-      } catch (e) {
-        // ignore if setData isn't supported
-      }
+      } catch (e) {}
     }
   };
 
   return (
-    <View style={{ padding: 16}}>
-      <Text style={[styles.header, { color: isDarkMode ? "#FFFFFF" : "#178a4c" }]}>
+    <View style={[styles.container]}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={[styles.header, { color: isDarkMode ? "#fff" : "#111" }]}>
         📢 Announcements
       </Text>
 
-      {/* Editor area */}
       <View style={styles.form}>
         {editorModules && editorModules.CKEditor && editorModules.ClassicEditor ? (
           <editorModules.CKEditor
@@ -178,14 +169,34 @@ export default function AnnouncementForm({ isDarkMode }) {
             data={content}
             onReady={(editor) => {
               editorRef.current = editor;
+
+              // ✅ AUTO LIMIT IMAGE SIZE AFTER INSERT (SAFE)
+              editor.model.document.on("change:data", () => {
+                const viewDocument = editor.editing.view.document;
+                const images = viewDocument.getRoot().getChildren();
+
+                for (const node of images) {
+                  if (node.name === "figure") {
+                    const img = node.getChild(0);
+                    if (img && img.is("element", "img")) {
+                      editor.editing.view.change((writer) => {
+                        writer.setStyle("max-width", "300px", img);
+                        writer.setStyle("height", "auto", img);
+                      });
+                    }
+                  }
+                }
+              });
             }}
             onChange={(event, editor) => {
               try {
                 const data = editor.getData();
                 setContent(data);
-              } catch (e) {}
+              } catch (e) { }
             }}
             config={{
+              placeholder: "Write an announcement...",
+
               toolbar: {
                 items: [
                   "bold",
@@ -197,13 +208,46 @@ export default function AnnouncementForm({ isDarkMode }) {
                   "blockQuote",
                   "|",
                   "link",
+                  "imageUpload",
                   "|",
                   "undo",
                   "redo",
                 ],
                 shouldNotGroupWhenFull: true,
               },
-              placeholder: "Write an announcement...",
+
+              // ✅ IMAGE CONFIG (ADDED — DOES NOT REMOVE ANYTHING)
+              image: {
+                styles: ["alignLeft", "alignCenter", "alignRight"],
+                toolbar: [
+                  "imageStyle:alignLeft",
+                  "imageStyle:alignCenter",
+                  "imageStyle:alignRight",
+                ],
+              },
+
+              // ✅ FIXED IMAGE UPLOAD CONFIG (UNCHANGED)
+              extraPlugins: [
+                function Base64UploadAdapterPlugin(editor) {
+                  editor.plugins.get("FileRepository").createUploadAdapter = (
+                    loader
+                  ) => {
+                    return {
+                      upload: () =>
+                        loader.file.then(
+                          (file) =>
+                            new Promise((resolve) => {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                resolve({ default: reader.result });
+                              };
+                              reader.readAsDataURL(file);
+                            })
+                        ),
+                    };
+                  };
+                },
+              ],
             }}
           />
         ) : (
@@ -211,13 +255,13 @@ export default function AnnouncementForm({ isDarkMode }) {
             style={[
               styles.input,
               {
-                backgroundColor: isDarkMode ? "#1a1a1a" : "#f7f7f7",
-                color: isDarkMode ? "#fff" : "#0b3d2e",
-                borderColor: isDarkMode ? "#178a4c" : "#178a4c",
+                backgroundColor: isDarkMode ? "#1f2937" : "#fff",
+                color: isDarkMode ? "#fff" : "#111",
+                borderColor: isDarkMode ? "#374151" : "#d1d5db",
               },
             ]}
             placeholder="Write an announcement..."
-            placeholderTextColor={isDarkMode ? "#aaa" : "#666"}
+            placeholderTextColor={isDarkMode ? "#000000" : "#6b7280"}
             value={content}
             onChangeText={setContent}
             multiline
@@ -225,18 +269,16 @@ export default function AnnouncementForm({ isDarkMode }) {
         )}
 
         <TouchableOpacity
-          style={[
-            styles.button,
-            { backgroundColor: isDarkMode ? "#178a4c" : "#178a4c" },
-          ]}
+          style={[styles.button, { backgroundColor: isDarkMode ? "#808080" : "#0E5149" }]}
           onPress={editingId ? updateAnnouncement : createAnnouncement}
         >
-          <Text style={[styles.buttonText, { color: "#fff" }]}>
+          <Text style={styles.buttonText}>
             {editingId ? "Update" : "Create"}
           </Text>
         </TouchableOpacity>
       </View>
 
+      {/* List */}
       <FlatList
         data={announcements}
         keyExtractor={(item) => item.id.toString()}
@@ -245,72 +287,80 @@ export default function AnnouncementForm({ isDarkMode }) {
             style={[
               styles.card,
               {
-                backgroundColor: isDarkMode ? "#1a1a1a" : "#fff",
-                borderColor: isDarkMode ? "#c9b037" : "#178a4c",
+                backgroundColor: isDarkMode ? "#808080" : "#fff",
+                borderColor: isDarkMode ? "#374151" : "#d1d5db",
               },
             ]}
           >
             <RenderHTML
               contentWidth={600}
               source={{ html: item.content || "" }}
-              baseStyle={[
-                styles.text,
-                { color: isDarkMode ? "#fff" : "#0b3d2e" },
-              ]}
+              baseStyle={[styles.text, { color: isDarkMode ? "#fff" : "#111" }]}
               tagsStyles={{
-                p: { color: isDarkMode ? "#fff" : "#0b3d2e" },
-                li: { color: isDarkMode ? "#fff" : "#0b3d2e" },
-                span: { color: isDarkMode ? "#fff" : "#0b3d2e" },
+                p: { color: isDarkMode ? "#fff" : "#111", marginBottom: 6 },
+                li: { color: isDarkMode ? "#fff" : "#111" },
+                span: { color: isDarkMode ? "#fff" : "#111" },
+                img: { maxWidth: 300, height: "auto" }, // ✅ IMAGE FIX FOR DISPLAY
               }}
             />
 
             <Text
               style={[
                 styles.subtext,
-                { color: isDarkMode ? "#c9b037" : "#178a4c" },
+                { color: isDarkMode ? "#F7F7F7" : "#6b7280" },
               ]}
             >
               —{" "}
               {item.user?.role === "admin"
                 ? "Admin"
                 : item.user?.role === "staff"
-                ? "Staff"
-                : item.user?.role === "teacher"
-                ? item.user?.name
-                : item.user?.name}
+                  ? "Staff"
+                  : item.user?.role === "teacher"
+                    ? item.user?.name
+                    : item.user?.name}
             </Text>
 
             <View style={styles.actions}>
-              <TouchableOpacity
-                onPress={() => {
-                  setEditingId(item.id);
-                  setEditorContentIfPresent(item.content || "");
-                }}
+              {/* Edit container */}
+              <View
+                style={[
+                  styles.actionContainer,
+                  isDarkMode ? styles.editDark : styles.editLight,
+                ]}
               >
-                <Text
-                  style={[
-                    styles.link,
-                    { color: isDarkMode ? "#c9b037" : "#178a4c" },
-                  ]}
+                <TouchableOpacity
+                  onPress={() => {
+                    setEditingId(item.id);
+                    setEditorContentIfPresent(item.content || "");
+                  }}
                 >
-                  Edit
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedId(item.id);
-                  setShowDeleteModal(true);
-                }}
+                  <Text
+                    style={[
+                      styles.link,
+                      isDarkMode ? styles.textDark : styles.textLight,
+                    ]}
+                  >
+                    Edit
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Delete container */}
+              <View
+                style={[
+                  styles.actionContainer,
+                  isDarkMode ? styles.deleteDark : styles.deleteLight,
+                ]}
               >
-                <Text
-                  style={[
-                    styles.link,
-                    { color: isDarkMode ? "#f87171" : "#b91c1c" },
-                  ]}
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedId(item.id);
+                    setShowDeleteModal(true);
+                  }}
                 >
-                  Delete
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.deleteText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -327,13 +377,13 @@ export default function AnnouncementForm({ isDarkMode }) {
           <View
             style={[
               styles.modalBox,
-              { backgroundColor: isDarkMode ? "#0b3d2e" : "#fff" },
+              { backgroundColor: isDarkMode ? "#0E5149" : "#fff" },
             ]}
           >
             <Text
               style={[
                 styles.modalTitle,
-                { color: isDarkMode ? "#c9b037" : "#178a4c" },
+                { color: isDarkMode ? "#fff" : "#111827" },
               ]}
             >
               Delete Announcement
@@ -341,7 +391,7 @@ export default function AnnouncementForm({ isDarkMode }) {
             <Text
               style={[
                 styles.modalText,
-                { color: isDarkMode ? "#fff" : "#0b3d2e" },
+                { color: isDarkMode ? "#F7F7F7" : "#374151" },
               ]}
             >
               Are you sure you want to delete this announcement?
@@ -351,24 +401,17 @@ export default function AnnouncementForm({ isDarkMode }) {
               <TouchableOpacity
                 style={[
                   styles.modalButton,
-                  {
-                    backgroundColor: isDarkMode ? "#1f2937" : "#ccc",
-                    borderColor: isDarkMode ? "#c9b037" : "#178a4c",
-                    borderWidth: 1,
-                  },
+                  { backgroundColor: isDarkMode ? "#808080" : "#e5e7eb" },
                 ]}
                 onPress={() => setShowDeleteModal(false)}
               >
-                <Text style={{ color: isDarkMode ? "#fff" : "#0b3d2e" }}>
+                <Text style={{ color: isDarkMode ? "#fff" : "#111" }}>
                   Cancel
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  { backgroundColor: "#b91c1c" },
-                ]}
+                style={[styles.modalButton, { backgroundColor: "#ef4444" }]}
                 onPress={confirmDelete}
               >
                 <Text style={{ color: "#fff" }}>Delete</Text>
@@ -378,7 +421,7 @@ export default function AnnouncementForm({ isDarkMode }) {
         </View>
       </Modal>
 
-      {/* Success Modal */}
+      {/* ✅ Success Modal */}
       <Modal
         transparent
         visible={showSuccessModal}
@@ -389,30 +432,22 @@ export default function AnnouncementForm({ isDarkMode }) {
           <View
             style={[
               styles.modalBox,
-              { backgroundColor: isDarkMode ? "#0b3d2e" : "#fff" },
+              { backgroundColor: isDarkMode ? "#0E5149" : "#fff" },
             ]}
           >
-            <Text
-              style={[
-                styles.modalTitle,
-                { color: isDarkMode ? "#c9b037" : "#178a4c" },
-              ]}
-            >
+            <Text style={[styles.modalTitle, { color: "#F7F7F7" }]}>
               Success
             </Text>
             <Text
               style={[
                 styles.modalText,
-                { color: isDarkMode ? "#fff" : "#0b3d2e" },
+                { color: isDarkMode ? "#F7F7F7" : "#374151" },
               ]}
             >
               {successMessage}
             </Text>
             <TouchableOpacity
-              style={[
-                styles.modalButton,
-                { backgroundColor: isDarkMode ? "#c9b037" : "#178a4c" },
-              ]}
+              style={[styles.modalButton, { backgroundColor: "#808080" }]}
               onPress={() => setShowSuccessModal(false)}
             >
               <Text style={{ color: "#fff" }}>OK</Text>
@@ -420,72 +455,84 @@ export default function AnnouncementForm({ isDarkMode }) {
           </View>
         </View>
       </Modal>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
   header: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "bold",
     marginBottom: 16,
   },
   form: {
-    marginBottom: 20,
+    marginBottom: 24,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "transparent",
   },
   input: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 14,
     fontSize: 16,
     marginBottom: 12,
     minHeight: 60,
+    textAlignVertical: "top",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 2,
   },
   button: {
-    paddingVertical: 14,          
-    paddingHorizontal: 24,        
-    borderRadius: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "flex-end",          
     shadowColor: "#000",
     shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 4,
     elevation: 3,
     marginTop: 12,
-    width: "auto",                
-    minWidth: 140,                
+    alignSelf: "flex-end",
+    width: "20%",
   },
   buttonText: {
-    fontWeight: "bold",
+    color: "#fff",
+    fontWeight: "700",
     fontSize: 16,
   },
   card: {
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 3,
     elevation: 2,
   },
   text: {
     fontSize: 15,
-    marginBottom: 3,
+    marginBottom: 4,
     lineHeight: 20,
   },
   subtext: {
     fontSize: 12,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   actions: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: 6,
     gap: 16,
+    marginTop: 8,
   },
   link: {
     fontSize: 14,
@@ -501,8 +548,8 @@ const styles = StyleSheet.create({
   modalBox: {
     width: "100%",
     maxWidth: 400,
-    borderRadius: 14,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -513,7 +560,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   modalText: {
     fontSize: 15,
@@ -528,10 +575,47 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   modalButton: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 10,
     minWidth: 90,
     alignItems: "center",
+  },
+  actionContainer: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+
+  /* EDIT button */
+  editLight: {
+    backgroundColor: "#0E5149", 
+  },
+
+  editDark: {
+    backgroundColor: "#0E5149", 
+  },
+
+  /* DELETE button */
+  deleteLight: {
+    backgroundColor: "#b91c1c", 
+  },
+
+  deleteDark: {
+    backgroundColor: "#b91c1c", 
+  },
+
+  /* Text */
+  textLight: {
+    color: "#F7F7F7",
+  },
+
+  textDark: {
+    color: "#f8fafc",
+  },
+
+  deleteText: {
+    color: "#F7F7F7",
+    fontWeight: "600",
   },
 });

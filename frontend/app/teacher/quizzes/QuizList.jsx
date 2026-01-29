@@ -9,7 +9,7 @@ import QuizDetail from "./QuizDetail";
 import QuizForm from "./QuizForm";
 import QuizReview from "./QuizReview";
 
-export default function QuizList({ room, isDarkMode }) {
+export default function QuizList({ room, isDarkMode}) {
   const [quizzes, setQuizzes] = useState([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -35,6 +35,29 @@ export default function QuizList({ room, isDarkMode }) {
   const [savedQuizData, setSavedQuizData] = useState(null);
 
   const [viewingQuiz, setViewingQuiz] = useState(null);
+
+  const [isTestBankMode, setIsTestBankMode] = useState(false);
+  const [showQuizTestBankModal, setShowQuizTestBankModal] = useState(false);
+  const [testBankQuizzes, setTestBankQuizzes] = useState([]);
+
+  const fetchTestBankQuizzes = async () => {
+    try {
+      const res = await api.get("/test-bank/quizzes");
+      setTestBankQuizzes(res.data);
+    } catch (err) {
+      console.error("❌ Error fetching test bank quizzes:", err.response?.data || err.message);
+    }
+  };
+
+  const saveQuizToTestBank = async (quizId) => {
+    try {
+      await api.post(`/quizzes/${quizId}/save-to-test-bank`);
+      alert("Quiz saved to Test Bank");
+    } catch (err) {
+      console.error(err.response?.data || err.message);
+      alert("Failed to save quiz");
+    }
+  };
 
   const fetchQuizzes = async () => {
     try {
@@ -77,7 +100,7 @@ export default function QuizList({ room, isDarkMode }) {
 
     try {
       const data = {
-        room_id: room.id,
+        room_id: isTestBankMode ? null : room.id,
         title,
         instructions: description,
         start_time: formatDateTime(startTime),
@@ -97,6 +120,10 @@ export default function QuizList({ room, isDarkMode }) {
 
       // ✅ Fix: handle Laravel create() response (no “quiz” key)
       const savedQuiz = response.data.quiz || response.data;
+
+      if (isTestBankMode && savedQuiz?.id) {
+        await api.post(`/quizzes/${savedQuiz.id}/save-to-test-bank`);
+      }
 
       setTitle("");
       setDescription("");
@@ -195,6 +222,24 @@ export default function QuizList({ room, isDarkMode }) {
     );
   }
 
+  const handleCreateNewQuiz = () => {
+    // Close Test Bank modal
+    setShowQuizTestBankModal(false);
+
+    // Reset all quiz fields
+    setEditingQuiz(null);
+    setTitle("");
+    setDescription("");
+    setStartTime(null);
+    setEndTime(null);
+    setDuration("");
+    setPassingScore("");
+    setTotalPoints("");
+    setIsTestBankMode(true);
+    // Open the New Quiz modal (from Quizlist.jsx)
+    setShowModal(true);
+  };
+  
   // ✅ Your full existing JSX code (UNCHANGED except one new button)
   return (
     <View style={{ flex: 1 }}>
@@ -210,12 +255,63 @@ export default function QuizList({ room, isDarkMode }) {
         }
       `}</style>
 
-      <TouchableOpacity
-        onPress={() => setShowModal(true)}
-        style={[styles.addBtn, { backgroundColor: "#006400" }]}
+      <View
+        style={{
+          backgroundColor: "#808080", // 👈 CHANGE UI COLOR HERE
+          padding: 12,
+          borderRadius: 10,
+          marginBottom: 16,
+        }}
       >
-        <Text style={[styles.addBtnText, { color: "#FFD700" }]}>➕ Add Quiz</Text>
-      </TouchableOpacity>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
+          <TouchableOpacity
+            onPress={() => setIsTestBankMode(false)}
+            style={{
+              padding: 8,
+              backgroundColor: !isTestBankMode ? "#0E5149" : "#555",
+              borderRadius: 6,
+              flex: 1,
+              marginRight: 5,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+              Classroom
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              setIsTestBankMode(true);
+              fetchTestBankQuizzes();
+              setShowQuizTestBankModal(true);
+            }}
+            style={{
+              padding: 8,
+              backgroundColor: isTestBankMode ? "#0E5149" : "#555",
+              borderRadius: 6,
+              flex: 1,
+              marginLeft: 5,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+              Test Bank
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => setShowModal(true)}
+          style={[styles.addBtn, { backgroundColor: "#0E5149" }]}
+        >
+          <Text style={[styles.addBtnText, { color: "#F7F7F7" }]}>
+            ➕ Add Quiz
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={quizzes}
@@ -227,7 +323,7 @@ export default function QuizList({ room, isDarkMode }) {
               isDarkMode && { backgroundColor: "#222", borderColor: "#444" },
             ]}
           >
-            <Text style={[styles.quizTitle, { color: isDarkMode ? "#FFD700" : "#000" }]}>{item.title}</Text>
+            <Text style={[styles.quizTitle, { color: isDarkMode ? "#F7F7F7" : "#000" }]}>{item.title}</Text>
             <Text style={[styles.quizDesc, { color: isDarkMode ? "#ccc" : "#555" }]}>
               {item.description || item.instructions || "No description"}
             </Text>
@@ -263,21 +359,36 @@ export default function QuizList({ room, isDarkMode }) {
                 }}
                 style={[styles.smallBtn, { backgroundColor: "#1e90ff" }]}
               >
-                <Text style={{ color: "#fff" }}>✏ Edit</Text>
+                <Text style={{ color: "#fff", fontWeight: "400" }}>✏ Edit</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => handleDelete(item.id)}
                 style={[styles.smallBtn, { backgroundColor: "#ff4444" }]}
               >
-                <Text style={{ color: "#fff" }}>🗑 Delete</Text>
+                <Text style={{ color: "#fff", fontWeight: "400" }}>🗑 Delete</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  paddingVertical: 6,
+                  paddingHorizontal: 12,
+                  backgroundColor: "#4b0082",
+                  borderRadius: 6,
+                  marginRight: 6,
+                }}
+                onPress={() => saveQuizToTestBank(item.id)}
+              >
+                <Text style={{ color: "#fff", fontWeight: "500" }}>
+                  Save to Test Bank
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => toggleStatus(item)}
                 style={[
                   styles.smallBtn,
-                  { backgroundColor: item.status === "published" ? "#32cd32" : "#808080" },
+                  { backgroundColor: item.status === "published" ? "#32cd32" : "#808080", fontWeight: "500", },
                 ]}
               >
                 <Text style={{ color: "#fff" }}>
@@ -290,7 +401,7 @@ export default function QuizList({ room, isDarkMode }) {
                 onPress={() => setViewingQuiz(item)}
                 style={[styles.smallBtn, { backgroundColor: "#006400" }]}
               >
-                <Text style={{ color: "#FFD700" }}>📊 View Results</Text>
+                <Text style={{ color: "#FFD700", fontWeight: "500", }}>📊 View Results</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -302,7 +413,7 @@ export default function QuizList({ room, isDarkMode }) {
       <Modal transparent visible={showModal} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, isDarkMode && { backgroundColor: "#1e1e1e" }]}>
-            <Text style={[styles.modalTitle, { color: "#FFD700" }]}>
+            <Text style={[styles.modalTitle, { color: "#F7F7F7" }]}>
               {editingQuiz ? "✏ Edit Quiz" : "➕ New Quiz"}
             </Text>
 
@@ -311,7 +422,7 @@ export default function QuizList({ room, isDarkMode }) {
               value={title}
               onChangeText={setTitle}
               style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
-              placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
+              placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
             />
 
             {/* ✅ UPDATED: Description now uses multiline textarea (like RoomContent.jsx) */}
@@ -327,7 +438,7 @@ export default function QuizList({ room, isDarkMode }) {
                 { height: 100, paddingTop: 10, paddingBottom: 10 },
                 isDarkMode && { backgroundColor: "#333", color: "#fff" },
               ]}
-              placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
+              placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
             />
 
             <TouchableOpacity
@@ -380,7 +491,7 @@ export default function QuizList({ room, isDarkMode }) {
               onChangeText={setDuration}
               keyboardType="numeric"
               style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
-              placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
+              placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
             />
 
             <TextInput
@@ -389,7 +500,7 @@ export default function QuizList({ room, isDarkMode }) {
               onChangeText={setPassingScore}
               keyboardType="numeric"
               style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
-              placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
+              placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
             />
 
             <TextInput
@@ -398,15 +509,15 @@ export default function QuizList({ room, isDarkMode }) {
               onChangeText={setTotalPoints}
               keyboardType="numeric"
               style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
-              placeholderTextColor={isDarkMode ? "#bbb" : "#555"}
+              placeholderTextColor={isDarkMode ? "#F7F7F7" : "#F7F7F7"}
             />
 
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: "#006400" }]}
+                style={[styles.modalBtn, { backgroundColor: "#0E5149" }]}
                 onPress={handleSave}
               >
-                <Text style={[styles.modalBtnText, { color: "#FFD700" }]}>💾 Save</Text>
+                <Text style={[styles.modalBtnText, { color: "#F7F7F7" }]}>💾 Save</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: "#555" }]}
@@ -436,7 +547,7 @@ export default function QuizList({ room, isDarkMode }) {
         onRequestClose={() => setShowSuccessModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Text style={[styles.modalTitle, { color: isDarkMode ? "#FFD700" : "#007bff" }]}>✅ Success</Text>
+          <Text style={[styles.modalTitle, { color: isDarkMode ? "#F7F7F7" : "#007bff" }]}>✅ Success</Text>
           <Text style={[styles.modalText, { color: isDarkMode ? "#fff" : "#333" }]}>
             Quiz saved successfully!
           </Text>
@@ -444,14 +555,77 @@ export default function QuizList({ room, isDarkMode }) {
             style={[styles.modalBtn, { backgroundColor: "#006400" }]}
             onPress={() => setShowSuccessModal(false)}
           >
-            <Text style={[styles.modalBtnText, { color: "#FFD700" }]}>OK</Text>
+            <Text style={[styles.modalBtnText, { color: "#F7F7F7" }]}>OK</Text>
           </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* 🔹 QUIZ TEST BANK MODAL */}
+      <Modal
+        transparent
+        visible={showQuizTestBankModal}
+        animationType="slide"
+        onRequestClose={() => setShowQuizTestBankModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, isDarkMode && { backgroundColor: "#1e1e1e" }, { maxHeight: "80%" }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#F7F7F7" : "#007bff" }]}>
+              📚 Test Bank
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleCreateNewQuiz}
+              style={styles.newQuizBtn}
+            >
+              <Text style={styles.newQuizBtnText}>➕ Create New Quiz</Text>
+            </TouchableOpacity>
+
+            <FlatList
+              data={testBankQuizzes}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <View style={[styles.fileCard, isDarkMode && { backgroundColor: "#333", borderColor: "#555" }, { marginBottom: 10 }]}>
+                  <Text style={[styles.fileTitle, isDarkMode && { color: "#fff" }]}>{item.title}</Text>
+                  <Text style={[styles.fileDesc, isDarkMode && { color: "#ccc" }]}>{item.description || "No description available"}</Text>
+
+                  <TouchableOpacity
+                    style={[styles.uploadBtn, { marginTop: 6 }]}
+                    onPress={async () => {
+                      try {
+                        await api.post("/test-bank/quizzes/attach", {
+                          quiz_id: item.id,
+                          room_id: room.id,
+                        });
+
+                        alert("Quiz added to room successfully!");
+                        setShowQuizTestBankModal(false);
+                        fetchQuizzes(); // refresh the room's quizzes list
+                      } catch (err) {
+                        console.error(err.response?.data || err.message);
+                        alert("Failed to add quiz");
+                      }
+                    }}
+                  >
+                    <Text style={{ color: isDarkMode ? "#81b0ff" : "#007bff", fontWeight: "600" }}>
+                      ➕ Add to This Room
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            />
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: isDarkMode ? "#555" : "#F7F7F7" }]}
+              onPress={() => setShowQuizTestBankModal(false)}
+            >
+              <Text style={[styles.modalButtonText, isDarkMode && { color: "#fff" }]}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   addBtn: {
@@ -482,6 +656,7 @@ const styles = StyleSheet.create({
   metaText: {
     marginTop: 6,
     fontSize: 13,
+    fontWeight: "500",
   },
   btnRow: {
     flexDirection: "row",
@@ -538,5 +713,64 @@ const styles = StyleSheet.create({
   modalText: {
     textAlign: "center",
     marginBottom: 10,
+  },
+  modalButton: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
+  /* Materials list */
+  fileCard: {
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  fileTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 3,
+  },
+  fileDesc: {
+    color: "#555",
+  },
+  deadline: {
+    color: "red",
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  newQuizBtn: {
+    backgroundColor: "#0E5149",
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 15,
+    width: "100%",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  newQuizBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  uploadBtn: {
+    padding: 8,
+    borderRadius: 6,
+    alignItems: "center",
+    marginTop: 6,
   },
 });

@@ -89,4 +89,80 @@ class SystemSecurityController extends Controller
         $lockedUsers = User::where('is_locked', true)->get();
         return response()->json($lockedUsers);
     }
+
+    /* =========================================================
+     | 🔐 AUTHENTICATION SETTINGS (ADDED — DOES NOT AFFECT ABOVE)
+     | Security & Access → Authentication Settings
+     ========================================================= */
+
+    /**
+     * Get authentication-related system settings
+     */
+    public function getAuthSettings()
+    {
+        return response()->json([
+            'password_min_length' => Setting::get('auth.password_min_length', 8),
+            'max_login_attempts'  => Setting::get('auth.max_login_attempts', 5),
+            'lockout_minutes'     => Setting::get('auth.lockout_minutes', 15),
+            'session_timeout'     => Setting::get('auth.session_timeout', 30),
+        ]);
+    }
+
+    /**
+     * Update authentication-related system settings
+     */
+    public function updateAuthSettings(Request $request)
+    {
+        $data = $request->validate([
+            'password_min_length' => 'required|integer|min:6|max:64',
+            'max_login_attempts'  => 'required|integer|min:3|max:10',
+            'lockout_minutes'     => 'required|integer|min:1|max:120',
+            'session_timeout'     => 'required|integer|min:5|max:240',
+        ]);
+
+        Setting::updateOrCreate(
+            ['key' => 'auth.password_min_length'],
+            ['value' => $data['password_min_length']]
+        );
+
+        Setting::updateOrCreate(
+            ['key' => 'auth.max_login_attempts'],
+            ['value' => $data['max_login_attempts']]
+        );
+
+        Setting::updateOrCreate(
+            ['key' => 'auth.lockout_minutes'],
+            ['value' => $data['lockout_minutes']]
+        );
+
+        Setting::updateOrCreate(
+            ['key' => 'auth.session_timeout'],
+            ['value' => $data['session_timeout']]
+        );
+
+        return response()->json([
+            'message' => 'Authentication settings updated successfully'
+        ]);
+    }
+
+    /* =========================================================
+     | 🔁 ROUTE COMPATIBILITY ALIASES (DO NOT REMOVE)
+     | Matches routes/api.php exactly
+     ========================================================= */
+
+    /**
+     * Alias for routes calling getAuthenticationSettings
+     */
+    public function getAuthenticationSettings()
+    {
+        return $this->getAuthSettings();
+    }
+
+    /**
+     * Alias for routes calling updateAuthenticationSettings
+     */
+    public function updateAuthenticationSettings(Request $request)
+    {
+        return $this->updateAuthSettings($request);
+    }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // 🟢 Added for token
 import axios from 'axios';
@@ -14,6 +15,8 @@ import ChangePasswordForm from "./profile/ChangePasswordForm";
 import ProfileForm from "./profile/ProfileForm";
 import ProfileHeader from "./profile/ProfileHeader";
 import RoomContent from "./RoomContent";
+
+const ACADEMIC_YEAR_STORAGE_KEY = "selected_academic_year_id";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -70,6 +73,11 @@ export default function StudentDashboard() {
   // 🟢 ADDED safety — ensure setActiveTab exists before use
   const [activeTab, setActiveTab] = useState("materials");
 
+  // 🔵 Academic Year selector state
+  const [academicYears, setAcademicYears] = useState([]);
+  const [currentYearIndex, setCurrentYearIndex] = useState(0);
+  const selectedAcademicYear = academicYears[currentYearIndex];
+
   const weeks = [];
   let day = startDate;
   while (day <= endDate) {
@@ -84,34 +92,69 @@ export default function StudentDashboard() {
     day = addDays(day, 7);
   }
 
-  // 🟢 Fetch subjects & student rooms
+  const [stats, setStats] = useState({
+    enrolledSubjects: 0,
+    pendingAssignments: 0,
+    pendingQuizzes: 0,
+  });
+
+  const fetchStudentStats = async () => {
+    try {
+      const res = await api.get('/student/dashboard/stats', {
+        params: {
+          academic_year_id: selectedAcademicYear?.id,
+        },
+      });
+
+      setStats({
+        enrolledSubjects: res.data.enrolled_subjects,
+        pendingAssignments: res.data.pending_assignments,
+        pendingQuizzes: res.data.pending_quizzes,
+      });
+    } catch (error) {
+      console.error('Failed to fetch student dashboard stats:', error);
+    }
+  };
+
   useEffect(() => {
+    if (!selectedAcademicYear) return;
+    fetchStudentStats();
+  }, [selectedAcademicYear]);
+
+  // 🟢 Fetch student rooms & user (academic-year aware)
+  const fetchRoomsAndUser = async () => {
+    try {
+      const role = await AsyncStorage.getItem("role");
+      const token = await AsyncStorage.getItem(`${role}Token`);
+      if (!token || !selectedAcademicYear) return;
+
+      const res = await api.get("/student/rooms", {
+        params: {
+          academic_year_id: selectedAcademicYear.id,
+        },
+      });
+      setRooms(res.data || []);
+
+      const userRes = await api.get("/me");
+      setUserName(userRes.data.name);
+
+    } catch (err) {
+      console.error("❌ Error fetching student data:", err.response?.data || err.message);
+    }
+  };
+  
+  // 🟢 Fetch subjects & student rooms
+  useEffect(() => { 
     api
-      .get('/subjects') // ✅ use api wrapper
+      .get('/subjects')
       .then((response) => setSubjects(response.data))
       .catch((error) => console.error('Error fetching subjects:', error));
-
-    const fetchRoomsAndUser = async () => { 
-      try {
-        const role = await AsyncStorage.getItem("role"); // ✅ match axios.js
-        const token = await AsyncStorage.getItem(`${role}Token`);
-        if (!token) return;
-
-        // ✅ fetch student rooms
-        const res = await api.get("/student/rooms");
-        setRooms(res.data || []);
-
-        // ✅ fetch logged-in user
-        const userRes = await api.get("/me");
-        setUserName(userRes.data.name);
-
-      } catch (err) {
-        console.error("❌ Error fetching student data:", err.response?.data || err.message);
-      }
-    };
-
-    fetchRoomsAndUser();
   }, []);
+
+  useEffect(() => {
+    if (!selectedAcademicYear) return;
+    fetchRoomsAndUser();
+  }, [selectedAcademicYear]);
 
   // ✅ fetch notifications
   useEffect(() => {
@@ -284,10 +327,84 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
+  // 🔵 Fetch academic years (admin-controlled)
+  // 🔵 Fetch academic years (admin-controlled)
+  useEffect(() => {
+    const fetchAcademicYears = async () => {
+      try {
+        const res = await api.get('/academic-years');
+        const years = res.data.sort(
+          (a, b) => new Date(b.start_date) - new Date(a.start_date)
+        );
+
+        setAcademicYears(years);
+
+        // ✅ NEW: restore previously selected year
+        const storedYearId = await AsyncStorage.getItem(
+          ACADEMIC_YEAR_STORAGE_KEY
+        );
+
+        if (storedYearId) {
+          const storedIndex = years.findIndex(
+            y => String(y.id) === String(storedYearId)
+          );
+
+          if (storedIndex !== -1) {
+            setCurrentYearIndex(storedIndex);
+            return;
+          }
+        }
+
+        // 🔵 fallback to active year
+        const activeIndex = years.findIndex(y => y.is_active);
+        if (activeIndex !== -1) {
+          setCurrentYearIndex(activeIndex);
+          await AsyncStorage.setItem(
+            ACADEMIC_YEAR_STORAGE_KEY,
+            String(years[activeIndex].id)
+          );
+        } else {
+          setCurrentYearIndex(0);
+        }
+
+      } catch (err) {
+        console.error('Failed to fetch academic years', err);
+      }
+    };
+
+    fetchAcademicYears();
+  }, []);
+
+  // 🔵 Academic year navigation
+  // newer year (up)
+  const goNextYear = () => {
+    setCurrentYearIndex(i => Math.max(i - 1, 0));
+  };
+
+  // older year (down)
+  const goPrevYear = () => {
+    setCurrentYearIndex(i =>
+      Math.min(i + 1, academicYears.length - 1)
+    );
+  };
+
+  useEffect(() => {
+    console.log("🧠 Selected Academic Year:", selectedAcademicYear);
+  }, [selectedAcademicYear]);
+
+  useEffect(() => {
+    if (selectedAcademicYear?.id) {
+      AsyncStorage.setItem(
+        ACADEMIC_YEAR_STORAGE_KEY,
+        String(selectedAcademicYear.id)
+      );
+    }
+  }, [selectedAcademicYear]);
+
   return (
     <View style={[styles.container, themeStyles]}>
       {/* Navbar */}
-      <View style={[styles.navbar, { backgroundColor: isDarkMode ? '#12362D' : '#FFFFFF' }]}>
+      <View style={[styles.navbar, { backgroundColor: isDarkMode ? '#0E5149' : '#FFFFFF' }]}>
         <View style={styles.navLeft}>
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
             <Ionicons name="menu" size={28} color={textColor.color} />
@@ -335,7 +452,7 @@ export default function StudentDashboard() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { backgroundColor: isDarkMode ? "#12352E" : "#fff" }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#000" }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#fff" : "#000", fontWeight: "500" }]}>
               Are you sure you want to log out?
             </Text>
             <View style={styles.modalButtons}>
@@ -382,7 +499,7 @@ export default function StudentDashboard() {
                           ? "A new quiz has been published for your class"
                           : stripHtml(item.content) || "No content"}
                   </Text>
-                  <Text style={{ fontSize: 12, color: "gray" }}>
+                  <Text style={{ fontSize: 12, color: "gray", fontWeight: "500" }}>
                     {format(new Date(item.created_at), "MMM dd, yyyy h:mm a")}
                   </Text>
                 </View>
@@ -396,7 +513,7 @@ export default function StudentDashboard() {
               setDropdownVisible(false);
             }}
           >
-            <Text style={{ color: "#2563eb", fontWeight: "600" }}>View all</Text>
+            <Text style={{ color: isDarkMode ? '#fff' : '#000', fontWeight: "500" }}>View all</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -472,12 +589,12 @@ export default function StudentDashboard() {
               <Text style={[styles.sidebarText, textStyles]}>Messages</Text>
             </TouchableOpacity>
             <TouchableOpacity
-                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#1e1e1e" : "#f9f9f9" }]}
+                style={[styles.userContainer, { backgroundColor: isDarkMode ? "#808080" : "#f9f9f9" }]}
                 onPress={() => setCurrentView("profileHeader")}>
-                <Text style={[styles.userLabel, { color: isDarkMode ? "#BFD9D2" : "#333" }]}>
+                <Text style={[styles.userLabel, { color: isDarkMode ? "#F7F7F7" : "#333", fontWeight: "500" }]}>
                   👤 Logged in as:
                 </Text>
-                <Text style={[styles.userName, { color: isDarkMode ? "#FFD700" : "#000" }]}>
+                <Text style={[styles.userName, { color: isDarkMode ? "#000000" : "#000", fontWeight: "500" }]}>
                   {userName ? userName : "Loading..."}
                 </Text>
               </TouchableOpacity>
@@ -489,33 +606,152 @@ export default function StudentDashboard() {
           {/* Dashboard */}
           {currentView === 'dashboard' && !selectedSubject && (
             <>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={[styles.mainText, { color: isDarkMode ? "#FFD700" : "#000" }]}>Student Dashboard</Text>
-                <TouchableOpacity onPress={() => setJoinModalVisible(true)} style={[styles.joinButton, isDarkMode ? styles.joinButtonDark : styles.joinButtonLight]}>
-                  <Text style={[styles.joinButtonText, isDarkMode ? styles.joinButtonTextDark : styles.joinButtonTextLight]}> Join Room </Text>
-                </TouchableOpacity>
+              {/* 🔵 HEADER ROW */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                {/* Student Dashboard */}
+                <Text style={[styles.mainText, { color: isDarkMode ? "#F7F7F7" : "#000", fontWeight: "500" }]}>
+                  Student Dashboard
+                </Text>
+
+                {/* 🔵 Right Side Controls */}
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  {/* 🔵 Academic Year Selector */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginRight: 12,
+                    }}
+                  >
+                    {/* Year Container */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: isDarkMode ? "#808080" : "#E5E5E5",
+                        borderRadius: 6,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        marginRight: 8,
+                      }}
+                    >
+                      {/* Active Year Box */}
+                      <View>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "500",
+                            color: isDarkMode ? "#F7F7F7" : "#000",
+                          }}
+                        >
+                          {selectedAcademicYear?.year_label || "Loading..."}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Up / Down Controls */}
+                    <View style={{ alignItems: "center" }}>
+                      <TouchableOpacity onPress={goNextYear}>
+                        <Ionicons
+                          name="chevron-up"
+                          size={20}
+                          color={isDarkMode ? "#F7F7F7" : "#000"}
+                        />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity onPress={goPrevYear}>
+                        <Ionicons
+                          name="chevron-down"
+                          size={20}
+                          color={isDarkMode ? "#F7F7F7" : "#000"}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Join Room Button */}
+                  <TouchableOpacity
+                    onPress={() => setJoinModalVisible(true)}
+                    style={[
+                      styles.joinButton,
+                      isDarkMode ? styles.joinButtonDark : styles.joinButtonLight,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.joinButtonText,
+                        isDarkMode ? styles.joinButtonTextDark : styles.joinButtonTextLight,
+                      ]}
+                    >
+                      {" "}Join Room{" "}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
+
+              {/* 🔵 ADDED: Student Stats (Admin-style cards) */}
+              <View style={styles.statsContainer}>
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{stats.enrolledSubjects}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Enrolled Subjects</Text>
+                </View>
+
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{stats.pendingAssignments}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Pending Assignments</Text>
+                </View>
+
+                <View style={[styles.statCard, isDarkMode && { backgroundColor: '#808080', borderColor: '#F7F7F7' }]}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: '#E8F5E9' }]}>{stats.pendingQuizzes}</Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: '#000000' }]}>Pending Quizzes</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.mainText, { color: isDarkMode ? "#F7F7F7" : "#000", fontWeight: "500" }]}>Rooms</Text>
 
               <View style={styles.subjectsContainer}>
                 {rooms.map((room, index) => (
                   <Animated.View
                     key={index}
-                    style={[styles.subjectCard, { backgroundColor: isDarkMode ? "#202020" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#202020", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },
-                    hoveredIndex === index && Platform.OS === "web" ? [styles.subjectCardHover, { shadowColor: isDarkMode ? "#FFD700" : "#007b55", transform: [{ scale: 1.05 }], },] : {},]}
+                    style={[
+                      styles.subjectCard,
+                      {
+                        backgroundColor: isDarkMode ? "#808080" : "#f1f1f1",
+                        borderColor: isDarkMode ? "#000000" : "#202020",
+                        borderWidth: 1,
+                        shadowColor: isDarkMode ? "#000000" : "#333",
+                      },
+                      hoveredIndex === index && Platform.OS === "web"
+                        ? [
+                          styles.subjectCardHover,
+                          {
+                            shadowColor: isDarkMode ? "#FFD700" : "#007b55",
+                            transform: [{ scale: 1.05 }],
+                          },
+                        ]
+                        : {},
+                    ]}
                     onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}>
+                    onMouseLeave={() => setHoveredIndex(null)}
+                  >
                     <TouchableOpacity onPress={() => handleRoomSelect(room)}>
-                      <Text style={[styles.subjectTitle, { color: isDarkMode ? "#FFD700" : "#006400" },]}>
+                      <Text style={[styles.subjectTitle, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
                         {room.subject?.name}
                       </Text>
-                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#333" },]}>
+                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#fff" : "#000000", fontWeight: "500" }]}>
                         Section: {room.section?.name}
                       </Text>
-                      {/* ✅ Adjusted for multiple days and times */}
-                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#ddd" : "#444" },]}>
+                      <Text style={[styles.subjectDetails, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
                         Schedule: {formatDays(room.day)} {formatTimes(room.time)}
                       </Text>
-                      <Text style={[styles.subjectDetails, { fontStyle: "italic", color: isDarkMode ? "#32CD32" : "#006400", },]}>
+                      <Text style={[styles.subjectDetails, { fontStyle: "italic", color: isDarkMode ? "#000000" : "#000000", fontWeight: "500" }]}>
                         Code: {room.token || "No Token"}
                       </Text>
                     </TouchableOpacity>
@@ -530,19 +766,19 @@ export default function StudentDashboard() {
             <ScrollView contentContainerStyle={styles.detailContainer}>
               {/* Left side - Instructor */}
               <View
-                style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#202020" : "#ffffff", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },]}>
+                style={[styles.leftContainer, { backgroundColor: isDarkMode ? "#808080" : "#f1f1f1", borderColor: isDarkMode ? "#215C49" : "#007b55", borderWidth: 1, shadowColor: isDarkMode ? "#000000" : "#333", },]}>
                 <Image source={{ uri: selectedRoom.teacher?.user?.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", }} style={styles.profileImage} />
-                <Text style={[styles.instructorName, { color: isDarkMode ? "#FFD700" : "#006400" },]}>
+                <Text style={[styles.instructorName, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" },]}>
                   {selectedRoom.teacher?.user?.name || selectedRoom.teacher?.name || "No Name"}
                 </Text>
-                <Text style={[styles.instructorSection, { color: isDarkMode ? "#fff" : "#333" },]}>
+                <Text style={[styles.instructorSection, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" },]}>
                   Section: {selectedRoom.section?.name || "No Section"}
                 </Text>
                 {/* ✅ Adjusted for multiple days and times */}
-                <Text style={[styles.instructorSchedule, { color: isDarkMode ? "#ddd" : "#444" },]}>
+                <Text style={[styles.instructorSchedule, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" },]}>
                   Schedule: {formatDays(selectedRoom.day)} {formatTimes(selectedRoom.time)}
                 </Text>
-                <Text style={{ color: isDarkMode ? "#32CD32" : "#006400", fontStyle: "italic", marginTop: 4, }}>
+                <Text style={{ color: isDarkMode ? "#000000" : "#000000", fontStyle: "italic", marginTop: 4, fontWeight: "500" }}>
                   Code: {selectedRoom.token || "No Token"}
                 </Text>
               </View>
@@ -572,6 +808,7 @@ export default function StudentDashboard() {
                   elevation: 3,
                   borderWidth: 1,
                   borderColor: isDarkMode ? '#333' : '#ccc',
+                  fontWeight: "500"
                 }}
               >
                 {/* ✅ Calendar Header */}
@@ -596,8 +833,9 @@ export default function StudentDashboard() {
                         flex: 1,
                         textAlign: "center",
                         fontWeight: "bold",
-                        color: isDarkMode ? "#bbb" : "#2563eb",
+                        color: isDarkMode ? "#F7F7F7" : "#000000",
                         paddingVertical: 5,
+                        fontWeight: "500"
                       }}
                     >
                       {d}
@@ -622,7 +860,7 @@ export default function StudentDashboard() {
                             borderColor: isDarkMode ? "#333" : "#ddd",
                             padding: 4,
                             backgroundColor: isToday(day)
-                              ? isDarkMode ? "#fdf5d4" : "#fffbe6"
+                              ? isDarkMode ? "#808080" : "#fffbe6"
                               : isSameMonth(day, currentMonth)
                                 ? (isDarkMode ? "#1a1a1a" : "#fff")
                                 : (isDarkMode ? "#111" : "#f9f9f9"),
@@ -636,6 +874,7 @@ export default function StudentDashboard() {
                                 ? (isDarkMode ? "#fff" : "#000")
                                 : "#999",
                               marginBottom: 2,
+                              fontWeight: "500"
                             }}
                           >
                             {format(day, "d")}
@@ -669,7 +908,7 @@ export default function StudentDashboard() {
           {currentView === 'announcements' && (
             <View style={{ padding: 20 }}>
               <Text style={[styles.mainText, textColor]}>Announcements</Text>
-              <AnnouncementList />
+              <AnnouncementList isDarkMode={isDarkMode}/>
             </View>
           )}
 
@@ -779,8 +1018,8 @@ const styles = StyleSheet.create({
   },
   brandText: {
     fontSize: 25,
-    fontWeight: '700',
-    color: '#FFD700', // gold brand name to match admin
+    fontWeight: '500',
+    color: '#FFD700', 
   },
   sidebarToggle: {
     paddingRight: 4
@@ -801,12 +1040,12 @@ const styles = StyleSheet.create({
     borderRightWidth: 1
   },
   sidebarDark: {
-    backgroundColor: '#0F2E25',
-    borderColor: '#215C49'
+    backgroundColor: '#0E5149',
+    borderColor: '#000000'
   },
   sidebarLight: {
     backgroundColor: '#f1f1f1',
-    borderColor: '#e0e0e0'
+    borderColor: '#000000'
   },
   sidebarItem: {
     flexDirection: 'row',
@@ -824,7 +1063,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20
   },
   mainContentDark: {
-    backgroundColor: '#0B1F1A', // deep green background to match admin
+    backgroundColor: '#0E5149', // deep green background to match admin
   },
   mainContentLight: {
     backgroundColor: '#ffffff'
@@ -869,7 +1108,7 @@ const styles = StyleSheet.create({
     marginBottom: 16 
   },
   modalButton: { 
-    backgroundColor: '#2563eb', 
+    backgroundColor: '#808080', 
     paddingVertical: 10, 
     paddingHorizontal: 20, 
     borderRadius: 8, 
@@ -968,18 +1207,20 @@ const styles = StyleSheet.create({
     fontWeight: '600', // ✅ DWAD THEME COLORS (no layout/design changes) 
   }, 
   joinButtonLight: { 
-    backgroundColor: '#006400', 
+    backgroundColor: '#f1f1f1', 
     borderWidth: 2, 
   }, 
   joinButtonDark: { 
-    backgroundColor: '#FFD700', 
+    backgroundColor: '#808080', 
     borderWidth: 2, 
   },  
   joinButtonTextLight: { 
-    color: '#FFFFFF', // white text on green  
+    color: '#000000', // white text on green 
+    fontWeight: "500"
   }, 
   joinButtonTextDark: { 
-    color: '#006400', // green text on gold
+    color: '#F7F7F7', // green text on gold
+    fontWeight: "500"
   }, 
   calendarBox: {
     marginTop: 20,
@@ -1013,7 +1254,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: '#000000',
   },
   userLabel: {
     fontSize: 14,
@@ -1062,7 +1303,7 @@ const styles = StyleSheet.create({
   dropdownDark: {
     backgroundColor: "#1e1e1e",
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#F7F7F7",
   },
   dropdownLight: {
     backgroundColor: "#fff",
@@ -1076,6 +1317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderColor: "#333",
+    fontWeight: "500"
   },
   dropdownFooter: {
     paddingVertical: 10,
@@ -1089,7 +1331,7 @@ const styles = StyleSheet.create({
   },
   notificationText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   modalOverlay: {
     flex: 1,
@@ -1143,5 +1385,43 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // 🔵 ADDED: Student Dashboard – Admin-style stats container
+  statsContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    marginTop: 10,
+  },
+
+  statCard: {
+    flex: 1,
+    backgroundColor: '#f1f1f1',
+    paddingVertical: 18,     // slightly reduced for student view
+    paddingHorizontal: 14,
+    marginHorizontal: 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+
+  statNumber: {
+    fontSize: 28,            // slightly smaller than admin for balance
+    fontWeight: 'bold',
+    color: '#000000',
+    fontWeight: "500"
+  },
+
+  statLabel: {
+    fontSize: 14,            // adjusted to avoid text wrapping
+    color: '#000000',
+    marginTop: 6,
+    fontWeight: '500',
+    textAlign: 'center',
+    fontWeight: "500"
   },
 });

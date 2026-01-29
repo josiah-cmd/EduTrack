@@ -23,9 +23,9 @@ export default function Messages({ isDarkMode }) {
   const [loading, setLoading] = useState(false);
 
   const textColor = isDarkMode ? "#ffffff" : "#000000";
-  const subTextColor = isDarkMode ? "#cccccc" : "#555555";
+  const subTextColor = isDarkMode ? "#F7F7F7" : "#000000";
   const cardBg = isDarkMode ? "#1e1e1e" : "#f5f5f5";
-  const buttonBg = isDarkMode ? "#007bff" : "#1976d2";
+  const buttonBg = isDarkMode ? "#808080" : "#1976d2";
 
   const contentWidth = Dimensions.get("window").width - 60;
 
@@ -144,8 +144,9 @@ export default function Messages({ isDarkMode }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: buttonBg }]}
+            style={[styles.button, { backgroundColor: activeTab === "compose" ? "#10b981" : buttonBg }]}
             onPress={() => {
+              setActiveTab("compose");
               setShowForm(true);
               setSelectedMessage(null);
             }}
@@ -160,6 +161,7 @@ export default function Messages({ isDarkMode }) {
             style={[
               styles.searchInput,
               {
+                backgroundColor: "#808080",
                 borderColor: subTextColor,
                 color: textColor,
               },

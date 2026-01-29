@@ -27,20 +27,31 @@ export default function UserForm({ isDarkMode }) {
   const [showWarning, setShowWarning] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // EDIT STATES
+  const [editingUser, setEditingUser] = useState(null);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
+
+  // 🆕 LRN (Student only)
+  const [lrn, setLrn] = useState("");
+
   const scheme = useColorScheme();
   const isDark =
     typeof isDarkMode === "boolean" ? isDarkMode : scheme === "dark";
 
-  // professional green-white-gold theme
-  const textColor = isDark ? "#ffd700" : "#10b981"; 
-  const subTextColor = isDark ? "#d1fae5" : "#4b5563";
-  const inputBg = isDark ? "#065f46" : "#f9fafb"; 
-  const borderColor = isDark ? "#ffd700" : "#10b981"; 
-  const buttonBg = isDark ? "#10b981" : "#047857"; 
-  const buttonText = "#fef3c7"; 
-  const headerBorder = isDark ? "#064e3b" : "#fde68a"; 
-  const rowBorder = isDark ? "#065f46" : "#fef3c7"; 
-  const cardBg = isDark ? "#1a1a1a" : "#ffffff"; 
+  const textColor = isDark ? "#F7F7F7" : "#000000"; 
+  const subTextColor = isDark ? "#d1fae5" : "#000000";
+  const inputBg = isDark ? "#0E5149" : "#f9fafb"; 
+  const borderColor = isDark ? "#F7F7F7" : "#000000"; 
+  const buttonBg = isDark ? "#0E5149" : "#0E5149"; 
+  const buttonText = isDark ? "#F7F7F7" : "#F7F7F7"; 
+  const headerBorder = isDark ? "#064e3b" : "#000000"; 
+  const rowBorder = isDark ? "#065f46" : "#000000"; 
+  const cardBg = isDark ? "#808080" : "#ffffff"; 
 
   const fetchUsers = async () => {
     try {
@@ -86,6 +97,12 @@ export default function UserForm({ isDarkMode }) {
       return;
     }
 
+    // 🆕 LRN guard (student only)
+    if (role === "student" && lrn.length !== 12) {
+      setShowWarning(true);
+      return;
+    }
+
     try {
       const fullName = middleInitial
         ? `${firstName} ${middleInitial}. ${lastName}`
@@ -96,21 +113,22 @@ export default function UserForm({ isDarkMode }) {
       const payload =
         role === "teacher"
           ? {
-              name: fullName,
-              role,
-              email,
-              department: department || null,
-              subject_id: subjectId || null,
-            }
+            name: fullName,
+            role,
+            email,
+            department: department || null,
+            subject_id: subjectId || null,
+          }
           : role === "student"
-          ? {
+            ? {
               name: fullName,
               role,
               email,
               grade_level: gradeLevel || null,
               section_id: section || null,
+              lrn: lrn || null,
             }
-          : {
+            : {
               name: fullName,
               role,
               email,
@@ -118,25 +136,90 @@ export default function UserForm({ isDarkMode }) {
 
       console.log("📤 Payload:", payload);
 
-      const res = await api.post("/users", payload);
+      let res;
 
-      console.log("✅ User created:", res.data);
+      // ✅ CREATE vs UPDATE (added logic, no removal)
+      if (editingUser) {
+        res = await api.put(`/users/${editingUser.id}`, payload);
+        console.log("✅ User updated:", res.data);
+      } else {
+        res = await api.post("/users", payload);
+        console.log("✅ User created:", res.data);
+      }
 
+      // ✅ reset form (unchanged, reused)
       setFirstName("");
       setMiddleInitial("");
       setLastName("");
       setRole("");
       setEmail("");
-      setDepartment(""); // 🆕 reset
-      setSubjectId(""); // 🆕 reset
-      setGradeLevel(""); // 🆕 reset
-      setSection(""); // 🆕 reset
+      setDepartment("");
+      setSubjectId("");
+      setGradeLevel("");
+      setSection("");
+      setLrn("");
+
+      setEditingUser(null); // 🆕 exit edit mode
 
       fetchUsers();
-      setShowSuccess(true); // ✅ show confirmation modal
+      if (editingUser) {
+        setShowUpdateSuccess(true);
+      } else {
+        setShowSuccess(true);
+      }
     } catch (error) {
-      console.error("❌ Error creating user:", error.response?.data || error.message);
+      console.error(
+        editingUser
+          ? "❌ Error updating user:"
+          : "❌ Error creating user:",
+        error.response?.data || error.message
+      );
     }
+  };
+
+  const handleEdit = (user) => {
+    const parts = user.name.split(" ");
+    setEditingUser(user);
+    setFirstName(parts[0] || "");
+    setMiddleInitial(parts.length === 3 ? parts[1].replace(".", "") : "");
+    setLastName(parts[parts.length - 1] || "");
+    setEmail(user.email);
+    setRole(user.role);
+    setEditingUser(user);
+  };
+
+  const handleDeleteConfirm = (user) => {
+    setSelectedUser(user);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteUser = async () => {
+    try {
+      await api.delete(`/users/${selectedUser.id}`);
+      setShowDeleteConfirm(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error("❌ Error deleting user:", error.response?.data || error.message);
+    }
+  };
+
+  const handleUpdateConfirm = async () => {
+    if (!editingUser) return;
+
+    const fullName = middleInitial
+      ? `${firstName} ${middleInitial}. ${lastName}`
+      : `${firstName} ${lastName}`;
+
+    await api.put(`/users/${editingUser.id}`, {
+      name: fullName,
+      email,
+      role,
+    });
+
+    setEditingUser(null);
+    setShowUpdateConfirm(false);
+    fetchUsers();
   };
 
   // --- Filtered Users based on search and role filter ---
@@ -245,7 +328,7 @@ export default function UserForm({ isDarkMode }) {
                   <Picker
                     selectedValue={gradeLevel}
                     onValueChange={(value) => setGradeLevel(value)}
-                    style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: '100%', height: '100%' }}
+                    style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: "100%", height: "100%" }}
                     dropdownIconColor={textColor}
                   >
                     <Picker.Item label="Select Grade" value="" />
@@ -260,7 +343,7 @@ export default function UserForm({ isDarkMode }) {
                   <Picker
                     selectedValue={section}
                     onValueChange={(value) => setSection(value)}
-                    style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: '100%', height: '100%' }}
+                    style={{ color: textColor, backgroundColor: inputBg, fontSize: 15, width: "100%", height: "100%" }}
                     dropdownIconColor={textColor}
                   >
                     <Picker.Item label="Select Section" value="" />
@@ -269,11 +352,32 @@ export default function UserForm({ isDarkMode }) {
                     ))}
                   </Picker>
                 </View>
+
+                <Text style={[styles.label, { color: textColor }]}>
+                  Learner Reference Number (LRN)
+                </Text>
+                <TextInput
+                  style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor }]}
+                  placeholder="Enter 12-digit LRN"
+                  placeholderTextColor={subTextColor}
+                  keyboardType="numeric"
+                  maxLength={12}
+                  value={lrn}
+                  onChangeText={(text) => {
+                    const numericText = text.replace(/[^0-9]/g, "");
+                    setLrn(numericText);
+                  }}
+                />
               </>
             )}
 
-            <TouchableOpacity style={[styles.button, { backgroundColor: buttonBg, marginTop: 10 }]} onPress={handleSubmit}>
-              <Text style={[styles.buttonText, { color: buttonText }]}>Create User</Text>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: buttonBg, marginTop: 10 }]}
+              onPress={handleSubmit}
+            >
+              <Text style={[styles.buttonText, { color: buttonText }]}>
+                {editingUser ? "Update User" : "Create User"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -321,16 +425,41 @@ export default function UserForm({ isDarkMode }) {
         </View>
 
         <View style={[styles.tableHeader, { borderBottomColor: headerBorder }]}>
-          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>Name</Text>
-          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>Email</Text>
-          <Text style={[styles.cell, styles.headerCell, { color: textColor }]}>Role</Text>
+          <Text style={[styles.cell, styles.headerCell, styles.nameCol, { color: textColor }]}>Name</Text>
+          <Text style={[styles.cell, styles.headerCell, styles.emailCol, { color: textColor }]}>Email</Text>
+          <Text style={[styles.cell, styles.headerCell, styles.roleCol, { color: textColor }]}>Role</Text>
+          <Text style={[styles.headerCell, styles.actionCol, { color: textColor }]}>Actions</Text>
         </View>
 
         {filteredUsers.map((item) => (
           <View key={item.id} style={[styles.tableRow, { borderBottomColor: rowBorder }]}>
-            <Text style={[styles.cell, { color: textColor }]}>{item.name}</Text>
-            <Text style={[styles.cell, { color: textColor }]}>{item.email}</Text>
-            <Text style={[styles.cell, { color: textColor }]}>{item.role}</Text>
+            <Text style={[styles.cell, styles.nameCol, { color: textColor }]}>
+              {item.name}
+            </Text>
+
+            <Text style={[styles.cell, styles.emailCol, { color: textColor }]}>
+              {item.email}
+            </Text>
+
+            <Text style={[styles.cell, styles.roleCol, { color: textColor }]}>
+              {item.role}
+            </Text>
+
+            <View style={[styles.actionContainer, styles.actionCol]}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.editButton]}
+                onPress={() => handleEdit(item)}
+              >
+                <Text style={{ color: "#F7F7F7", fontWeight: "700" }}>Edit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.deleteButton]}
+                onPress={() => handleDeleteConfirm(item)}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
       </View>
@@ -338,17 +467,17 @@ export default function UserForm({ isDarkMode }) {
       {/* --- WARNING MODAL --- */}
       <Modal transparent visible={showWarning} animationType="fade" onRequestClose={() => setShowWarning(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: isDark ? "#065f46" : "#ffffff" }]}>
-            <Text style={[styles.modalTitle, { color: isDark ? "#fef3c7" : "#047857" }]}>Missing Fields</Text>
-            <Text style={[styles.modalText, { color: isDark ? "#d1fae5" : "#4b5563" }]}>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#0E5149" : "#ffffff" }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>Missing Fields</Text>
+            <Text style={[styles.modalText, { color: isDark ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
               Please fill in all required fields before creating a user.
             </Text>
 
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: "#10b981" }]}
+              style={[styles.modalButton, { backgroundColor: "#808080" }]}
               onPress={() => setShowWarning(false)}
             >
-              <Text style={{ color: "#fef3c7", fontWeight: "600" }}>OK</Text>
+              <Text style={{ color: "#F7F7F7", fontWeight: "500" }}>OK</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -357,17 +486,110 @@ export default function UserForm({ isDarkMode }) {
       {/* --- SUCCESS MODAL --- */}
       <Modal transparent visible={showSuccess} animationType="fade" onRequestClose={() => setShowSuccess(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: isDark ? "#065f46" : "#ffffff" }]}>
-            <Text style={[styles.modalTitle, { color: isDark ? "#fef3c7" : "#047857" }]}>✅ User Created</Text>
-            <Text style={[styles.modalText, { color: isDark ? "#d1fae5" : "#4b5563" }]}>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#0E5149" : "#ffffff" }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? "#F7F7F7" : "#000000" }]}>✅ User Created</Text>
+            <Text style={[styles.modalText, { color: isDark ? "#F7F7F7" : "#000000" }]}>
               The new user has been successfully created.
             </Text>
 
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: "#fbbf24" }]}
+              style={[styles.modalButton, { backgroundColor: isDark ? "#808080" : "#10b981" }]}
               onPress={() => setShowSuccess(false)}
             >
-              <Text style={{ color: "#", fontWeight: "600" }}>OK</Text>
+              <Text style={{ color: "#F7F7F7", fontWeight: "600" }}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      
+      <Modal transparent visible={showUpdateConfirm} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#065f46" : "#ffffff" }]}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>
+              Confirm Update
+            </Text>
+
+            <Text style={[styles.modalText, { color: subTextColor }]}>
+              Are you sure you want to update this user?
+            </Text>
+
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: "#9ca3af" }]}
+                onPress={() => setShowUpdateConfirm(false)}
+              >
+                <Text style={{ color: "#fff" }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: "#10b981" }]}
+                onPress={handleUpdateConfirm}
+              >
+                <Text style={{ color: "#fff" }}>Update</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- DELETE CONFIRM MODAL --- */}
+      <Modal
+        transparent
+        visible={showDeleteConfirm}
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#0E5149" : "#ffffff" }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
+              Confirm Delete
+            </Text>
+
+            <Text style={[styles.modalText, { color: isDark ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>
+              Are you sure you want to delete{" "}
+              <Text style={{ fontWeight: "600" }}>
+                {selectedUser?.name}
+              </Text>
+              ?
+            </Text>
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: "#9ca3af" }]}
+                onPress={() => setShowDeleteConfirm(false)}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600" }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: "#ef4444" }]}
+                onPress={handleDeleteUser}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600" }}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showUpdateSuccess} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: isDark ? "#0E5149" : "#ffffff" }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? "#F7F7F7" : "#000000" }]}>
+              User Updated
+            </Text>
+
+            <Text style={[styles.modalText, { color: isDark ? "#F7F7F7" : "#000000" }]}>
+              The user information has been successfully updated.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: "#10b981", marginTop: 10 }]}
+              onPress={() => setShowUpdateSuccess(false)}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600" }}>
+                OK
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -391,6 +613,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 15,
     textAlign: "center",
+    fontWeight: "500"
   },
 
   /* create row layout */
@@ -441,7 +664,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     marginBottom: 12,
-    height: 38,
+    height: 46,
     justifyContent: "center",
     overflow: "hidden",
   },
@@ -470,6 +693,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: "bold",
+    fontWeight: "500"
   },
   userListHeader: {
     flexDirection: "row",
@@ -509,7 +733,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalBox: {
-    width: "100%",
+    width: "30%",
     maxWidth: 380,
     borderRadius: 12,
     padding: 24,
@@ -530,5 +754,45 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 8,
+  },
+  actionContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  editButton: {
+    backgroundColor: "#0E5149",
+  },
+  deleteButton: {
+    backgroundColor: "#ef4444",
+  },
+  nameCol: {
+    flex: 2,
+    fontWeight: "500"
+  },
+  emailCol: {
+    flex: 2,
+    fontWeight: "500"
+  },
+  roleCol: {
+    flex: 1,
+    textTransform: "capitalize",
+    fontWeight: "500"
+  },
+  actionCol: {
+    width: 150,
+    textAlign: "center",
+    alignItems: "flex-end",
+    fontWeight: "500"
+  },
+  actionContainer: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "flex-end",
+    fontWeight: "500"
   },
 });

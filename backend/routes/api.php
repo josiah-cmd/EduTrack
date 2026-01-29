@@ -21,6 +21,8 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\SystemSecurityController;
 use App\Http\Controllers\GeneralSettingsController;
 use App\Http\Controllers\SystemMaintenanceController;
+use App\Http\Controllers\StudentController; 
+use App\Http\Controllers\TestBankController; 
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -32,33 +34,53 @@ Route::middleware('auth:sanctum')->group(function () {
     /* ------------------- ROOMS ------------------- */
     Route::get('/rooms', [RoomController::class, 'index']); 
     Route::post('/rooms', [RoomController::class, 'store']);
+    Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
     Route::get('/teacher/rooms', [RoomController::class, 'teacherRooms']);
     Route::get('/student/rooms', [RoomController::class, 'studentRooms']);
     Route::post('/rooms/join', [RoomController::class, 'joinRoom']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::get('/rooms/{room}/people', [RoomController::class, 'people']);
     Route::get('/rooms/{room}/students', [RoomController::class, 'students']);
+    Route::get('/rooms/{room}', [RoomController::class, 'show']);
 
     /* ------------------- SUBJECTS / TEACHERS / SECTIONS ------------------- */
     Route::get('/subjects', [SubjectController::class, 'index']);
+    Route::post('/subjects', [SubjectController::class, 'store']);
     Route::get('/teachers', [TeacherController::class, 'index']);
     Route::get('/sections', [SectionController::class, 'index']);
+    Route::post('/sections', [SectionController::class, 'store']);
+
+    /* ------------------- TEACHER DASHBOARD ------------------- */
+    Route::get('/teacher/dashboard/stats', [TeacherController::class, 'dashboardStats']);
+
+    /* ------------------- STUDENT DASHBOARD ------------------- */
+    Route::get('/student/dashboard/stats', [StudentController::class, 'dashboardStats']);
 
     /* ------------------- USERS ------------------- */
     Route::get('/users', [UserController::class, 'index']);
+    Route::put('/users/{id}', [UserController::class, 'update']);
     Route::get('/stats', [UserController::class, 'stats']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
     /* ------------------- ANNOUNCEMENTS ------------------- */
     Route::get('/announcements', [AnnouncementController::class, 'index']);
     Route::post('/announcements', [AnnouncementController::class, 'store']);
     Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update']);
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
+    Route::post('/announcements/upload-image', [AnnouncementController::class, 'uploadImage']);
+
+    /* ------------------- TEST BANK MATERIALS ------------------- */
+    Route::post('/materials/attach-test-bank', [MaterialController::class, 'attachFromTestBank']);
+    Route::get('/materials/test-bank', [MaterialController::class, 'testBank']);
+    Route::post('/materials/test-bank', [MaterialController::class, 'store']);
 
     /* ------------------- MATERIALS ------------------- */
     Route::post('/materials', [MaterialController::class, 'store']); 
     Route::get('/materials', [MaterialController::class, 'index']); 
     Route::get('/materials/{id}/download', [MaterialController::class, 'download']); 
     Route::get('/materials/{id}/preview', [MaterialController::class, 'preview']); 
+    Route::post('/materials/{id}', [MaterialController::class, 'update']);   // For editing
+    Route::delete('/materials/{id}', [MaterialController::class, 'destroy']); // For deleting
 
     /* ------------------- SUBMISSIONS ------------------- */
     Route::get('/submissions/{materialId}', [AssignmentSubmissionController::class, 'index']); // teacher view
@@ -82,6 +104,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [ProfileController::class, 'me']);
     Route::post('/profile/update', [ProfileController::class, 'update']);
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword']);
+
+    /* ------------------- TEST BANK QUIZZES ------------------- */
+    Route::post('/test-bank/quizzes', [TestBankController::class, 'store']);
+    Route::post('/quizzes/{id}/save-to-test-bank', [QuizController::class, 'saveToTestBank']);
+    Route::post('/test-bank/quizzes/attach', [QuizController::class, 'attachTestBankQuiz']);
+    Route::get('/test-bank/quizzes', function () {
+        return \App\Models\Quiz::where('is_test_bank', true)
+            ->with('questions.options')
+            ->get();
+    });
 
     /* ------------------- QUIZZES ------------------- */
     Route::get('/quizzes', [QuizController::class, 'index']);
@@ -125,8 +157,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/attendance', [AttendanceController::class, 'store']);
 
     /* ------------------- SYSTEM SECURITY ------------------- */
-    Route::get('/security/settings', [SystemSecurityController::class, 'getSettings']);
-    Route::post('/security/settings', [SystemSecurityController::class, 'updateSettings']);
+    Route::get('/security/authentication-settings', [SystemSecurityController::class, 'getAuthenticationSettings']);
+    Route::put('/security/authentication-settings', [SystemSecurityController::class, 'updateAuthenticationSettings']);
     Route::get('/security/users', [SystemSecurityController::class, 'getUsers']);
     Route::post('/security/users/{id}/lock', [SystemSecurityController::class, 'lockUser']);
     Route::post('/security/users/{id}/unlock', [SystemSecurityController::class, 'unlockUser']);
@@ -134,8 +166,12 @@ Route::middleware('auth:sanctum')->group(function () {
     /* ------------------- GENERAL SETTINGS ------------------- */
     Route::get('/settings/school-info', [GeneralSettingsController::class, 'getSchoolInfo']);
     Route::post('/settings/school-info', [GeneralSettingsController::class, 'updateSchoolInfo']);
-    Route::get('/settings/academic-year', [GeneralSettingsController::class, 'getAcademicYear']);
-    Route::post('/settings/academic-year', [GeneralSettingsController::class, 'updateAcademicYear']);
+
+    Route::get('/academic-years', [GeneralSettingsController::class, 'listAcademicYears']);
+    Route::get('/academic-years/active', [GeneralSettingsController::class, 'activeAcademicYear']);
+    Route::post('/academic-years', [GeneralSettingsController::class, 'createAcademicYear']);
+    Route::post('/academic-years/{id}/activate', [GeneralSettingsController::class, 'activateAcademicYear']);
+
     Route::get('/settings/grading-system', [GeneralSettingsController::class, 'getGradingSystem']);
     Route::post('/settings/grading-system', [GeneralSettingsController::class, 'updateGradingSystem']);
 

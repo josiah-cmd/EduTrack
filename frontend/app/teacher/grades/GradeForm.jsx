@@ -1,16 +1,6 @@
 /* eslint-disable */
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
 import api from "../../lib/axios";
 
 export default function GradeForm({ isDarkMode, onBack, room }) {
@@ -91,7 +81,6 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
           setComputedGrades((prev) => ({
             ...prev,
             [`${student.id}_${quarter}`]: {
-              initial_grade: grade.initial_grade,
               final_grade: grade.final_grade,
               remarks: grade.remarks,
             },
@@ -184,14 +173,6 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
 
       const finalComputed = {
         ...auto,
-        initial_grade:
-          written || performance || quarterly
-            ? (
-                written * 0.25 +
-                performance * 0.5 +
-                quarterly * 0.25
-              ).toFixed(2)
-            : auto.initial_grade,
         final_grade:
           written || performance || quarterly
             ? (
@@ -266,7 +247,6 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
       setComputedGrades((prev) => ({
         ...prev,
         [`${targetId}_${quarter}`]: {
-          initial_grade: saved.initial_grade,
           final_grade: saved.final_grade,
           remarks: saved.remarks,
         },
@@ -384,6 +364,9 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
 
   return (
     <View style={[styles.container]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+      >
       {/* 🆕 Confirmation Modal */}
       <Modal transparent visible={modalVisible} animationType="fade">
         <View style={styles.modalOverlay}>
@@ -439,10 +422,10 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
       </View>
 
       {/* 📝 Reminder Notice */}
-      <View style={[styles.reminderBox, { backgroundColor: isDarkMode ? "#374151" : "#fef3c7", borderLeftColor: isDarkMode ? "#facc15" : "#c9b037", },]}>
-        <Text style={[styles.reminderText, { color: isDarkMode ? "#fef9c3" : "#1a1a1a" },]}>
+      <View>
+        <Text style={[styles.reminderText, { color: isDarkMode ? "#F7F7F7" : "#1a1a1a", fontWeight: "500" },]}>
           ⚠️ These grades are{" "}
-          <Text style={{ fontWeight: "bold", color: isDarkMode ? "#fff" : "#000", }}>
+          <Text style={{ fontWeight: "bold", color: isDarkMode ? "#fff" : "#000", fontWeight: "500" }}>
             not yet official
           </Text>
           . Please verify before final submission.
@@ -454,6 +437,7 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
           style={{
             color: isDarkMode ? "#fff" : "#0b3d2e",
             fontWeight: "bold",
+            fontWeight: "500",
           }}
         >
           Quarter:
@@ -465,7 +449,7 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
             onPress={() => setQuarter(q)}
             style={[
               styles.quarterButton,
-              { backgroundColor: quarter === q ? "#178a4c" : "#c9b037" },
+              { backgroundColor: quarter === q ? "#178a4c" : "#808080" , fontWeight: "500"},
             ]}
           >
             <Text style={styles.quarterButtonText}>{q}</Text>
@@ -483,14 +467,13 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
             <ScrollView style={{ marginTop: 10 }}>
               <View style={{ paddingBottom: 10 }}>
                 <View style={styles.tableHeaderRow}>
-                  <Text style={[styles.tableHeader, { flex: 1 }]}>Student Name</Text>
-                  <Text style={[styles.tableHeader, { flex: 1 }]}>Written Work</Text>
-                  <Text style={[styles.tableHeader, { flex: 1.2 }]}>Performance Task</Text>
-                  <Text style={[styles.tableHeader, { flex: 1.2 }]}>Quarterly Assessment</Text>
-                  <Text style={[styles.tableHeader, { flex: 1 }]}>Initial Grade</Text>
-                  <Text style={[styles.tableHeader, { flex: 1 }]}>Final Grade</Text>
-                  <Text style={[styles.tableHeader, { flex: 1 }]}>Remarks</Text>
-                  <Text style={[styles.tableHeader, { flex: 0.8 }]}>Verify</Text>
+                  <Text style={[styles.tableHeader, { flex: 1, fontWeight: "600" }]}>Student Name</Text>
+                  <Text style={[styles.tableHeader, { flex: 1, fontWeight: "600" }]}>Written Work</Text>
+                  <Text style={[styles.tableHeader, { flex: 1.2, fontWeight: "600" }]}>Performance Task</Text>
+                  <Text style={[styles.tableHeader, { flex: 1.2, fontWeight: "600" }]}>Quarterly Assessment</Text>
+                  <Text style={[styles.tableHeader, { flex: 1, fontWeight: "600" }]}>Final Grade</Text>
+                  <Text style={[styles.tableHeader, { flex: 1, fontWeight: "600" }]}>Remarks</Text>
+                  <Text style={[styles.tableHeader, { flex: 0.8, fontWeight: "600" }]}>Verify</Text>
                 </View>
 
                 {students.map((student, index) => {
@@ -528,6 +511,7 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
                             flex: 1,
                             color: isDarkMode ? "#f3f4f6" : "#0b3d2e",
                             textAlign: "center",
+                            fontWeight: "600"
                           },
                         ]}
                       >
@@ -541,7 +525,8 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
                             flex: 1,
                             backgroundColor: isDarkMode ? "#333" : "#f7f7f7",
                             color: isDarkMode ? "#fff" : "#000",
-                            borderColor: isDarkMode ? "#c9b037" : "#178a4c",
+                            borderColor: isDarkMode ? "#F7F7F7" : "#178a4c",
+                            fontWeight: "500",
                           },
                         ]}
                         placeholder="0"
@@ -559,7 +544,8 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
                             flex: 1.2,
                             backgroundColor: isDarkMode ? "#333" : "#f7f7f7",
                             color: isDarkMode ? "#fff" : "#000",
-                            borderColor: isDarkMode ? "#c9b037" : "#178a4c",
+                            borderColor: isDarkMode ? "#F7F7F7" : "#178a4c",
+                            fontWeight: "500",
                           },
                         ]}
                         placeholder="0"
@@ -577,7 +563,8 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
                             flex: 1.2,
                             backgroundColor: isDarkMode ? "#333" : "#f7f7f7",
                             color: isDarkMode ? "#fff" : "#000",
-                            borderColor: isDarkMode ? "#c9b037" : "#178a4c",
+                            borderColor: isDarkMode ? "#F7F7F7" : "#178a4c",
+                            fontWeight: "500",
                           },
                         ]}
                         placeholder="0"
@@ -591,16 +578,7 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
                       <Text
                         style={[
                           styles.tableCell,
-                          { flex: 1, textAlign: "center", color: isDarkMode ? "#fff" : "#000" },
-                        ]}
-                      >
-                        {comp.initial_grade}
-                      </Text>
-
-                      <Text
-                        style={[
-                          styles.tableCell,
-                          { flex: 1, textAlign: "center", color: isDarkMode ? "#fff" : "#000" },
+                          { flex: 1, textAlign: "center", color: isDarkMode ? "#fff" : "#000", fontWeight: "500", },
                         ]}
                       >
                         {comp.final_grade}
@@ -620,6 +598,7 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
                                 : isDarkMode
                                 ? "#fff"
                                 : "#000",
+                                fontWeight: "500",
                           },
                         ]}
                       >
@@ -631,7 +610,7 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
                         style={[
                           styles.verifyButton,
                           {
-                            backgroundColor: isVerified ? "#b91c1c" : "#178a4c",
+                            backgroundColor: isVerified ? "#808080" : "#808080",
                           },
                         ]}
                         onPress={() =>
@@ -651,21 +630,21 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
             {/* Action Buttons */}
             <View style={styles.actionContainer}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#178a4c" }]}
+                style={[styles.actionButton, { backgroundColor: "#808080" }]}
                 onPress={() => openModal("save")}
               >
                 <Text style={styles.actionButtonText}>Save</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#0f766e" }]}
+                style={[styles.actionButton, { backgroundColor: "#808080" }]}
                 onPress={() => openModal("saveAll")}
               >
                 <Text style={styles.actionButtonText}>Save All Grades</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#c9b037" }]}
+                style={[styles.actionButton, { backgroundColor: "#808080" }]}
                 onPress={() => openModal(isAllVerified ? "unverifyAll" : "verifyAll")}
               >
                 <Text style={styles.actionButtonText}>
@@ -676,6 +655,7 @@ export default function GradeForm({ isDarkMode, onBack, room }) {
           </>
         )}
       </View>
+      </ScrollView>
     </View>
   );
 }
@@ -706,6 +686,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "bold",
+    fontWeight: "500"
   },
   quarterContainer: {
     flexDirection: "row",
@@ -729,7 +710,7 @@ const styles = StyleSheet.create({
   },
   tableHeaderRow: {
     flexDirection: "row",
-    backgroundColor: "#178a4c",
+    backgroundColor: "#808080",
     paddingVertical: 10,
   },
   tableHeader: {
@@ -766,6 +747,7 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     color: "#fff",
     fontWeight: "bold",
+    fontWeight: "500",
   },
   actionContainer: {
     flexDirection: "row",
@@ -783,6 +765,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: "#fff",
     fontWeight: "bold",
+    fontWeight: "500"
   },
   /* ========================== MODAL ========================== */
   modalOverlay: {

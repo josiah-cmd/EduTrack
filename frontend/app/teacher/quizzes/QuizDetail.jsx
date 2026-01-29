@@ -31,26 +31,26 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
         style={[
           styles.containerBox,
           {
-            backgroundColor: isDarkMode ? "#1a1a1a" : "#fff",
-            borderColor: isDarkMode ? "#006400" : "#007b55",
+            backgroundColor: isDarkMode ? "#808080" : "#fff",
+            borderColor: isDarkMode ? "#000000" : "#007b55",
             borderWidth: 1,
             shadowColor: isDarkMode ? "#006400" : "#333",
           },
         ]}
       >
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={[styles.backText, { color: isDarkMode ? "#FFD700" : "#007bff" }]}>⬅ Back</Text>
+          <Text style={[styles.backText, { color: isDarkMode ? "#F7F7F7" : "#007bff" }]}>⬅ Back</Text>
         </TouchableOpacity>
 
-        <Text style={[styles.title, { color: isDarkMode ? "#FFD700" : "#000" }]}>{quiz.title}</Text>
+        <Text style={[styles.title, { color: isDarkMode ? "#F7F7F7" : "#000" }]}>{quiz.title}</Text>
         <Text style={[styles.desc, { color: isDarkMode ? "#fff" : "#555" }]}>
           {quiz.instructions || "No description available."}
         </Text>
 
-        <Text style={[styles.meta, { color: isDarkMode ? "#bbb" : "#444" }]}>
+        <Text style={[styles.meta, { color: isDarkMode ? "#F7F7F7" : "#444", fontWeight: "500",}]}>
           🕒 Schedule: {quiz.start_time} → {quiz.end_time}
         </Text>
-        <Text style={[styles.meta, { color: isDarkMode ? "#bbb" : "#444" }]}>
+        <Text style={[styles.meta, { color: isDarkMode ? "#F7F7F7" : "#444", fontWeight: "500", }]}>
           ⏱ Duration: {quiz.duration} mins | Passing Score: {quiz.passing_score} | Total:{" "}
           {quiz.total_points}
         </Text>
@@ -61,14 +61,14 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
         style={[
           styles.submissionsBox,
           {
-            backgroundColor: isDarkMode ? "#111" : "#fff",
-            borderColor: isDarkMode ? "#006400" : "#ddd",
+            backgroundColor: isDarkMode ? "#808080" : "#fff",
+            borderColor: isDarkMode ? "#000000" : "#ddd",
             borderWidth: 1,
             shadowColor: isDarkMode ? "#006400" : "#000",
           },
         ]}
       >
-        <Text style={[styles.subHeader, { color: isDarkMode ? "#FFD700" : "#000" }]}>
+        <Text style={[styles.subHeader, { color: isDarkMode ? "#F7F7F7" : "#000" }]}>
           📑 Student Results
         </Text>
 
@@ -89,22 +89,22 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
                 style={[
                   styles.submissionCard,
                   {
-                    backgroundColor: isDarkMode ? "#1a1a1a" : "#f9f9f9",
-                    borderColor: isDarkMode ? "#006400" : "#ddd",
+                    backgroundColor: isDarkMode ? "#0E5149" : "#f9f9f9",
+                    borderColor: isDarkMode ? "#000000" : "#ddd",
                     borderWidth: 1,
                   },
                 ]}
               >
-                <Text style={[styles.studentName, { color: isDarkMode ? "#FFD700" : "#000" }]}>
+                <Text style={[styles.studentName, { color: isDarkMode ? "#F7F7F7" : "#000" }]}>
                   👤 {item.student_name || "Unknown Student"}
                 </Text>
 
                 {/* ✅ Added: show student email */}
-                <Text style={[styles.meta, { color: isDarkMode ? "#aaa" : "#666" }]}>
+                <Text style={[styles.meta, { color: isDarkMode ? "#F7F7F7" : "#666" }]}>
                   ✉️ {item.student_email || "No email available"}
                 </Text>
 
-                <Text style={[styles.score, { color: isDarkMode ? "#32CD32" : "#007bff" }]}>
+                <Text style={[styles.score, { color: isDarkMode ? "#F7F7F7" : "#007bff" }]}>
                   🏆 Score: {item.score ?? "N/A"} / {item.total_points ?? "?"}
                 </Text>
 
@@ -115,7 +115,7 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
                     {
                       color:
                         item.status === "completed"
-                          ? (isDarkMode ? "#32CD32" : "#008000")
+                          ? (isDarkMode ? "#F7F7F7" : "#008000")
                           : (isDarkMode ? "#FFD700" : "#DAA520"),
                     },
                   ]}
@@ -123,7 +123,7 @@ export default function QuizDetail({ quiz, isDarkMode, onBack }) {
                   📊 Status: {item.status ? item.status.toUpperCase() : "UNKNOWN"}
                 </Text>
 
-                <Text style={[styles.date, { color: isDarkMode ? "#ccc" : "#777" }]}>
+                <Text style={[styles.date, { color: isDarkMode ? "#F7F7F7" : "#777" }]}>
                   🕒{" "}
                   {item.submitted_at
                     ? format(new Date(item.submitted_at), "MMM dd, yyyy h:mm a")
@@ -153,16 +153,17 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   title: {
     fontSize: 22,
-    fontWeight: "700",
+    fontWeight: "500",
     marginBottom: 8,
   },
   desc: {
     fontSize: 15,
     marginBottom: 8,
+    fontWeight: "500",
   },
   meta: {
     fontSize: 13,
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
   },
   subHeader: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "500",
     marginBottom: 12,
   },
   noSubmissions: {
@@ -193,6 +194,7 @@ const styles = StyleSheet.create({
   score: {
     fontSize: 15,
     marginVertical: 4,
+    fontWeight: "500",
   },
   status: {
     fontSize: 14,
@@ -201,5 +203,6 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 13,
+    fontWeight: "500",
   },
 });

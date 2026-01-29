@@ -50,7 +50,7 @@ export default function General({ isDarkMode }) {
 
   // Otherwise, render the General Settings overview
   return (
-    <ScrollView style={[styles.container, themeStyles]}>
+    <ScrollView>
       <Text style={[styles.title, textColor]}>General Settings</Text>
 
       {sections.map((item) => (
@@ -60,12 +60,12 @@ export default function General({ isDarkMode }) {
           activeOpacity={0.7}
           onPress={() => setActiveSection(item.id)} // Switch content dynamically
         >
-          <Ionicons name={item.icon} size={26} color={isDarkMode ? "#4caf50" : "#2563eb"} />
+          <Ionicons name={item.icon} size={26} color={isDarkMode ? "#F7F7F7" : "#000000"} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardTitle, textColor]}>{item.title}</Text>
-            <Text style={[styles.cardDesc, { color: isDarkMode ? "#aaa" : "#555" }]}>{item.desc}</Text>
+            <Text style={[styles.cardDesc, { color: isDarkMode ? "#F7F7F7" : "#555", fontWeight: "500" }]}>{item.desc}</Text>
           </View>
-          <Ionicons name="chevron-forward-outline" size={22} color={isDarkMode ? "#aaa" : "#555"} />
+          <Ionicons name="chevron-forward-outline" size={22} color={isDarkMode ? "#000000" : "#000000"} />
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cardDark: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#808080",
     borderColor: "#333",
   },
   cardLight: {
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   cardDesc: {
     fontSize: 14,

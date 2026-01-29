@@ -49,7 +49,7 @@ export default function ProfileHeader({ isDarkMode, onEdit }) {   // ✅ props d
 
   return (
     <View style={[styles.container]}>
-      <View style={[styles.card, { backgroundColor: isDarkMode ? "#1f1f1f" : "#f9f9f9" }]}>
+      <View style={[styles.card, { backgroundColor: isDarkMode ? "#808080" : "#f9f9f9" }]}>
         <Image
           source={{ uri: user.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" }}
           style={styles.avatar}
@@ -58,13 +58,13 @@ export default function ProfileHeader({ isDarkMode, onEdit }) {   // ✅ props d
         {/* ✅ All text + button grouped on the right side */}
         <View style={styles.infoContainer}>
           <Text style={[styles.name, { color: isDarkMode ? "#fff" : "#000" }]}>{user.name}</Text>
-          <Text style={[styles.role, { color: isDarkMode ? "#aaa" : "#555" }]}>{user.role.toUpperCase()}</Text>
+          <Text style={[styles.role, { color: isDarkMode ? "#F7F7F7" : "#555" }]}>{user.role.toUpperCase()}</Text>
 
           <View style={styles.infoBox}>
-            <Text style={[styles.info, { color: isDarkMode ? "#ddd" : "#333" }]}>📞 {user.phone || "No phone"}</Text>
-            <Text style={[styles.info, { color: isDarkMode ? "#ddd" : "#333" }]}>🏠 {user.address || "No address"}</Text>
-            <Text style={[styles.info, { color: isDarkMode ? "#ddd" : "#333" }]}>⚧ {user.gender || "Not set"}</Text>
-            <Text style={[styles.info, { color: isDarkMode ? "#ddd" : "#333" }]}>🎂 {user.dob || "Not set"}</Text>
+            <Text style={[styles.info, { color: isDarkMode ? "#F7F7F7" : "#333" }]}>📞 {user.phone || "No phone"}</Text>
+            <Text style={[styles.info, { color: isDarkMode ? "#F7F7F7" : "#333" }]}>🏠 {user.address || "No address"}</Text>
+            <Text style={[styles.info, { color: isDarkMode ? "#F7F7F7" : "#333" }]}>⚧ {user.gender || "Not set"}</Text>
+            <Text style={[styles.info, { color: isDarkMode ? "#F7F7F7" : "#333" }]}>🎂 {user.dob || "Not set"}</Text>
           </View>
 
           <TouchableOpacity

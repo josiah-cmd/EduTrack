@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Room;
+use App\Models\AcademicYear;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -22,13 +23,20 @@ class RoomController extends Controller
             'subject_id' => 'required|exists:subjects,id',
             'teacher_id' => 'required|exists:teachers,id',
             'section_id' => 'required|exists:sections,id',
-            'day' => 'required', // adjusted to allow array or string
-            'time' => 'required', // adjusted to allow array or string
+            'day' => 'required',
+            'time' => 'required',
         ]);
 
-        $token = Str::random(10); // 🔹 generate token
+        $academicYear = selectedAcademicYear($request);
 
-        // 🟢 NEW: Build combined schedule if multiple days/times are provided
+        if (! $academicYear) {
+            return response()->json(['error' => 'No academic year selected'], 422);
+        }
+
+        $academicYearId = $academicYear->id;
+
+        $token = Str::random(10);
+
         $schedule = [];
         if (is_array($validated['day']) && is_array($validated['time'])) {
             foreach ($validated['day'] as $i => $d) {
@@ -50,9 +58,11 @@ class RoomController extends Controller
             'section_id' => $validated['section_id'],
             'day' => $this->sortDays($validated['day']),
             'time' => is_array($validated['time']) ? json_encode($validated['time']) : $validated['time'],
-            'schedule' => json_encode($schedule), // 🟢 new line
+            'schedule' => json_encode($schedule),
             'created_by' => $user->id,
             'token' => $token,
+            'academic_year_id' => $academicYear->id,
+            'is_archived' => false,
         ]);
 
         return response()->json([
@@ -61,60 +71,138 @@ class RoomController extends Controller
         ], 201);
     }
 
+    public function joinRoom(Request $request)
+    {
+        try {
+            $request->validate([
+                'token' => 'required|string'
+            ]);
+
+            $user = Auth::user();
+
+            if ($user->role !== 'student') {
+                return response()->json([
+                    'message' => 'Only students can join rooms'
+                ], 403);
+            }
+
+            $academicYear = selectedAcademicYear($request);
+
+            if (! $academicYear) {
+                return response()->json([
+                    'message' => 'No academic year selected'
+                ], 422);
+            }
+
+            $room = Room::where('token', $request->token)
+                ->where('academic_year_id', $academicYear->id)
+                ->where('is_archived', false)
+                ->first();
+
+            if (! $room) {
+                return response()->json([
+                    'message' => 'Invalid or expired room token'
+                ], 404);
+            }
+
+            // prevent duplicate join
+            if ($room->students()->where('users.id', $user->id)->exists()) {
+                return response()->json([
+                    'message' => 'You already joined this room'
+                ], 409);
+            }
+
+            $room->students()->attach($user->id);
+
+            return response()->json([
+                'message' => 'Successfully joined room',
+                'room' => $room->load(['subject','teacher.user','section'])
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Join room failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     // 🔹 List Rooms for Teachers
-    public function teacherRooms()
+    public function teacherRooms(Request $request)
     {
         $user = Auth::user();
-
         $teacher = $user->teacher;
-        if (!$teacher) {
+
+        if (! $teacher) {
             return response()->json(['error' => 'Teacher profile not found'], 404);
+        }
+
+        $academicYear = selectedAcademicYear($request);
+
+        if (! $academicYear) {
+            return response()->json(['error' => 'No academic year selected'], 422);
+        }
+
+        $academicYearId = $academicYear->id;
+
+        if (! $academicYearId) {
+            return response()->json(['error' => 'academic_year_id is required'], 422);
         }
 
         $rooms = Room::with(['subject','teacher.user','section','students'])
             ->where('teacher_id', $teacher->id)
+            ->where('academic_year_id', $academicYearId)
+            // ->where('is_archived', false)
             ->get();
 
         return response()->json($rooms);
     }
 
     // 🔹 List All Rooms (Admin & Staff)
-    public function index()
+    public function index(Request $request)
     {
-        $rooms = Room::with(['subject','teacher.user','section','creator','students'])->get();
+        $academicYear = selectedAcademicYear($request);
+
+if (! $academicYear) {
+    return response()->json(['error' => 'No academic year selected'], 422);
+}
+
+        $academicYearId = $academicYear->id;
+
+        if (! $academicYearId) {
+            return response()->json(['error' => 'academic_year_id is required'], 422);
+        }
+
+        $rooms = Room::with(['subject','teacher.user','section','creator','students'])
+            ->where('academic_year_id', $academicYearId)
+            // ->where('is_archived', false)
+            ->get();
+
         return response()->json($rooms);
     }
 
-    // 🔹 Student Join Room via Token
-    public function joinRoom(Request $request)
+    // 🔹 List Rooms Joined by Student
+    public function studentRooms(Request $request)
     {
-        $request->validate([
-            'token' => 'required|string|size:10',
-        ]);
+        $user = Auth::user();
 
-        $room = Room::where('token', $request->token)->first();
+        $academicYear = selectedAcademicYear($request);
 
-        if (!$room) {
-            return response()->json(['error' => 'Invalid room token'], 404);
+if (! $academicYear) {
+    return response()->json(['error' => 'No academic year selected'], 422);
+}
+
+        $academicYearId = $academicYear->id;
+
+        if (! $academicYearId) {
+            return response()->json(['error' => 'academic_year_id is required'], 422);
         }
 
-        $user = Auth::user();
-
-        // Attach student to room
-        $room->students()->syncWithoutDetaching([$user->id]);
-
-        return response()->json([
-            'message' => 'Joined room successfully',
-            'room' => $room->load(['subject','teacher.user','section'])
-        ]);
-    }
-
-    // 🔹 List Rooms Joined by Student
-    public function studentRooms()
-    {
-        $user = Auth::user();
-
-        $rooms = $user->rooms()->with(['subject','teacher.user','section'])->get();
+        $rooms = $user->rooms()
+            ->with(['subject','teacher.user','section'])
+            ->where('academic_year_id', $academicYearId)
+            // ->where('is_archived', false)
+            ->get();
 
         return response()->json($rooms);
     }
@@ -131,11 +219,10 @@ class RoomController extends Controller
             'subject_id' => 'required|exists:subjects,id',
             'teacher_id' => 'required|exists:teachers,id',
             'section_id' => 'required|exists:sections,id',
-            'day' => 'required', // adjusted to allow array or string
-            'time' => 'required', // adjusted to allow array or string
+            'day' => 'required',
+            'time' => 'required',
         ]);
 
-        // 🟢 NEW: Build combined schedule again for update
         $schedule = [];
         if (is_array($validated['day']) && is_array($validated['time'])) {
             foreach ($validated['day'] as $i => $d) {
@@ -151,10 +238,9 @@ class RoomController extends Controller
             ];
         }
 
-        // adjusted to handle array or string
         $validated['day'] = $this->sortDays($validated['day']);
         $validated['time'] = is_array($validated['time']) ? json_encode($validated['time']) : $validated['time'];
-        $validated['schedule'] = json_encode($schedule); // 🟢 new line
+        $validated['schedule'] = json_encode($schedule);
 
         $room->update($validated);
 
@@ -164,7 +250,6 @@ class RoomController extends Controller
         ]);
     }
 
-    // 🔹 Delete Room (Admin / Staff only)
     public function destroy(Room $room)
     {
         $user = Auth::user();
@@ -175,14 +260,12 @@ class RoomController extends Controller
 
         $room->delete();
 
-        return response()->json([
-            'message' => 'Room deleted successfully'
-        ]);
+        return response()->json(['message' => 'Room deleted successfully']);
     }
-    
+
     public function people(Room $room)
     {
-        $room->load(['teacher.user', 'students']); 
+        $room->load(['teacher.user', 'students']);
 
         return response()->json([
             'teacher' => $room->teacher ? $room->teacher->user : null,
@@ -192,14 +275,13 @@ class RoomController extends Controller
 
     public function students($roomId)
     {
-        $room = \App\Models\Room::with(['students' => function ($query) {
+        $room = Room::with(['students' => function ($query) {
             $query->select('users.id', 'users.name', 'users.lrn', 'users.email');
         }])->findOrFail($roomId);
 
         return response()->json($room->students);
     }
 
-    // 🟢 Helper to keep days sorted in order
     private function sortDays($days)
     {
         if (is_string($days)) {
@@ -210,5 +292,12 @@ class RoomController extends Controller
         usort($days, fn($a, $b) => array_search($a, $order) <=> array_search($b, $order));
 
         return json_encode($days);
+    }
+
+    public function show(Room $room)
+    {
+        return response()->json(
+            $room->load(['subject','teacher.user','section','academicYear'])
+        );
     }
 }

@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
   },
   schoolName: {
     fontSize: 22,
-    fontWeight: '900',
-    color: '#0E3B32',
+    fontWeight: '800',
+    color: '#0E5149',
     textAlign: 'center',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
@@ -210,10 +210,11 @@ const styles = StyleSheet.create({
   schoolMotto: {
     fontSize: 20,
     fontStyle: 'italic',
-    color: '#333',
+    color: '#000000',
     textAlign: 'center',
     marginTop: 6,
     marginBottom: 18,
+    fontWeight: "500"
   },
 
   /* ===== Left Footer (Updated to Side-by-Side Layout) ===== */
@@ -230,8 +231,8 @@ const styles = StyleSheet.create({
   },
   leftFooterText: {
     fontSize: 15,
-    color: '#0E3B32',
-    fontWeight: '600',
+    color: '#000000',
+    fontWeight: '500',
     flex: 1,
     textAlign: 'center',
   },
@@ -261,21 +262,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#004d40',
+    color: '#0E5149',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   divider: {
     width: 60,
     height: 3,
-    backgroundColor: '#FFD700',
+    backgroundColor: '#808080',
     marginVertical: 8,
     borderRadius: 3,
   },
   subtitle: {
     fontSize: 14,
-    color: '#444',
-    fontStyle: 'italic',
+    color: '#000000',
+    fontWeight: "500"
   },
   inputGroup: {
     flexDirection: 'row',
@@ -297,15 +298,15 @@ const styles = StyleSheet.create({
     color: '#333' 
   },
   button: {
-    backgroundColor: '#004d40',
+    backgroundColor: '#0E5149',
     paddingVertical: 14,
     borderRadius: 10,
     marginBottom: 16,
   },
   buttonText: {
-    color: '#FFD700',
+    color: '#F7F7F7',
     textAlign: 'center',
-    fontWeight: '800',
+    fontWeight: '700',
     fontSize: 16,
     textTransform: 'uppercase',
   },
@@ -318,14 +319,16 @@ const styles = StyleSheet.create({
   quoteText: {
     fontSize: 13,
     fontStyle: 'italic',
-    color: '#333',
+    color: '#000000',
     textAlign: 'center',
+    fontWeight: "500"
   },
   footer: {
     textAlign: 'center',
-    color: '#004d40',
+    color: '#000000',
     fontSize: 12,
     marginTop: 10,
+    fontWeight: "500"
   },
   errorText: {
     color: 'red',
@@ -344,7 +347,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderTopWidth: 3,
     borderLeftWidth: 3,
-    borderColor: '#004d40',
+    borderColor: '#0E5149',
     borderTopLeftRadius: 4,
   },
   decorTopRight: {
@@ -355,7 +358,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderTopWidth: 3,
     borderRightWidth: 3,
-    borderColor: '#FFD700',
+    borderColor: '#808080',
     borderTopRightRadius: 4,
   },
   decorBottomLeft: {
@@ -366,7 +369,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderBottomWidth: 3,
     borderLeftWidth: 3,
-    borderColor: '#FFD700',
+    borderColor: '#808080',
     borderBottomLeftRadius: 4,
   },
   decorBottomRight: {
@@ -377,7 +380,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderBottomWidth: 3,
     borderRightWidth: 3,
-    borderColor: '#004d40',
+    borderColor: '#0E5149',
     borderBottomRightRadius: 4,
   },
 });

@@ -113,7 +113,7 @@ export default function AssignmentDetail({ material, onBack, isDarkMode }) {
           <Text
             style={[
               styles.backText,
-              { color: isDarkMode ? "#FFD700" : "#007bff" },
+              { color: isDarkMode ? "#FFD700" : "#000000" },
             ]}
           >
             ⬅ Back
@@ -148,7 +148,7 @@ export default function AssignmentDetail({ material, onBack, isDarkMode }) {
             <Text
               style={[
                 styles.actionBtn,
-                { color: isDarkMode ? "#32CD32" : "#007bff" },
+                { color: isDarkMode ? "#000000" : "#000000" },
               ]}
             >
               👁 Preview
@@ -161,7 +161,7 @@ export default function AssignmentDetail({ material, onBack, isDarkMode }) {
             <Text
               style={[
                 styles.actionBtn,
-                { color: isDarkMode ? "#32CD32" : "#007bff" },
+                { color: isDarkMode ? "#32CD32" : "#000000" },
               ]}
             >
               ⬇ Download

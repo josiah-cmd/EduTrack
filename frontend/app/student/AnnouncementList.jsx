@@ -1,24 +1,29 @@
 /* eslint-disable */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import RenderHTML from "react-native-render-html"; // ✅ NEW for CKEditor HTML
-import api from "../lib/axios"; // ✅ use your axios instance
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import RenderHTML from "react-native-render-html";
+import api from "../lib/axios";
 
-export default function AnnouncementList({ token }) {
+export default function AnnouncementList({ token, isDarkMode }) {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { width } = useWindowDimensions(); // ✅ needed by RenderHTML
+  const { width } = useWindowDimensions();
 
   const fetchAnnouncements = async () => {
     try {
       const authToken = token || (await AsyncStorage.getItem("token"));
       if (!authToken) throw new Error("No token found");
 
-      // 🔑 Fetch announcements using axios instance
       const res = await api.get("/announcements");
-
       setAnnouncements(res.data);
     } catch (err) {
       console.error("❌ Fetch error:", err.response?.data || err.message);
@@ -44,18 +49,43 @@ export default function AnnouncementList({ token }) {
       data={announcements}
       keyExtractor={(item) => item.id.toString()}
       renderItem={({ item }) => (
-        <View style={styles.card}>
-          {/* ✅ If content has HTML, render with RenderHTML, else fallback */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDarkMode ? "#808080" : "#ffffff",
+              borderColor: isDarkMode ? "#333" : "#000000",
+            },
+          ]}
+        >
           {item.content?.includes("<") ? (
             <RenderHTML
               contentWidth={width}
-              source={{ html: item.content || ""}}
-              baseStyle={styles.content}
+              source={{ html: item.content || "" }}
+              baseStyle={{
+                fontSize: 16,
+                fontWeight: "500",
+                marginBottom: 5,
+                color: isDarkMode ? "#F7F7F7" : "#000000",
+              }}
             />
           ) : (
-            <Text style={styles.content}>{item.content}</Text>
+            <Text
+              style={[
+                styles.content,
+                { color: isDarkMode ? "#F7F7F7" : "#000000" },
+              ]}
+            >
+              {item.content}
+            </Text>
           )}
-          <Text style={styles.meta}>
+
+          <Text
+            style={[
+              styles.meta,
+              { color: isDarkMode ? "#F7F7F7" : "#000000" },
+            ]}
+          >
             Posted by {item.user?.name || "Unknown"} •{" "}
             {new Date(item.created_at).toLocaleDateString()}
           </Text>
@@ -63,10 +93,17 @@ export default function AnnouncementList({ token }) {
       )}
       ListEmptyComponent={
         <View style={styles.center}>
-          <Text style={{ color: "gray" }}>No Announcements</Text>
+          <Text
+            style={{
+              color: isDarkMode ? "#F7F7F7" : "#000000",
+              fontWeight: "500",
+            }}
+          >
+            No Announcements
+          </Text>
         </View>
       }
-      contentContainerStyle={{ paddingBottom: 30 }} // ✅ prevents last card from being cut off
+      contentContainerStyle={{ paddingBottom: 30 }}
     />
   );
 }
@@ -79,7 +116,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#808080",
     padding: 15,
     marginVertical: 6,
     borderRadius: 10,
@@ -90,9 +127,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "white",
     marginBottom: 5,
+    fontWeight: "500",
   },
   meta: {
     fontSize: 12,
-    color: "gray",
+    color: "black",
+    fontWeight: "500",
   },
 });

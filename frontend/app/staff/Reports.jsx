@@ -1,16 +1,6 @@
 import { Picker } from "@react-native-picker/picker";
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Dimensions,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Dimensions, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import api from "../lib/axios";
 
@@ -67,12 +57,12 @@ export default function Reports({ isDarkMode }) {
   const gradeAnalyticsY = useRef(0);
 
   // color palette following RoomForm pattern
-  const textColor = isDarkMode ? "#ffffff" : "#064e3b";
-  const subTextColor = isDarkMode ? "#ffd700" : "#555555";
-  const cardBg = isDarkMode ? "#1a1a1a" : "#f2f2f2";
-  const borderColor = isDarkMode ? "#ffd700" : "#10b981";
-  const pickerBg = isDarkMode ? "#065f46" : "#ffffff";
-  const inputBg = isDarkMode ? "#065f46" : "#ffffff";
+  const textColor = isDarkMode ? "#ffffff" : "#000000";
+  const subTextColor = isDarkMode ? "#F7F7F7" : "#000000";
+  const cardBg = isDarkMode ? "#808080" : "#f2f2f2";
+  const borderColor = isDarkMode ? "#F7F7F7" : "#000000";
+  const pickerBg = isDarkMode ? "#0E5149" : "#000000";
+  const inputBg = isDarkMode ? "#0E5149" : "#ffffff";
   const primaryBtnBg = "#10b981";
   const verifiedColor = "#4CAF50";
   const unverifiedColor = "#F44336";
@@ -262,8 +252,8 @@ export default function Reports({ isDarkMode }) {
   return (
     <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
       <View style={{ padding: 15 }}>
-        <Text style={[styles.title, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Reports</Text>
-        <Text style={[styles.subtitle, { color: isDarkMode ? "#fff" : "#555555" }]}>Academic and performance overview</Text>
+        <Text style={[styles.title, { color: isDarkMode ? "#F7F7F7" : "#000000", fontWeight: "500" }]}>Reports</Text>
+        <Text style={[styles.subtitle, { color: isDarkMode ? "#fff" : "#000000", fontWeight: "500" }]}>Academic and performance overview</Text>
 
         {/* Tabs */}
         <View style={[styles.tabsContainer]}>
@@ -284,7 +274,7 @@ export default function Reports({ isDarkMode }) {
         {/* Filters */}
         <View style={[styles.filterCard, { backgroundColor: cardBg, borderColor: borderColor }]}>
           <TouchableOpacity onPress={() => setFilterOpen((s) => !s)} style={styles.filterHeader}>
-            <Text style={[{ fontWeight: "700", fontSize: 16 }, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>
+            <Text style={[{ fontWeight: "700", fontSize: 16 }, { color: isDarkMode ? "#F7F7F7" : "#000000" }]}>
               Filters {filterOpen ? "▾" : "▸"}
             </Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -301,73 +291,73 @@ export default function Reports({ isDarkMode }) {
             <View style={{ paddingTop: 12 }}>
               <View style={styles.filterRow}>
                 <View style={styles.filterCol}>
-                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Subject</Text>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#000000" }]}>Subject</Text>
                   <View style={[styles.pickerWrap, { backgroundColor: pickerBg, borderColor }]}>
                     <Picker
                       selectedValue={subjectFilter}
                       onValueChange={(v) => setSubjectFilter(v)}
                       style={styles.picker(isDarkMode)}
-                      dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"}
+                      dropdownIconColor={isDarkMode ? "#ffd700" : "#000000"}
                     >
-                      <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#10b981"} />
+                      <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#000000"} />
                       {subjectsOptions.map((s) => (
-                        <Picker.Item key={s.id || s.name} label={s.name || s.title || s.subject_name} value={s.name || s.title || s.subject_name} color={isDarkMode ? "#fff" : "#064e3b"} />
+                        <Picker.Item key={s.id || s.name} label={s.name || s.title || s.subject_name} value={s.name || s.title || s.subject_name} color={isDarkMode ? "#fff" : "#000000"} />
                       ))}
                       {subjects.map((sub, i) => (
-                        <Picker.Item key={`auto-${i}`} label={sub} value={sub} color={isDarkMode ? "#fff" : "#064e3b"} />
+                        <Picker.Item key={`auto-${i}`} label={sub} value={sub} color={isDarkMode ? "#fff" : "#000000"} />
                       ))}
                     </Picker>
                   </View>
                 </View>
 
                 <View style={styles.filterCol}>
-                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Section</Text>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#000000" }]}>Section</Text>
                   <View style={[styles.pickerWrap, { backgroundColor: pickerBg, borderColor }]}>
                     <Picker
                       selectedValue={sectionFilter}
                       onValueChange={(v) => setSectionFilter(v)}
                       style={styles.picker(isDarkMode)}
-                      dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"}
+                      dropdownIconColor={isDarkMode ? "#ffd700" : "#000000"}
                     >
                       <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#10b981"} />
                       {sectionsOptions.map((s) => (
-                        <Picker.Item key={s.id || s.name} label={s.name || s.title} value={s.name || s.title} color={isDarkMode ? "#fff" : "#064e3b"} />
+                        <Picker.Item key={s.id || s.name} label={s.name || s.title} value={s.name || s.title} color={isDarkMode ? "#fff" : "#000000"} />
                       ))}
                     </Picker>
                   </View>
                 </View>
 
                 <View style={styles.filterCol}>
-                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Teacher</Text>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#000000" }]}>Teacher</Text>
                   <View style={[styles.pickerWrap, { backgroundColor: pickerBg, borderColor }]}>
                     <Picker
                       selectedValue={teacherFilter}
                       onValueChange={(v) => setTeacherFilter(v)}
                       style={styles.picker(isDarkMode)}
-                      dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"}
+                      dropdownIconColor={isDarkMode ? "#ffd700" : "#000000"}
                     >
                       <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#10b981"} />
                       {teachersOptions.map((t) => (
-                        <Picker.Item key={t.id} label={t.user?.name || t.name} value={t.user?.name || t.name} color={isDarkMode ? "#fff" : "#064e3b"} />
+                        <Picker.Item key={t.id} label={t.user?.name || t.name} value={t.user?.name || t.name} color={isDarkMode ? "#fff" : "#000000"} />
                       ))}
                     </Picker>
                   </View>
                 </View>
 
                 <View style={styles.filterCol}>
-                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Quarter</Text>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#000000" }]}>Quarter</Text>
                   <View style={[styles.pickerWrap, { backgroundColor: pickerBg, borderColor }]}>
                     <Picker
                       selectedValue={quarterFilter}
                       onValueChange={(v) => setQuarterFilter(v)}
                       style={styles.picker(isDarkMode)}
-                      dropdownIconColor={isDarkMode ? "#ffd700" : "#064e3b"}
+                      dropdownIconColor={isDarkMode ? "#ffd700" : "#000000"}
                     >
                       <Picker.Item label="All" value="All" color={isDarkMode ? "#ffd700" : "#10b981"} />
-                      <Picker.Item label="Q1" value="Q1" color={isDarkMode ? "#fff" : "#064e3b"} />
-                      <Picker.Item label="Q2" value="Q2" color={isDarkMode ? "#fff" : "#064e3b"} />
-                      <Picker.Item label="Q3" value="Q3" color={isDarkMode ? "#fff" : "#064e3b"} />
-                      <Picker.Item label="Q4" value="Q4" color={isDarkMode ? "#fff" : "#064e3b"} />
+                      <Picker.Item label="Q1" value="Q1" color={isDarkMode ? "#fff" : "#000000"} />
+                      <Picker.Item label="Q2" value="Q2" color={isDarkMode ? "#fff" : "#000000"} />
+                      <Picker.Item label="Q3" value="Q3" color={isDarkMode ? "#fff" : "#000000"} />
+                      <Picker.Item label="Q4" value="Q4" color={isDarkMode ? "#fff" : "#000000"} />
                     </Picker>
                   </View>
                 </View>
@@ -375,10 +365,10 @@ export default function Reports({ isDarkMode }) {
 
               <View style={[styles.filterRow, { marginTop: 12 }]}>
                 <View style={[styles.filterCol, { flex: 1.5 }]}>
-                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Date From</Text>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#000000" }]}>Date From</Text>
                   <TextInput
                     placeholder="YYYY-MM-DD"
-                    placeholderTextColor={isDarkMode ? "#ffd700" : "#999"}
+                    placeholderTextColor={isDarkMode ? "#F7F7F7" : "#999"}
                     value={dateFrom}
                     onChangeText={setDateFrom}
                     style={[styles.inputSmall, { color: textColor, backgroundColor: inputBg, borderColor }]}
@@ -386,10 +376,10 @@ export default function Reports({ isDarkMode }) {
                 </View>
 
                 <View style={[styles.filterCol, { flex: 1.5 }]}>
-                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Date To</Text>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#000000" }]}>Date To</Text>
                   <TextInput
                     placeholder="YYYY-MM-DD"
-                    placeholderTextColor={isDarkMode ? "#ffd700" : "#999"}
+                    placeholderTextColor={isDarkMode ? "#F7F7F7" : "#999"}
                     value={dateTo}
                     onChangeText={setDateTo}
                     style={[styles.inputSmall, { color: textColor, backgroundColor: inputBg, borderColor }]}
@@ -397,13 +387,13 @@ export default function Reports({ isDarkMode }) {
                 </View>
 
                 <View style={[styles.filterCol, { flex: 2 }]}>
-                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#064e3b" }]}>Search (Name or LRN)</Text>
+                  <Text style={[styles.filterLabel, { color: isDarkMode ? "#fff" : "#000000" }]}>Search (Name or LRN)</Text>
                   <TextInput
                     placeholder="Search by student name or LRN..."
-                    placeholderTextColor={isDarkMode ? "#ffd700" : "#999"}
+                    placeholderTextColor={isDarkMode ? "#F7F7F7" : "#999"}
                     value={searchTerm}
                     onChangeText={setSearchTerm}
-                    style={[styles.input, { color: textColor, backgroundColor: isDarkMode ? "#fff" : "#fff" }]}
+                    style={[styles.input, { color: textColor, backgroundColor: isDarkMode ? "#0E5149" : "#fff" }]}
                   />
                 </View>
               </View>
@@ -429,10 +419,10 @@ export default function Reports({ isDarkMode }) {
 
         {/* Performance Section */}
         <View onLayout={(e) => { perfY.current = e.nativeEvent.layout.y; }} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Student Performance Report</Text>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#F7F7F7" : "#000000" }]}>Student Performance Report</Text>
 
           <View style={styles.columnToggleRow}>
-            <Text style={{ color: isDarkMode ? "#fff" : "#555", marginRight: 8 }}>Columns:</Text>
+            <Text style={{ color: isDarkMode ? "#fff" : "#000000", marginRight: 8 }}>Columns:</Text>
             {Object.keys(perfColumns).map((k) => (
               <TouchableOpacity
                 key={k}
@@ -442,7 +432,7 @@ export default function Reports({ isDarkMode }) {
                   { backgroundColor: perfColumns[k] ? primaryBtnBg : (isDarkMode ? "#2b2b2b" : "#eee") },
                 ]}
               >
-                <Text style={{ color: perfColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#555"), fontSize: 12 }}>
+                <Text style={{ color: perfColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#000000"), fontSize: 12 }}>
                   {k.charAt(0).toUpperCase() + k.slice(1)}
                 </Text>
               </TouchableOpacity>
@@ -478,10 +468,10 @@ export default function Reports({ isDarkMode }) {
 
         {/* Attendance Section */}
         <View onLayout={(e) => { attendY.current = e.nativeEvent.layout.y; }} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Attendance Records</Text>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#F7F7F7" : "#000000" }]}>Attendance Records</Text>
 
           <View style={styles.columnToggleRow}>
-            <Text style={{ color: isDarkMode ? "#fff" : "#555", marginRight: 8 }}>Columns:</Text>
+            <Text style={{ color: isDarkMode ? "#fff" : "#000000", marginRight: 8 }}>Columns:</Text>
             {Object.keys(attColumns).map((k) => (
               <TouchableOpacity
                 key={k}
@@ -491,7 +481,7 @@ export default function Reports({ isDarkMode }) {
                   { backgroundColor: attColumns[k] ? primaryBtnBg : (isDarkMode ? "#2b2b2b" : "#eee") },
                 ]}
               >
-                <Text style={{ color: attColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#555"), fontSize: 12 }}>
+                <Text style={{ color: attColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#000000"), fontSize: 12 }}>
                   {k.charAt(0).toUpperCase() + k.slice(1)}
                 </Text>
               </TouchableOpacity>
@@ -521,7 +511,7 @@ export default function Reports({ isDarkMode }) {
 
         {/* Grade Distribution Chart */}
         <View onLayout={(e) => { gradeAnalyticsY.current = e.nativeEvent.layout.y; }} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Grade Distribution</Text>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#F7F7F7" : "#000000" }]}>Grade Distribution</Text>
           {subjects.length > 0 ? (
             <BarChart
               data={{
@@ -538,7 +528,7 @@ export default function Reports({ isDarkMode }) {
                 backgroundGradientTo: cardBg,
                 decimalPlaces: 1,
                 color: (opacity = 1) => `rgba(16,185,129, ${opacity})`, // primary green, matches RoomForm btn
-                labelColor: () => (isDarkMode ? "#ffd700" : "#064e3b"),
+                labelColor: () => (isDarkMode ? "#ffd700" : "#000000"),
               }}
               style={{ borderRadius: 16 }}
             />
@@ -549,10 +539,10 @@ export default function Reports({ isDarkMode }) {
 
         {/* Completion Rates */}
         <View onLayout={(e) => { completionY.current = e.nativeEvent.layout.y; }} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#ffd700" : "#064e3b" }]}>Subject Completion Rates</Text>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#F7F7F7" : "#000000" }]}>Subject Completion Rates</Text>
 
           <View style={styles.columnToggleRow}>
-            <Text style={{ color: isDarkMode ? "#fff" : "#555", marginRight: 8 }}>Columns:</Text>
+            <Text style={{ color: isDarkMode ? "#fff" : "#000000", marginRight: 8, fontWeight: "500" }}>Columns:</Text>
             {Object.keys(compColumns).map((k) => (
               <TouchableOpacity
                 key={k}
@@ -562,7 +552,7 @@ export default function Reports({ isDarkMode }) {
                   { backgroundColor: compColumns[k] ? primaryBtnBg : (isDarkMode ? "#2b2b2b" : "#eee") },
                 ]}
               >
-                <Text style={{ color: compColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#555"), fontSize: 12 }}>
+                <Text style={{ color: compColumns[k] ? "#fff" : (isDarkMode ? "#ffd700" : "#000000"), fontSize: 12 }}>
                   {k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                 </Text>
               </TouchableOpacity>
@@ -618,12 +608,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: "#006400",
+    backgroundColor: "#808080",
     marginRight: 8,
   },
   tabText: {
     color: "#fff",
-    fontWeight: "700",
+    fontWeight: "500",
     fontSize: 13,
   },
 
@@ -640,14 +630,14 @@ const styles = StyleSheet.create({
   },
   resetBtn: {
     marginLeft: 8,
-    backgroundColor: "#888",
+    backgroundColor: "#0E5149",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   applyBtn: {
     marginLeft: 8,
-    backgroundColor: "#10b981",
+    backgroundColor: "#0E5149",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -673,8 +663,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   picker: (isDarkMode) => ({
-    color: isDarkMode ? "#ffd700" : "#064e3b",
-    backgroundColor: isDarkMode ? "#065f46" : "#ffffff",
+    color: isDarkMode ? "#F7F7F7" : "#000000",
+    backgroundColor: isDarkMode ? "#0E5149" : "#ffffff",
     fontSize: 15,
     height: 55,
     paddingHorizontal: 10,
@@ -708,10 +698,12 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 13,
+    fontWeight: "500"
   },
   summaryValue: {
     fontSize: 18,
     fontWeight: "bold",
+    fontWeight: "500"
   },
 
   card: {
@@ -723,7 +715,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "500",
     marginBottom: 10,
   },
 
@@ -739,11 +731,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   th: {
-    fontWeight: "700",
+    fontWeight: "500",
     fontSize: 14,
   },
   td: {
     fontSize: 14,
+    fontWeight: "500"
   },
   emptyText: {
     textAlign: "center",

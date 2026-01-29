@@ -85,8 +85,8 @@ export default function AttendanceForm({ room, isDarkMode }) {
   );
 
   return (
-    <View style={[styles.container, isDarkMode && { backgroundColor: "#121212", borderColor: "#333" }]}>
-      <Text style={[styles.header, { color: isDarkMode ? "#FFD700" : "#000" }]}>
+    <View style={[styles.container, isDarkMode && { backgroundColor: "#808080", borderColor: "#333" }]}>
+      <Text style={[styles.header, { color: isDarkMode ? "#F7F7F7" : "#000" }]}>
         Record Attendance
       </Text>
 
@@ -110,7 +110,7 @@ export default function AttendanceForm({ room, isDarkMode }) {
           placeholder="🔍 Search by LRN or Name"
           style={[
             styles.searchInput,
-            isDarkMode && { backgroundColor: "#333", color: "#fff" },
+            isDarkMode && { backgroundColor: "#0E5149", color: "#fff" },
           ]}
         />
       </View>
@@ -118,11 +118,11 @@ export default function AttendanceForm({ room, isDarkMode }) {
       <ScrollView horizontal style={styles.tableContainer}>
         <View style={{ width: 820 }}>
           <View style={[styles.tableHeader, isDarkMode && { backgroundColor: "#333" }]}>
-            <Text style={[styles.th, { flex: 1, color: "#FFD700" }]}>#</Text>
-            <Text style={[styles.th, { flex: 1.3, color: "#FFD700" }]}>LRN</Text>
-            <Text style={[styles.th, { flex: 2, color: "#FFD700" }]}>Student Name</Text>
-            <Text style={[styles.th, { flex: 1, color: "#FFD700" }]}>Status</Text>
-            <Text style={[styles.th, { flex: 2, color: "#FFD700" }]}>Notes</Text>
+            <Text style={[styles.th, { flex: 1, color: "#F7F7F7" }]}>#</Text>
+            <Text style={[styles.th, { flex: 1.3, color: "#F7F7F7" }]}>LRN</Text>
+            <Text style={[styles.th, { flex: 2, color: "#F7F7F7" }]}>Student Name</Text>
+            <Text style={[styles.th, { flex: 1, color: "#F7F7F7" }]}>Status</Text>
+            <Text style={[styles.th, { flex: 2, color: "#F7F7F7" }]}>Notes</Text>
           </View>
 
           {filteredRecords.map((record, index) => (
@@ -177,7 +177,7 @@ export default function AttendanceForm({ room, isDarkMode }) {
       </ScrollView>
 
       <View style={{ flexDirection: "row", justifyContent: "center", gap: 10, marginBottom: 10 }}>
-        <TouchableOpacity style={[styles.batchBtn, { backgroundColor: "#32CD32" }]} onPress={() => markAll("present")}>
+        <TouchableOpacity style={[styles.batchBtn, { backgroundColor: "#0E5149" }]} onPress={() => markAll("present")}>
           <Text style={styles.batchText}>Mark All Present</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.batchBtn, { backgroundColor: "#FF6347" }]} onPress={() => markAll("absent")}>
@@ -193,7 +193,7 @@ export default function AttendanceForm({ room, isDarkMode }) {
         disabled={loading}
         style={[
           styles.saveBtn,
-          { backgroundColor: loading ? "#999" : "#FFD700" },
+          { backgroundColor: loading ? "#999" : "#F7F7F7" },
         ]}
       >
         <Text style={{ fontWeight: "bold", color: "#000" }}>
@@ -203,18 +203,18 @@ export default function AttendanceForm({ room, isDarkMode }) {
 
       <Modal transparent visible={modalVisible} animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDarkMode && { backgroundColor: "#222" }]}>
+          <View style={[styles.modalContent, isDarkMode && { backgroundColor: "#F7F7F7" }]}>
             <Text
               style={{
                 fontSize: 16,
                 textAlign: "center",
-                color: successMsg.includes("✅") ? "#00FF7F" : "#FF6347",
+                color: successMsg.includes("✅") ? "#000000" : "#000000",
               }}
             >
               {successMsg}
             </Text>
             <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: "#FFD700" }]}
+              style={[styles.modalBtn, { backgroundColor: "#90EE90" }]}
               onPress={() => setModalVisible(false)}
             >
               <Text style={{ color: "#000", fontWeight: "600" }}>OK</Text>
